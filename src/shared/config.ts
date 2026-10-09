@@ -13,6 +13,7 @@ const DEFAULT_CONFIG: PluginConfig = {
   // stronger modes are the operator's explicit choice.
   immuneMode: "warn",
   fastbrainJudge: "off",
+  hud: true,
 };
 
 export function getGlobalConfigPath(): string {

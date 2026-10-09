@@ -80,6 +80,7 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           saveConfig({ lang: loc }, isGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, lang: loc };
           ctx.ui.notify(`${liveStrings.langUpdated}${loc}`, "info");
+          void state.refreshDetector?.(ctx, true);
         } else {
           ctx.ui.notify(`${liveStrings.langCurrent}${state.config.lang}`, "info");
         }
@@ -102,6 +103,7 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
             "info",
           );
         }
+        void state.refreshDetector?.(ctx, true);
       } else if (subcommand === "judge") {
         const wantsGlobal = isGlobal || cleanParts.includes("--global");
         const target = cleanParts[1];
@@ -112,21 +114,41 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         } else {
           ctx.ui.notify(`${liveStrings.recallJudgeLabel}: ${state.config.fastbrainJudge}`, "info");
         }
+        void state.refreshDetector?.(ctx, true);
       } else if (subcommand === "immune") {
         const wantsGlobal = isGlobal || cleanParts.includes("--global");
         const target = cleanParts[1];
-        const valid = ["off", "warn", "ask", "auto"];
+        const valid = ["off", "warn", "ask", "auto", "block"];
         if (target && valid.includes(target)) {
-          const mode = target as "off" | "warn" | "ask" | "auto";
+          const mode = target as "off" | "warn" | "ask" | "auto" | "block";
           saveConfig({ immuneMode: mode }, wantsGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, immuneMode: mode };
           ctx.ui.notify(`${liveStrings.immuneModeEnabled}${mode}`, "info");
         } else {
           ctx.ui.notify(
-            `${liveStrings.immuneModeCurrent}${state.config.immuneMode} (off | warn | ask | auto [--global])`,
+            `${liveStrings.immuneModeCurrent}${state.config.immuneMode} (off | warn | ask | auto | block [--global])`,
             "info",
           );
         }
+        void state.refreshDetector?.(ctx, true);
+      } else if (subcommand === "hud") {
+        const wantsGlobal = isGlobal || cleanParts.includes("--global");
+        const target = cleanParts[1];
+        if (target === "on" || target === "true") {
+          saveConfig({ hud: true }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          state.config = { ...state.config, hud: true };
+          ctx.ui.notify(liveStrings.hudEnabled, "info");
+        } else if (target === "off" || target === "false") {
+          saveConfig({ hud: false }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          state.config = { ...state.config, hud: false };
+          ctx.ui.notify(liveStrings.hudDisabled, "info");
+        } else {
+          ctx.ui.notify(
+            `${liveStrings.hudCurrent}${state.config.hud !== false ? "ON" : "OFF"} (on | off [--global])`,
+            "info",
+          );
+        }
+        void state.refreshDetector?.(ctx, true);
       } else if (subcommand === "auto-approve") {
         const target = cleanParts[1];
         if (target === "on" || target === "true") {
@@ -140,6 +162,7 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         } else {
           ctx.ui.notify(`${liveStrings.autoApproveCurrent}${state.config.autoApprove ? "ON" : "OFF"}`, "info");
         }
+        void state.refreshDetector?.(ctx, true);
       } else {
         ctx.ui.notify(liveStrings.cmdUsage, "info");
       }

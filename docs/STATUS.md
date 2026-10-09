@@ -68,8 +68,8 @@ reflex.
 
 ## 3. Baseline numbers
 
-- 165 Rust tests (73 CLI + 87 core + 1 architecture invariant + 4 integration) + 39 TypeScript tests, 0 warnings
-- CLI: 20 commands (added `contracts`); kernel: 17 modules (added `contracts`); plugin: 7 tools, 3 hooks, 3 slash-surface groups
+- 165 Rust tests (73 CLI + 87 core + 1 architecture invariant + 4 integration) + 41 TypeScript tests, 0 warnings
+- CLI: 20 commands; kernel: 17 modules; plugin: 7 tools, 4 hooks (added live detector), 4 slash-surface groups
 - Roadmap tracking: SPAI-001 (native Jev transport), SPAI-003 (contracts - SHIPPED via SPAI-007..010),
   SPAI-004 (OKF v0.3 schema), SPAI-005 (shadow worker), SPAI-006 (deferred tail)
 - Latest commit: see `git log -1` (chain continues from `12e992e`)

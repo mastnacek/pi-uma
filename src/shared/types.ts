@@ -39,14 +39,17 @@ export interface PluginConfig {
   autoApprove: boolean;
   /** Fastbrain recall gate (S3 compromise): OFF — recall stays explicit. */
   recallGate: boolean;
-  /** Immune interceptor mode: off | warn (default) | ask | auto. */
-  immuneMode: "off" | "warn" | "ask" | "auto";
+  /** Immune interceptor mode: off | warn (default) | ask | auto | block. */
+  immuneMode: "off" | "warn" | "ask" | "auto" | "block";
   /** Recall judge transport: "off" (markers) or "jev" (Jev via OpenRouter). */
   fastbrainJudge: "off" | "jev";
+  /** Live detector / HUD widget visible above the status line / editor. */
+  hud: boolean;
 }
 
 export interface ExtensionState {
   config: PluginConfig;
   globalConfigFile: string;
   unsubscribers: Array<() => void>;
+  refreshDetector?: (ctx: any, force?: boolean) => Promise<void>;
 }

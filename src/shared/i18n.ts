@@ -37,6 +37,9 @@ export interface Strings {
   immuneModeEnabled: string;
   immuneModeCurrent: string;
   immuneModeLabel: string;
+  hudEnabled: string;
+  hudDisabled: string;
+  hudCurrent: string;
   descUmaCommand: string;
   scopeGlobal: string;
   scopeProject: string;
@@ -104,6 +107,9 @@ const STRINGS: Record<Locale, Strings> = {
     immuneModeEnabled: "Immune interceptor mode updated: ",
     immuneModeCurrent: "Immune interceptor mode: ",
     immuneModeLabel: "Immune",
+    hudEnabled: "UMA Detector HUD enabled",
+    hudDisabled: "UMA Detector HUD disabled",
+    hudCurrent: "UMA Detector HUD state: ",
     descUmaCommand: "Universal Memory Architecture (UMA) manager",
     scopeGlobal: "Global (all projects)",
     scopeProject: "Project",
@@ -162,6 +168,9 @@ const STRINGS: Record<Locale, Strings> = {
     immuneModeEnabled: "Režim imunního interceptoru nastaven: ",
     immuneModeCurrent: "Režim imunního interceptoru: ",
     immuneModeLabel: "Imunita",
+    hudEnabled: "Detektor UMA HUD zapnut",
+    hudDisabled: "Detektor UMA HUD vypnut",
+    hudCurrent: "Stav detektoru UMA HUD: ",
     descUmaCommand: "Správa paměťového systému UMA",
     scopeGlobal: "Globální (všechny projekty)",
     scopeProject: "Projekt",
