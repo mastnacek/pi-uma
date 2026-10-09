@@ -10,8 +10,9 @@ use std::io::{self, Read};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use uma_core::muscle::{curate_routine, find_routine, run_routine};
+use uma_core::muscle::{curate_routine, find_routine, run_routine, MuscleRoutine};
 use uma_core::secrets;
+use uma_core::store::Store;
 
 use crate::shared::{scope::resolve_scope, store_helper::get_store};
 
@@ -27,6 +28,15 @@ pub enum MuscleCommand {
     Run(RunArgs),
     /// Curate a new routine as a skill fact (operator-curated only)
     New(NewArgs),
+    /// List operator-curated routines (skill facts tagged muscle)
+    List(ListArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct ListArgs {
+    /// Emit as JSON
+    #[arg(long = "json")]
+    pub json: bool,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -66,7 +76,82 @@ pub fn run(args: MuscleArgs) -> Result<()> {
     match args.command {
         MuscleCommand::Run(run) => run_routine_cmd(run),
         MuscleCommand::New(new) => new_routine_cmd(new),
+        MuscleCommand::List(list) => list_routines_cmd(list),
     }
+}
+
+fn list_routines_cmd(args: ListArgs) -> Result<()> {
+    let routines = list_routines()?;
+
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&routines)?);
+        return Ok(());
+    }
+    if routines.is_empty() {
+        println!(
+            "No operator-curated routines. Curate one: uma muscle new <name> --template '<steps json>'"
+        );
+        return Ok(());
+    }
+    println!("Operator-curated muscle routines ({}):\n", routines.len());
+    for r in &routines {
+        println!("  {} — {} step(s)", r.name, r.steps.len());
+        for step in &r.steps {
+            println!("    $ {} {}", step.command, step.args.join(" "));
+        }
+    }
+    println!("\nRun with `uma muscle run <name>` (dry-run) or `--confirm` (execute).");
+    Ok(())
+}
+
+/// Lists every curated routine across project and global skill stores.
+fn list_routines() -> Result<Vec<MuscleRoutine>> {
+    let mut out = Vec::new();
+    let mut roots: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(project) = Store::current_project_name() {
+        if let Ok(store) = Store::project(project) {
+            roots.push(store.root.clone());
+        }
+    }
+    if let Ok(global) = Store::global() {
+        roots.push(global.root.clone());
+    }
+
+    let mut seen_names: Vec<String> = Vec::new();
+    for root in &roots {
+        let skill_dir = root.join("skill");
+        if !skill_dir.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&skill_dir).into_iter().flatten() {
+            if !entry.file_type().is_file()
+                || entry.path().extension().is_none_or(|e| e != "md")
+            {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(entry.path()) else {
+                continue;
+            };
+            let Ok(fact) = uma_core::serialization::markdown_to_fact(&content) else {
+                continue;
+            };
+            if !fact.tags.iter().any(|t| t.eq_ignore_ascii_case("muscle")) {
+                continue;
+            }
+            let Some(ref template) = fact.template else {
+                continue;
+            };
+            let name = fact.title.strip_prefix("muscle:").unwrap_or(&fact.title).to_string();
+            if seen_names.contains(&name) {
+                continue;
+            }
+            if let Ok(routine) = uma_core::muscle::parse_routine(&name, template) {
+                seen_names.push(name);
+                out.push(routine);
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn run_routine_cmd(args: RunArgs) -> Result<()> {
@@ -163,6 +248,15 @@ mod tests {
             panic!("Expected Run");
         };
         assert!(!args.confirm, "run defaults to dry-run");
+    }
+
+    #[test]
+    fn test_muscle_list_args_parsing() {
+        let cli = TestCli::try_parse_from(["test", "list", "--json"]).unwrap();
+        let MuscleCommand::List(args) = cli.command else {
+            panic!("Expected List");
+        };
+        assert!(args.json);
     }
 
     #[test]

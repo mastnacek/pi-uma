@@ -57,7 +57,7 @@ deterministic contracts, probabilistic verdicts may only warn**
 | **02 Shadow brain** (zero-latency mining) | **Shipped**: (a) Telemetry mining on `tool_result` (compiler/test recovery, dependency changes) and `turn_end` (user corrections). (b) Isolated staging area in `.uma/.staging/<ULID>.json`. (c) Live status HUD indicator `✦ N draft(s)`. (d) Full interactive TUI review modal window (`/uma review`) with inline editing and batch approval/discard. | None (full P02 scope completed). |
 | **03 Plasticity & contracts** | **P03a+P03b+P05a Shipped**: (a) Executable contracts: `contract:` frontmatter block, `uma contracts export` / `check`, and CI architecture invariants. (b) OKF v0.3 schema pass: `plasticity:` (weight/reinforcements/decay) and `saliency:` (shock_level/decay-immunity) frontmatter blocks, plus `uma doctor` zombie reaper reporting decaying rules (< 0.25). | None (full P03 scope completed). |
 | **04 Council & prudence** | **ALL FOUR PILLARS SHIPPED**. Pillar I Skeptic (on-demand): kernel `council/` + `uma skeptic check` + `uma_skeptic` tool — Jev devil's advocate with offline pain-proxy fallback; advisory only. Pillar II Pain score: kernel `risk/` + `uma risk pain`. Pillar III Debt Ledger: session-RAM ledger (`uma_debt` + `/uma debt`), auto-capture from Skeptic contract verdicts, capped settle-boundary enforcement on `agent_before_settle`. Pillar IV Epistemic Humility: kernel `council/humility` (Familiarity Index, Jev + offline) + `uma humility check` + `uma_humility` tool (check/confirm) + read-tracking and the `/uma humility on` confirm gate — LOW familiarity requires Read-Only Explorative Mode (≥3 reads + confirmed hypothesis). | None. |
-| **05 Muscle / priming / saliency / dreaming** | **COMPLETE**: (a) **Priming graph**: deterministic association graph (links > shared tags > file co-mention) + spreading activation; recall gate appends pre-activated neighbors tagged `[primed]`. (b) **`uma doctor --dream`**: retrieval practice — Jev question → answer → self-grade; REINFORCE/BLURRED proposals only (live-verified). (c) **`uma_muscle`**: operator-curated action chunks — `uma muscle new` (gated curation), `uma muscle run` dry-run by default, `--confirm` executes with compressed summary (live-verified); decision `01M4DGRW...` amended via supersession `01M4HBX6...` (curated routines + explicit consent only). `saliency` shipped with OKF v0.3. | None. |
+| **05 Muscle / priming / saliency / dreaming** | **COMPLETE + polished**: (a) **Priming graph**: association graph + spreading activation; recall primes neighbors. (b) **`uma doctor --dream`**: Jev retrieval practice, proposals only (live-verified). (c) **`uma_muscle`**: operator-curated chunks, dry-run default, `--confirm` executes (live-verified); decision amended via supersession. (d) **Auto-synthesis**: shadow worker detects repeated 3-command sequences (non-overlapping, 2×, hazard-excluded) and STAGES routine proposals for `/uma review` — never curates itself. (e) **`uma_muscle` Pi tool**: list / dry-run / consented execution (confirm dialog in TUI, fail-closed without a consent surface). `saliency` shipped with OKF v0.3. | None. |
 
 **Summary of the pyramid**: L0 is complete and hardened. L1 exists in its
 advisory half (pain score + rule warnings). L2–L5 are designed, sequenced,
@@ -68,12 +68,13 @@ reflex.
 
 ## 3. Baseline numbers
 
-- **Version 0.6.0** (workspace `Cargo.toml` + `package.json`; verify with `uma --version`)
-- 203 Rust tests (83 CLI + 117 core + 1 architecture invariant + 4 integration) + 54 TypeScript tests, 0 warnings
-- CLI: 24 commands (added `muscle`); kernel: 21 modules (added `priming`, `muscle`); plugin: 10 tools, 8 hooks, 5 slash-surface groups
-- P05 COMPLETE: priming graph SHIPPED, `uma doctor --dream` SHIPPED (live-verified),
-  `uma_muscle` SHIPPED (operator-curated, dry-run default, --confirm executes — live-verified;
-  standing decision 01M4DGRW... amended via supersession 01M4HBX6VZ16ZY4ZPQJMSX8J1W)
+- **Version 0.7.0** (workspace `Cargo.toml` + `package.json`; verify with `uma --version`)
+- 204 Rust tests (84 CLI + 117 core + 1 architecture invariant + 4 integration) + 60 TypeScript tests, 0 warnings
+- CLI: 24 commands; kernel: 21 modules; plugin: 11 tools (added `uma_muscle`), 9 hooks (added muscle synthesis), 5 slash-surface groups
+- P05 COMPLETE: priming graph, `uma doctor --dream`, `uma_muscle` (operator-curated,
+  dry-run default, --confirm executes; decision 01M4DGRW... amended via 01M4HBX6...),
+  PLUS muscle auto-synthesis (shadow worker stages proposals from repeated sequences)
+  and the `uma_muscle` Pi tool (list / dry-run / consented execution, fail-closed)
 - **The cognitive pyramid L0–L5 is complete**: every proposal 01–05 fully implemented.
 - Latest commit: see `git log -1` (chain continues from `12e992e`)
 

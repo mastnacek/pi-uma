@@ -46,6 +46,9 @@ export interface Strings {
   humilityGateEnabled: string;
   humilityGateDisabled: string;
   humilityGateCurrent: string;
+  muscleDialogTitle: string;
+  muscleRunConfirm: string;
+  muscleProposalStaged: string;
   descUmaCommand: string;
   scopeGlobal: string;
   scopeProject: string;
@@ -122,6 +125,9 @@ const STRINGS: Record<Locale, Strings> = {
     humilityGateEnabled: "Humility gate enabled (asks before mutating unfamiliar subsystems)",
     humilityGateDisabled: "Humility gate disabled",
     humilityGateCurrent: "Humility gate state: ",
+    muscleDialogTitle: "⚡ UMA muscle routine",
+    muscleRunConfirm: "Execute muscle routine ",
+    muscleProposalStaged: "💪 Repeated command sequence detected — muscle routine proposal staged for /uma review ({name})",
     descUmaCommand: "Universal Memory Architecture (UMA) manager",
     scopeGlobal: "Global (all projects)",
     scopeProject: "Project",
@@ -189,6 +195,9 @@ const STRINGS: Record<Locale, Strings> = {
     humilityGateEnabled: "Brána pokory zapnuta (ptá se před zásahem do neznámých subsystémů)",
     humilityGateDisabled: "Brána pokory vypnuta",
     humilityGateCurrent: "Stav brány pokory: ",
+    muscleDialogTitle: "⚡ UMA svalová rutina",
+    muscleRunConfirm: "Spustit svalovou rutinu ",
+    muscleProposalStaged: "💪 Detekována opakovaná sekvence příkazů — návrh rutiny staged pro /uma review ({name})",
     descUmaCommand: "Správa paměťového systému UMA",
     scopeGlobal: "Globální (všechny projekty)",
     scopeProject: "Projekt",

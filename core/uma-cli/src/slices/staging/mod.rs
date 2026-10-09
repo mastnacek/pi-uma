@@ -102,6 +102,11 @@ pub struct CreateDraftArgs {
 
     #[arg(long = "tags", value_delimiter = ',')]
     pub tags: Vec<String>,
+
+    /// Invocation template for skill facts (e.g. a muscle routine step list);
+    /// stored as data only — never executed without explicit consent.
+    #[arg(long = "template")]
+    pub template: Option<String>,
 }
 
 fn resolve_store() -> Result<Store> {
@@ -171,6 +176,7 @@ pub fn run(args: StagingArgs) -> Result<()> {
             let project = Store::current_project_name().unwrap_or_else(|| "project".to_string());
             let mut fact = Fact::new(Scope::Project(project), fact_type, create.title, create.body);
             fact.tags = create.tags;
+            fact.template = create.template;
 
             let draft = StagedDraft::new(
                 create.confidence,

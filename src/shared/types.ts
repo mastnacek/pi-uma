@@ -88,4 +88,8 @@ export interface ExtensionState {
     hypothesis?: string;
     reads: string[];
   }>;
+  /** Rolling command history for muscle-synthesis repetition detection. */
+  muscleHistory?: { shapes: string[]; raw: string[] };
+  /** Sequence keys already proposed this session (one proposal per sequence). */
+  muscleProposed?: string[];
 }
