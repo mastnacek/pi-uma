@@ -10,6 +10,12 @@ export function findUmaBinary(cwd: string): string {
   const fallback = isWindows ? "uma-cli.exe" : "uma-cli";
 
   const candidates = [
+    // Consolidated repo layout: the Rust workspace lives in core/.
+    path.join(__dirname, "..", "..", "core", "target", "release", primary),
+    path.join(__dirname, "..", "..", "core", "target", "debug", primary),
+    path.join(__dirname, "..", "core", "target", "release", primary),
+    path.join(__dirname, "..", "core", "target", "debug", primary),
+    path.join(cwd, "core", "target", "release", primary),
     path.join(cwd, "uma", "target", "release", primary),
     path.join(cwd, "uma", "target", "debug", primary),
     path.join(__dirname, "..", "..", "..", "uma", "target", "release", primary),

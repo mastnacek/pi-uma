@@ -37,6 +37,17 @@ pi install D:/01_programovani/pi/plugins/pi-uma
 The `uma` CLI (`mastnacek/ai-memory`) must be on PATH — the extension shells
 out to it for reads and search.
 
+## Repository layout
+
+This repository contains the **complete UMA system** (consolidated from the
+former `mastnacek/ai-memory` monorepo):
+
+- `core/` — the Rust engine and `uma` CLI (`cargo build --release` in `core/`)
+- repo root — the Pi plugin (this package)
+- `skills/uma-memory-pi/` — the shipped Pi skill
+- `docs/` — PRD, proposals, reviews, research, canonical harness-agnostic skill
+- `.uma/` — the project's own memory store
+
 ## Architecture
 
 Vertical Slice Architecture: `src/slices/<feature>/` (each with a README.md

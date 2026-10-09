@@ -1,0 +1,21 @@
+[package]
+name = "uma-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+uma-core = { path = "../uma-core" }
+clap.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+walkdir.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+# Canonical binary name: docs, skills, and agent prompts all say `uma ...`.
+[[bin]]
+name = "uma"
+path = "src/main.rs"
