@@ -70,4 +70,12 @@ export interface ExtensionState {
   globalConfigFile: string;
   unsubscribers: Array<() => void>;
   refreshDetector?: (ctx: any, force?: boolean) => Promise<void>;
+  /** Session-scoped Prospective Debt Ledger (Proposal 04, Pillar III). */
+  debts?: Array<{
+    id: string;
+    sourceAction: string;
+    requiredAction: string;
+    blocking: boolean;
+    createdAt: number;
+  }>;
 }

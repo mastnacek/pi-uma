@@ -56,7 +56,7 @@ deterministic contracts, probabilistic verdicts may only warn**
 | **01 Cognitive immune system** (interceptor) | **Shipped**: (a) **Block-mode** for deterministic contract-backed rules (`severity: deny`) in `auto`/`block` modes — fails closed before writing to disk and returns synthetic self-correction guidance to the agent. (b) **Warn/Confirm mode** for heuristic containment and file pain scores. | Jev-per-edit advisory (System 1 model classification) beyond deterministic ast-grep AST invariants. |
 | **02 Shadow brain** (zero-latency mining) | **Shipped**: (a) Telemetry mining on `tool_result` (compiler/test recovery, dependency changes) and `turn_end` (user corrections). (b) Isolated staging area in `.uma/.staging/<ULID>.json`. (c) Live status HUD indicator `✦ N draft(s)`. (d) Full interactive TUI review modal window (`/uma review`) with inline editing and batch approval/discard. | None (full P02 scope completed). |
 | **03 Plasticity & contracts** | **P03a+P03b+P05a Shipped**: (a) Executable contracts: `contract:` frontmatter block, `uma contracts export` / `check`, and CI architecture invariants. (b) OKF v0.3 schema pass: `plasticity:` (weight/reinforcements/decay) and `saliency:` (shock_level/decay-immunity) frontmatter blocks, plus `uma doctor` zombie reaper reporting decaying rules (< 0.25). | None (full P03 scope completed). |
-| **04 Council & prudence** | **Pillar I Skeptic SHIPPED** (on-demand): kernel `council/` + `uma skeptic check` + `uma_skeptic` tool — Jev devil's advocate (failure mode / devil_objection / risk_level / advice) with deterministic offline pain-proxy fallback; advisory only, never blocks. **Pain score** (the deterministic Pillar II): kernel `risk/` + `uma risk pain` — corrections ×15 (cap 45), reverts ×20 (cap 60), churn ×2 (cap 20); bands low/medium/critical. | Pillar III debt ledger, Pillar IV epistemic-humility mode — remaining SPAI-006 tail. |
+| **04 Council & prudence** | **Pillar I Skeptic SHIPPED** (on-demand): kernel `council/` + `uma skeptic check` + `uma_skeptic` tool — Jev devil's advocate (failure mode / devil_objection / risk_level / advice) with deterministic offline pain-proxy fallback; advisory only, never blocks. **Pain score** (the deterministic Pillar II): kernel `risk/` + `uma risk pain`. **Pillar III Debt Ledger SHIPPED**: session-RAM `ProspectiveDebt` ledger (`uma_debt` add/settle/list + `/uma debt`), auto-capture from Skeptic `breaking_public_contract` verdicts, settle-boundary enforcement on `agent_before_settle` (capped continuation reminders — the agent cannot quietly finish with open blocking debts). | Pillar IV epistemic-humility mode — remaining SPAI-006 tail. |
 | **05 Muscle / priming / saliency / dreaming** | Nothing yet. `saliency` is folded into the SPAI-004 schema pass. | Muscle routines must be operator-curated (auto-synthesis proposal-only — they collide with the "skills expand, never execute" decision); priming graph and `doctor --dream` deferred. |
 
 **Summary of the pyramid**: L0 is complete and hardened. L1 exists in its
@@ -68,13 +68,14 @@ reflex.
 
 ## 3. Baseline numbers
 
-- **Version 0.3.0** (workspace `Cargo.toml` + `package.json`; verify with `uma --version`)
-- 182 Rust tests (78 CLI + 99 core incl. live Jev skeptic + 1 architecture invariant + 4 integration) + 44 TypeScript tests, 0 warnings
-- CLI: 22 commands (added `skeptic`); kernel: 19 modules (added `council`); plugin: 8 tools (added `uma_skeptic`), 5 hooks, 5 slash-surface groups
+- **Version 0.4.0** (workspace `Cargo.toml` + `package.json`; verify with `uma --version`)
+- 182 Rust tests (78 CLI + 99 core incl. live Jev skeptic + 1 architecture invariant + 4 integration) + 48 TypeScript tests (incl. debt ledger policy), 0 warnings
+- CLI: 22 commands; kernel: 19 modules; plugin: 9 tools (added `uma_debt`), 6 hooks (added debt settle-boundary enforcement), 5 slash-surface groups (+`/uma debt`)
 - Roadmap tracking: SPAI-001 (CANCELLED — OpenRouter `typesafe/jev-router` IS the canonical transport),
   SPAI-002 (live consolidate check - DONE, clean verdict), SPAI-003 (contracts - SHIPPED),
   SPAI-004 (OKF v0.3 - SHIPPED), SPAI-005 (shadow worker + Jev distillation - SHIPPED),
-  SPAI-006 (Internal Council: Pillar I Skeptic SHIPPED; Pillar III debt ledger + P05 muscle/priming/dreaming remaining)
+  SPAI-006 (Internal Council: Pillar I Skeptic SHIPPED, Pillar III Debt Ledger SHIPPED;
+  Pillar IV epistemic humility + P05 muscle/priming/dreaming remaining)
 - Latest commit: see `git log -1` (chain continues from `12e992e`)
 
 ---

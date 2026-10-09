@@ -121,6 +121,8 @@ export function formatDetectorLine(
   const recallLabel = `⚡ recall:${state.config.recallGate ? `on [${state.config.fastbrainJudge}]` : "off"}`;
   const gateLabel = `🔒 gate:${state.config.autoApprove ? "auto" : "modal"}`;
   const storeLabel = `📁 ${probe.projectScope} (${probe.factsCount} facts)`;
+  const blockingDebts = (state.debts ?? []).filter((d) => d.blocking).length;
+  const debtLabel = blockingDebts > 0 ? `📋 ${blockingDebts} debt(s)` : undefined;
   const draftsLabel = probe.draftsCount > 0 ? `✦ ${probe.draftsCount} draft(s)` : undefined;
 
   const parts = [
@@ -130,6 +132,9 @@ export function formatDetectorLine(
     gateLabel,
     storeLabel,
   ];
+  if (debtLabel) {
+    parts.push(debtLabel);
+  }
   if (draftsLabel) {
     parts.push(draftsLabel);
   }

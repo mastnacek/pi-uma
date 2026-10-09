@@ -40,6 +40,8 @@ export interface Strings {
   hudEnabled: string;
   hudDisabled: string;
   hudCurrent: string;
+  debtAutoCaptured: string;
+  debtStillOpen: string;
   descUmaCommand: string;
   scopeGlobal: string;
   scopeProject: string;
@@ -110,6 +112,8 @@ const STRINGS: Record<Locale, Strings> = {
     hudEnabled: "UMA Detector HUD enabled",
     hudDisabled: "UMA Detector HUD disabled",
     hudCurrent: "UMA Detector HUD state: ",
+    debtAutoCaptured: "📋 Cognitive debt auto-recorded from the Skeptic verdict (see /uma debt or uma_debt list)",
+    debtStillOpen: "Blocking cognitive debts still open: ",
     descUmaCommand: "Universal Memory Architecture (UMA) manager",
     scopeGlobal: "Global (all projects)",
     scopeProject: "Project",
@@ -171,6 +175,8 @@ const STRINGS: Record<Locale, Strings> = {
     hudEnabled: "Detektor UMA HUD zapnut",
     hudDisabled: "Detektor UMA HUD vypnut",
     hudCurrent: "Stav detektoru UMA HUD: ",
+    debtAutoCaptured: "📋 Kognitivní dluh automaticky zapsán z verdiktu Skeptika (viz /uma debt nebo uma_debt list)",
+    debtStillOpen: "Otevřené blokující kognitivní dluhy: ",
     descUmaCommand: "Správa paměťového systému UMA",
     scopeGlobal: "Globální (všechny projekty)",
     scopeProject: "Projekt",

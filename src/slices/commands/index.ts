@@ -175,6 +175,33 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           ctx.ui.notify(`${liveStrings.autoApproveCurrent}${state.config.autoApprove ? "ON" : "OFF"}`, "info");
         }
         void state.refreshDetector?.(ctx, true);
+      } else if (subcommand === "debt") {
+        const action = cleanParts[1]?.toLowerCase();
+        const ledger = (state.debts = state.debts ?? []);
+        if (action === "settle" && cleanParts[2]) {
+          const idx = ledger.findIndex((d) => d.id === cleanParts[2]);
+          if (idx >= 0) {
+            ledger.splice(idx, 1);
+            ctx.ui.notify(`Debt ${cleanParts[2]} settled.`, "info");
+          } else {
+            ctx.ui.notify(`No open debt ${cleanParts[2]}.`, "warning");
+          }
+        } else if (action === "clear") {
+          const n = ledger.length;
+          ledger.length = 0;
+          ctx.ui.notify(`Cleared ${n} debt(s).`, "info");
+        } else {
+          if (ledger.length === 0) {
+            ctx.ui.notify("Prospective Debt Ledger is empty — no open debts.", "info");
+          } else {
+            const lines = ledger.map(
+              (d) => `${d.id}${d.blocking ? " [BLOCKING]" : ""}: ${d.sourceAction} → ${d.requiredAction}`,
+            );
+            ctx.ui.notify(`Open debts (${ledger.length}):
+${lines.join("\n")}`, "info");
+          }
+        }
+        void state.refreshDetector?.(ctx, true);
       } else {
         ctx.ui.notify(liveStrings.cmdUsage, "info");
       }
