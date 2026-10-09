@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   assessEdit,
+  checkContractRules,
+  decideImmuneAction,
   extractEdit,
+  type ContractBreach,
   type PainVerdict,
   type RuleL1,
 } from "../src/slices/immune/index.ts";
@@ -86,32 +89,87 @@ test("extractEdit reads write and edit shapes", () => {
   assert.equal(extractEdit("write", { content: "no path" }), undefined);
 });
 
-import { decideImmuneAction } from "../src/slices/immune/index.ts";
-
-const warnings = ["[UMA Risk] Pain score 25/100 — run the affected tests after editing."];
-
-test("mode policy: off and warn never block", () => {
-  assert.deepEqual(decideImmuneAction("off", warnings), { kind: "allow" });
-  const warn = decideImmuneAction("warn", warnings);
-  assert.equal(warn.kind, "notify");
-  assert.ok(warn.kind === "notify" && warn.message.includes("25/100"));
-});
-
-test("mode policy: ask proposes through a confirm; a decline blocks", () => {
-  const ask = decideImmuneAction("ask", warnings);
-  assert.equal(ask.kind, "confirm");
-});
-
-test("mode policy: auto asks today (heuristics may not veto silently)", () => {
-  // The recorded decision: auto-blocking is reserved for contract-backed
-  // rules. Until contracts exist, auto must NOT return a silent block.
-  const auto = decideImmuneAction("auto", warnings);
-  assert.equal(auto.kind, "confirm");
-  assert.ok(auto.kind === "confirm" && auto.message.includes("blocks only contract-backed rules"));
-});
-
 test("no warnings means allow in every mode", () => {
   for (const mode of ["off", "warn", "ask", "auto"] as const) {
     assert.deepEqual(decideImmuneAction(mode, []), { kind: "allow" });
   }
+});
+
+const vsaContractRule: RuleL1 = {
+  id: "01M4D7S5",
+  title: "Strict Vertical Slice Architecture",
+  fact_type: "decision",
+  body: "Slices must never import each other.",
+  contract: {
+    engine: "ast-grep",
+    severity: "deny",
+    rule: {
+      pattern: "use crate::slices::$$$REST;",
+      inside: "src/slices/**",
+      message: "Inviolable VSA Rule: Slices must NEVER import each other directly! Use uma-core or src/shared.",
+      language: "rust",
+    },
+  },
+};
+
+test("checkContractRules: detects forbidden cross-slice import in slices folder", () => {
+  const badEdit = "use crate::slices::doctor::checks::inspect_index;\n\npub fn outcome() {}";
+  const breaches = checkContractRules([vsaContractRule], "uma-cli/src/slices/search/outcome.rs", badEdit);
+
+  assert.equal(breaches.length, 1);
+  assert.equal(breaches[0].factId, "01M4D7S5");
+  assert.equal(breaches[0].severity, "deny");
+  assert.ok(breaches[0].ruleMessage.includes("Inviolable VSA Rule"));
+});
+
+test("checkContractRules: clean import in slices folder does not breach", () => {
+  const cleanEdit = "use crate::shared::format::print_fact;\n\npub fn outcome() {}";
+  const breaches = checkContractRules([vsaContractRule], "uma-cli/src/slices/search/outcome.rs", cleanEdit);
+
+  assert.equal(breaches.length, 0);
+});
+
+test("checkContractRules: path outside 'inside' glob is exempt from the contract", () => {
+  const badEdit = "use crate::slices::doctor::checks::inspect_index;";
+  // Allowed in main or tests outside src/slices
+  const breaches = checkContractRules([vsaContractRule], "uma-cli/src/main.rs", badEdit);
+
+  assert.equal(breaches.length, 0);
+});
+
+test("mode policy: auto mode triggers hard block when contract is breached", () => {
+  const breach: ContractBreach = {
+    factId: "01M4D7S5",
+    title: "Strict Vertical Slice Architecture",
+    ruleMessage: "Inviolable VSA Rule: Slices must NEVER import each other directly!",
+    severity: "deny",
+    pattern: "use crate::slices::$$$REST;",
+    file: "src/slices/search/outcome.rs",
+  };
+
+  const action = decideImmuneAction("auto", [], [breach]);
+  assert.equal(action.kind, "block");
+  assert.ok(action.kind === "block" && action.reason.includes("[UMA Immune System Block]"));
+  assert.ok(action.kind === "block" && action.reason.includes("01M4D7S5"));
+  assert.ok(action.kind === "block" && action.reason.includes("Inviolable VSA Rule"));
+});
+
+test("mode policy: ask and warn modes respect operator choice on contract breach", () => {
+  const breach: ContractBreach = {
+    factId: "01M4D7S5",
+    title: "Strict Vertical Slice Architecture",
+    ruleMessage: "Inviolable VSA Rule",
+    severity: "deny",
+    pattern: "use crate::slices::$$$REST;",
+    file: "src/slices/search/outcome.rs",
+  };
+
+  const askAction = decideImmuneAction("ask", [], [breach]);
+  assert.equal(askAction.kind, "confirm");
+
+  const warnAction = decideImmuneAction("warn", [], [breach]);
+  assert.equal(warnAction.kind, "notify");
+
+  const offAction = decideImmuneAction("off", [], [breach]);
+  assert.equal(offAction.kind, "allow");
 });

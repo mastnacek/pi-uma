@@ -53,9 +53,9 @@ deterministic contracts, probabilistic verdicts may only warn**
 
 | Proposal | Shipped | Remaining |
 | :--- | :--- | :--- |
-| **01 Cognitive immune system** (interceptor) | **Warn-mode**: before every `write`/`edit`, the interceptor warns from (a) the file's pain score and (b) vocabulary overlap against active rules (L1 cache, 10-min TTL). Fail-silent, 5s bounds, UI-only. | **Block-mode** — deliberately NOT implemented: gated on P03a deterministic contracts, never on probabilistic verdicts (recorded decision). Jev-per-edit advisory not yet wired. |
+| **01 Cognitive immune system** (interceptor) | **Shipped**: (a) **Block-mode** for deterministic contract-backed rules (`severity: deny`) in `auto`/`block` modes — fails closed before writing to disk and returns synthetic self-correction guidance to the agent. (b) **Warn/Confirm mode** for heuristic containment and file pain scores. | Jev-per-edit advisory (System 1 model classification) beyond deterministic ast-grep AST invariants. |
 | **02 Shadow brain** (zero-latency mining) | Nothing yet. Telemetry triggers studied; S9 session mining is the offline precursor. | SPAI-005: turn_end/tool_result capture → `.uma/.staging/` drafts → `ctx.ui.setStatus` indicator → `/uma review` batch consent. |
-| **03 Plasticity & contracts** | Nothing yet (the approval-gate test-locked pattern is the design precedent). | SPAI-003: `contract:` frontmatter → ast-grep export → generated `architecture_invariants.rs` + `uma contracts check`; block-mode only for contract-backed rules. SPAI-004: `plasticity:` + `saliency:` schema v0.3; doctor zombie report proposes, never auto-archives. |
+| **03 Plasticity & contracts** | **P03a Executable contracts shipped**: `contract:` frontmatter block in OKF schema, `uma contracts export` generating `.uma/contracts/sgconfig.yml` and rule YAMLs, `uma contracts check` (ast-grep scan), and `tests/architecture_invariants.rs` in `cargo test`. Live contract attached to decision `01M4D7S5` (Strict VSA). | SPAI-004: `plasticity:` + `saliency:` schema v0.3; doctor zombie report proposes, never auto-archives. |
 | **04 Council & prudence** | **Pain score** (the deterministic Pillar II): kernel `risk/` + `uma risk pain` — corrections ×15 (cap 45), reverts ×20 (cap 60), churn ×2 (cap 20); bands low/medium/critical with band-specific guidance. Live: all repo files currently low. | Pillar I skeptic (on-demand only), Pillar III debt ledger, Pillar IV epistemic-humility mode — SPAI-006 (deferred). |
 | **05 Muscle / priming / saliency / dreaming** | Nothing yet. `saliency` is folded into the SPAI-004 schema pass. | Muscle routines must be operator-curated (auto-synthesis proposal-only — they collide with the "skills expand, never execute" decision); priming graph and `doctor --dream` deferred. |
 
@@ -68,9 +68,9 @@ reflex.
 
 ## 3. Baseline numbers
 
-- 158 Rust tests (64 CLI + 90 core + 4 integration) + 21 TypeScript tests, 0 warnings
-- CLI: 19 commands; kernel: 16 modules; plugin: 7 tools, 3 hooks, 3 slash-surface groups
-- Roadmap tracking: SPAI-001 (native Jev transport), SPAI-003 (contracts),
+- 165 Rust tests (73 CLI + 87 core + 1 architecture invariant + 4 integration) + 39 TypeScript tests, 0 warnings
+- CLI: 20 commands (added `contracts`); kernel: 17 modules (added `contracts`); plugin: 7 tools, 3 hooks, 3 slash-surface groups
+- Roadmap tracking: SPAI-001 (native Jev transport), SPAI-003 (contracts - SHIPPED via SPAI-007..010),
   SPAI-004 (OKF v0.3 schema), SPAI-005 (shadow worker), SPAI-006 (deferred tail)
 - Latest commit: see `git log -1` (chain continues from `12e992e`)
 

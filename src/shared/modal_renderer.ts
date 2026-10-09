@@ -115,6 +115,11 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
   if (proposal.template) {
     chain.push(`${theme.fg("muted", "⌘ " + s.templateLabel + ":")} ${theme.fg("dim", proposal.template)}`);
   }
+  if (proposal.contract) {
+    chain.push(
+      `${theme.fg("muted", "⚙ contract:")} ${theme.fg("warning", `${proposal.contract.engine} [${proposal.contract.severity}]`)}`,
+    );
+  }
   for (const chip of chain) lines.push(row(`  ${chip}`));
   lines.push(row(""));
 

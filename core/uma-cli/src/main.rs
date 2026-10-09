@@ -35,6 +35,9 @@ enum Commands {
     /// Rewrite existing markdown files into the OKF v0.2 frontmatter format
     Migrate(slices::migrate::MigrateArgs),
 
+    /// Executable AST invariant contracts: export sgconfig.yml and check codebase invariants
+    Contracts(slices::contracts::ContractsArgs),
+
     /// Propose merges for near-duplicate facts and flag contradicting facts
     Consolidate(slices::consolidate::ConsolidateArgs),
 
@@ -85,6 +88,7 @@ fn main() -> Result<()> {
         Commands::Search(args) => slices::search::run(args),
         Commands::Supersede(args) => slices::supersede::run(args),
         Commands::Migrate(args) => slices::migrate::run(args),
+        Commands::Contracts(args) => slices::contracts::run(args),
         Commands::Consolidate(args) => slices::consolidate::run(args),
         Commands::Skill(args) => slices::skill::run(args),
         Commands::Mcp(args) => slices::mcp::run(args),

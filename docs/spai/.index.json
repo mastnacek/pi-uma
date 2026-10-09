@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-08 23:15:49",
+  "lastUpdated": "2026-10-09 20:39:54",
   "records": [
     {
       "id": "SPAI-001",
@@ -40,8 +40,8 @@
       "id": "SPAI-003",
       "title": "P03a executable contracts: contract: frontmatter block → ast-grep rule export (.uma/contracts/sgconfig.yml) → generated architecture_invariants.rs + `uma contracts check`; block-mode for the immune interceptor ONLY for contract-backed rules",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-08 23:15:05",
       "tags": [
         "roadmap",
@@ -107,6 +107,81 @@
       "project": "ai-memory",
       "projectPath": "D:/01_programovani/ai-memory",
       "file": "2026-10-08-SPAI-006-deferred-p04-skeptic-on-demand-debt-ledger-epistem.md"
+    },
+    {
+      "id": "SPAI-007",
+      "title": "P03a.1 OKF Contract Schema: add contract struct to domain.rs, serialization.rs and TS types",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-09 20:15:44",
+      "tags": [
+        "roadmap",
+        "p03a",
+        "contracts",
+        "schema"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-09-SPAI-007-p03a1-okf-contract-schema-add-contract-struct-to-d.md"
+    },
+    {
+      "id": "SPAI-008",
+      "title": "P03a.2 CLI uma contracts: generate .uma/contracts/ rules, architecture_invariants.rs and uma contracts check",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-09 20:15:54",
+      "tags": [
+        "roadmap",
+        "p03a",
+        "contracts",
+        "cli",
+        "ast-grep"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-09-SPAI-008-p03a2-cli-uma-contracts-generate-umacontracts-rule.md"
+    },
+    {
+      "id": "SPAI-009",
+      "title": "P03a.3 Immune Interceptor Block-Mode: evaluate deterministic contracts on tool_call and enforce hard blocking in auto/block modes",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-09 20:15:57",
+      "tags": [
+        "roadmap",
+        "p03a",
+        "immune",
+        "interceptor",
+        "block-mode"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-09-SPAI-009-p03a3-immune-interceptor-block-mode-evaluate-deter.md"
+    },
+    {
+      "id": "SPAI-010",
+      "title": "P03a.4 Live VSA Invariant & End-to-End Tests: add contract to 01M4D7S5, wire cargo test and unit tests for block vs ask",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-09 20:16:00",
+      "tags": [
+        "roadmap",
+        "p03a",
+        "contracts",
+        "testing",
+        "vsa"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-09-SPAI-010-p03a4-live-vsa-invariant-end-to-end-tests-add-cont.md"
     }
   ]
 }

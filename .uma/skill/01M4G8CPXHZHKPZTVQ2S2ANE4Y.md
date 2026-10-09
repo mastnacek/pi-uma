@@ -8,7 +8,7 @@ tags:
   - verification
   - workflow
   - testing
-status: stable
+status: deprecated
 supersedes: 01M4DHDXNDBTKHKNKXY8K21484
 generated:
   by: pi-agent/1.1
@@ -17,6 +17,7 @@ verified:
   - by: "human:operator"
     at: "2026-10-09T11:57:18.641096500+00:00"
 since: "2026-10-08T10:37:32.205831500+00:00"
+until: "2026-10-09T13:34:02.345380700+00:00"
 ---
 ### Context
 The UMA Pi plugin now lives in its own repository

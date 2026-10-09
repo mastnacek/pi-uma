@@ -1,3 +1,16 @@
+export interface ContractRule {
+  pattern: string;
+  inside?: string;
+  message: string;
+  language?: string;
+}
+
+export interface ContractDefinition {
+  engine: string;
+  severity: "deny" | "warn";
+  rule: ContractRule;
+}
+
 export interface MemoryProposal {
   title: string;
   body: string;
@@ -8,6 +21,8 @@ export interface MemoryProposal {
   supersedes?: string;
   /** Invocation template for `skill` facts. Displayed for review; never executed. */
   template?: string;
+  /** Executable AST invariant contract (Proposal 03a). */
+  contract?: ContractDefinition;
   /** ISO 8601 date/timestamp after which the claim needs re-verification. */
   stale_after?: string;
   /** ISO 8601 date/timestamp when the claim started to hold (imports). */

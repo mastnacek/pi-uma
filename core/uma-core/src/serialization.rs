@@ -1,4 +1,7 @@
-use crate::domain::{ActorEvent, Fact, FactId, FactStatus, FactType, Scope, Validity};
+use crate::domain::{
+    ActorEvent, Contract, ContractRule, ContractSeverity, Fact, FactId, FactStatus, FactType,
+    Scope, Validity,
+};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use hashlink::LinkedHashMap;
@@ -36,6 +39,40 @@ pub fn fact_to_markdown(fact: &Fact) -> Result<String> {
                 Yaml::String("template".to_string()),
                 Yaml::String(template.clone()),
             );
+        }
+        if let Some(ref contract) = fact.contract {
+            let mut contract_map = LinkedHashMap::new();
+            contract_map.insert(
+                Yaml::String("engine".to_string()),
+                Yaml::String(contract.engine.clone()),
+            );
+            contract_map.insert(
+                Yaml::String("severity".to_string()),
+                Yaml::String(contract.severity.to_string()),
+            );
+            let mut rule_map = LinkedHashMap::new();
+            rule_map.insert(
+                Yaml::String("pattern".to_string()),
+                Yaml::String(contract.rule.pattern.clone()),
+            );
+            if let Some(ref inside) = contract.rule.inside {
+                rule_map.insert(
+                    Yaml::String("inside".to_string()),
+                    Yaml::String(inside.clone()),
+                );
+            }
+            rule_map.insert(
+                Yaml::String("message".to_string()),
+                Yaml::String(contract.rule.message.clone()),
+            );
+            if let Some(ref lang) = contract.rule.language {
+                rule_map.insert(
+                    Yaml::String("language".to_string()),
+                    Yaml::String(lang.clone()),
+                );
+            }
+            contract_map.insert(Yaml::String("rule".to_string()), Yaml::Hash(rule_map));
+            map.insert(Yaml::String("contract".to_string()), Yaml::Hash(contract_map));
         }
         if !fact.tags.is_empty() {
             map.insert(
@@ -217,6 +254,36 @@ pub fn markdown_to_fact(content: &str) -> Result<Fact> {
     let scope = parse_scope(scope_str).context("Invalid scope")?;
     let fact_type = FactType::from_str(type_str).context("Invalid fact type")?;
 
+    let contract = if !yaml["contract"].is_badvalue() && yaml["contract"].as_hash().is_some() {
+        let engine = yaml["contract"]["engine"]
+            .as_str()
+            .unwrap_or("ast-grep")
+            .to_string();
+        let severity_str = yaml["contract"]["severity"].as_str().unwrap_or("deny");
+        let severity =
+            ContractSeverity::from_str(severity_str).unwrap_or(ContractSeverity::Deny);
+        let rule_node = &yaml["contract"]["rule"];
+        if let Some(pattern) = rule_node["pattern"].as_str() {
+            let inside = rule_node["inside"].as_str().map(String::from);
+            let message = rule_node["message"].as_str().unwrap_or("").to_string();
+            let language = rule_node["language"].as_str().map(String::from);
+            Some(Contract {
+                engine,
+                severity,
+                rule: ContractRule {
+                    pattern: pattern.to_string(),
+                    inside,
+                    message,
+                    language,
+                },
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     Ok(Fact {
         id,
         scope,
@@ -224,6 +291,7 @@ pub fn markdown_to_fact(content: &str) -> Result<Fact> {
         title,
         description,
         template,
+        contract,
         body: body.to_string(),
         status,
         supersedes,

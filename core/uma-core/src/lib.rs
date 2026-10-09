@@ -1,4 +1,5 @@
 pub mod consolidate;
+pub mod contracts;
 pub mod domain;
 pub mod embeddings;
 pub mod fastbrain;
@@ -17,7 +18,9 @@ pub mod vector_store;
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::{Fact, FactType, Scope};
+    use crate::domain::{
+        Contract, ContractRule, ContractSeverity, Fact, FactType, Scope,
+    };
     use crate::serialization::{fact_to_markdown, markdown_to_fact};
     use crate::store::Store;
     use tempfile::tempdir;
@@ -39,6 +42,47 @@ mod tests {
         assert_eq!(fact.fact_type, parsed.fact_type);
         assert_eq!(fact.title, parsed.title);
         assert_eq!(fact.body, parsed.body);
+        assert!(parsed.contract.is_none());
+    }
+
+    #[test]
+    fn test_fact_with_contract_serialization_roundtrip() {
+        let mut fact = Fact::new(
+            Scope::Project("pi-uma".to_string()),
+            FactType::Decision,
+            "Strict Vertical Slice Architecture".to_string(),
+            "Feature slices must never import each other.".to_string(),
+        );
+        fact.contract = Some(Contract {
+            engine: "ast-grep".to_string(),
+            severity: ContractSeverity::Deny,
+            rule: ContractRule {
+                pattern: "use crate::slices::$$$REST;".to_string(),
+                inside: Some("src/slices/**".to_string()),
+                message: "Inviolable VSA Rule: Slices must NEVER import each other directly!".to_string(),
+                language: Some("rust".to_string()),
+            },
+        });
+
+        let markdown = fact_to_markdown(&fact).unwrap();
+        assert!(markdown.contains("contract:"));
+        assert!(markdown.contains("engine: ast-grep"));
+        assert!(markdown.contains("severity: deny"));
+        assert!(markdown.contains("pattern: \"use crate::slices::$$$REST;\""));
+
+        let parsed = markdown_to_fact(&markdown).unwrap();
+        assert_eq!(fact.id, parsed.id);
+        assert_eq!(fact.title, parsed.title);
+        let parsed_contract = parsed.contract.expect("contract must be parsed");
+        assert_eq!(parsed_contract.engine, "ast-grep");
+        assert_eq!(parsed_contract.severity, ContractSeverity::Deny);
+        assert_eq!(parsed_contract.rule.pattern, "use crate::slices::$$$REST;");
+        assert_eq!(parsed_contract.rule.inside.as_deref(), Some("src/slices/**"));
+        assert_eq!(
+            parsed_contract.rule.message,
+            "Inviolable VSA Rule: Slices must NEVER import each other directly!"
+        );
+        assert_eq!(parsed_contract.rule.language.as_deref(), Some("rust"));
     }
 
     #[test]

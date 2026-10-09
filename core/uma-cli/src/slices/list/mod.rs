@@ -52,6 +52,7 @@ pub fn run(args: ListArgs) -> Result<()> {
                     "scope": fact.scope.to_string(),
                     "tags": fact.tags,
                     "body": fact.body,
+                    "contract": fact.contract,
                 })
             })
             .collect();

@@ -94,6 +94,9 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
     // Inherit like type/scope/tags: a revision must never silently drop the
     // invocation template, or the skill would stop being invokable.
     new_fact.template = args.template.or_else(|| old_fact.template.clone());
+    // Inherit executable AST contract: a revision restates the architectural rule
+    // and must not silently strip its CI invariants or immune block-mode.
+    new_fact.contract = old_fact.contract.clone();
     // Same for the validity deadline — but a re-verification SHOULD pass a new
     // one, or the revision inherits a date that may already have passed.
     new_fact.validity.stale_after = match args.stale_after {

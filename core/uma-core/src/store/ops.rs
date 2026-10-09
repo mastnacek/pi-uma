@@ -167,6 +167,24 @@ impl Store {
         Ok(facts)
     }
 
+    /// Lists all facts in this store regardless of scope or type.
+    pub fn list_all(&self) -> Result<Vec<Fact>> {
+        let mut facts = Vec::new();
+        if !self.root.exists() {
+            return Ok(facts);
+        }
+        for entry in WalkDir::new(&self.root).into_iter().flatten() {
+            if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "md") {
+                let content = std::fs::read_to_string(entry.path())?;
+                if let Ok(fact) = markdown_to_fact(&content) {
+                    facts.push(fact);
+                }
+            }
+        }
+        facts.sort_by(|a, b| b.validity.since.cmp(&a.validity.since));
+        Ok(facts)
+    }
+
     /// Deletes a fact from disk and, for canonical stores, from the shared index.
     pub fn delete(&self, scope: &Scope, fact_type: &FactType, id: &FactId) -> Result<()> {
         let path = self.fact_path(scope, fact_type, id);

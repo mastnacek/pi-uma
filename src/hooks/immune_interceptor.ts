@@ -15,6 +15,7 @@ import { runUma, findUmaBinary } from "../shared/client.js";
 import { stringsFor } from "../shared/i18n.js";
 import {
   assessEdit,
+  checkContractRules,
   decideImmuneAction,
   extractEdit,
   type PainVerdict,
@@ -99,7 +100,8 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
         fetchRules(ctx.cwd),
       ]);
       const warnings = assessEdit(pain, rules, edit.added);
-      const action = decideImmuneAction(mode, warnings);
+      const breaches = checkContractRules(rules, edit.path, edit.added);
+      const action = decideImmuneAction(mode, warnings, breaches);
 
       switch (action.kind) {
         case "allow":

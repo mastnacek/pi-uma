@@ -12,6 +12,8 @@
  * in the composition root, per the hook-purity rule.
  */
 
+import type { ContractDefinition } from "../../shared/types.js";
+
 /** Verdict of `uma risk pain <path> --json`. */
 export interface PainVerdict {
   score: number;
@@ -24,6 +26,17 @@ export interface RuleL1 {
   title: string;
   fact_type: string;
   body: string;
+  contract?: ContractDefinition;
+}
+
+/** Specific contract breach detected during an edit. */
+export interface ContractBreach {
+  factId: string;
+  title: string;
+  ruleMessage: string;
+  severity: "deny" | "warn";
+  pattern: string;
+  file: string;
 }
 
 /** Everything the interceptor needs from the outside, injectable for tests. */
@@ -117,6 +130,98 @@ export type ImmuneAction =
   | { kind: "confirm"; message: string }
   | { kind: "block"; reason: string };
 
+/** Converts a simple ast-grep pattern into a regular expression. */
+export function patternToRegex(pattern: string): RegExp {
+  const multiVars: string[] = [];
+  let intermediate = pattern.replace(/\$\$\$([A-Z0-9_]+)/g, (_m, name) => {
+    multiVars.push(name);
+    return `__UMA_MULTI_${multiVars.length - 1}__`;
+  });
+
+  const singleVars: string[] = [];
+  intermediate = intermediate.replace(/\$([A-Z0-9_]+)/g, (_m, name) => {
+    singleVars.push(name);
+    return `__UMA_SINGLE_${singleVars.length - 1}__`;
+  });
+
+  let escaped = intermediate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  for (let i = 0; i < multiVars.length; i++) {
+    escaped = escaped.replace(`__UMA_MULTI_${i}__`, "[^;\\n]*?");
+  }
+  for (let i = 0; i < singleVars.length; i++) {
+    escaped = escaped.replace(`__UMA_SINGLE_${i}__`, "[a-zA-Z0-9_.:]+(?:\\([^)]*\\))?");
+  }
+
+  escaped = escaped.replace(/\\\s+/g, "\\s+");
+  return new RegExp(escaped, "m");
+}
+
+/** Matches a file path against a contract's `inside` glob pattern. */
+export function pathMatchesInside(inside: string, filePath: string): boolean {
+  const normPath = filePath.replace(/\\/g, "/");
+  const normInside = inside.replace(/\\/g, "/");
+
+  if (normInside.endsWith("/**")) {
+    const prefix = normInside.slice(0, -3);
+    return normPath.startsWith(prefix) || normPath.includes(`/${prefix}`) || normPath.includes(prefix);
+  }
+  if (normInside.includes("*")) {
+    const regexStr = "^" + normInside.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$";
+    try {
+      return new RegExp(regexStr).test(normPath);
+    } catch {
+      return normPath.includes(normInside.replace(/\*/g, ""));
+    }
+  }
+  return normPath.includes(normInside);
+}
+
+/** Checks active contract-backed rules against a proposed edit. */
+export function checkContractRules(
+  rules: RuleL1[],
+  filePath: string,
+  addedText: string,
+): ContractBreach[] {
+  const breaches: ContractBreach[] = [];
+
+  for (const rule of rules) {
+    const contract = rule.contract;
+    if (!contract || !contract.rule || !contract.rule.pattern) continue;
+
+    if (contract.rule.inside && !pathMatchesInside(contract.rule.inside, filePath)) {
+      continue;
+    }
+
+    try {
+      const rx = patternToRegex(contract.rule.pattern);
+      if (rx.test(addedText)) {
+        breaches.push({
+          factId: rule.id,
+          title: rule.title,
+          ruleMessage: contract.rule.message || `Violated contract pattern: ${contract.rule.pattern}`,
+          severity: contract.severity || "deny",
+          pattern: contract.rule.pattern,
+          file: filePath,
+        });
+      }
+    } catch {
+      if (addedText.includes(contract.rule.pattern.replace(/[$^]/g, ""))) {
+        breaches.push({
+          factId: rule.id,
+          title: rule.title,
+          ruleMessage: contract.rule.message,
+          severity: contract.severity || "deny",
+          pattern: contract.rule.pattern,
+          file: filePath,
+        });
+      }
+    }
+  }
+
+  return breaches;
+}
+
 /**
  * Pure mode policy (testable without pi):
  * - off:    the interceptor does not run
@@ -124,28 +229,45 @@ export type ImmuneAction =
  * - ask:    show each warning set as a confirm dialog; a decline BLOCKS the
  *           tool call with the reason — the operator consented to the block,
  *           the AI proposed it, which is the consent model intact
- * - auto:   block without asking. Until deterministic contract-backed rules
- *           exist (proposal 03), every verdict here is heuristic, and the
- *           recorded decision says a heuristic verdict may not silently veto
- *           work — so auto currently behaves like ask and says so in the
- *           dialog. When contracts land, auto blocks contract violations
- *           outright and still asks for heuristic ones.
+ * - auto:   deterministic contract violations block outright; heuristic warnings ask
+ * - block:  alias for auto / strict block mode
  */
 export function decideImmuneAction(
-  mode: "off" | "warn" | "ask" | "auto",
+  mode: "off" | "warn" | "ask" | "auto" | "block",
   warnings: string[],
+  breaches: ContractBreach[] = [],
 ): ImmuneAction {
+  if (mode === "off") return { kind: "allow" };
+
+  if (breaches.length > 0) {
+    const breachMessages = breaches
+      .map(
+        (b) =>
+          `[UMA Immune System Block]: Your proposed change in '${b.file}' violates active memory contract [${b.factId}] "${b.title}". Rule: ${b.ruleMessage}. Revise your implementation to comply with this constraint.`,
+      )
+      .join("\n\n");
+
+    if (mode === "auto" || mode === "block") {
+      return { kind: "block", reason: breachMessages };
+    }
+    if (mode === "ask") {
+      return { kind: "confirm", message: breachMessages };
+    }
+    if (mode === "warn") {
+      return { kind: "notify", message: breachMessages };
+    }
+  }
+
   if (warnings.length === 0) return { kind: "allow" };
   const message = warnings.join("\n");
 
   switch (mode) {
-    case "off":
-      return { kind: "allow" };
     case "warn":
       return { kind: "notify", message };
     case "ask":
       return { kind: "confirm", message };
     case "auto":
+    case "block":
       return {
         kind: "confirm",
         message:

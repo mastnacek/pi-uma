@@ -8,6 +8,14 @@ tags:
   - architecture
   - rust
   - design
+contract:
+  engine: "ast-grep"
+  severity: "deny"
+  rule:
+    pattern: "use crate::slices::$$$REST;"
+    inside: "src/slices/**"
+    message: "Inviolable VSA Rule: Slices must NEVER import each other directly! Use uma-core or src/shared."
+    language: "rust"
 status: stable
 generated:
   by: pi-agent/1.1

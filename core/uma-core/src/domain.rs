@@ -186,6 +186,49 @@ impl Default for Validity {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ContractSeverity {
+    Deny,
+    Warn,
+}
+
+impl fmt::Display for ContractSeverity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ContractSeverity::Deny => write!(f, "deny"),
+            ContractSeverity::Warn => write!(f, "warn"),
+        }
+    }
+}
+
+impl std::str::FromStr for ContractSeverity {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "deny" => Ok(ContractSeverity::Deny),
+            "warn" => Ok(ContractSeverity::Warn),
+            other => anyhow::bail!("Unknown contract severity: {}", other),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContractRule {
+    pub pattern: String,
+    pub inside: Option<String>,
+    pub message: String,
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Contract {
+    pub engine: String,
+    pub severity: ContractSeverity,
+    pub rule: ContractRule,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Fact {
     pub id: FactId,
@@ -196,6 +239,9 @@ pub struct Fact {
     /// Invocation template for `skill` facts. Placeholders are written `{{name}}`.
     /// It is data only — UMA expands it and prints the result, but never executes it.
     pub template: Option<String>,
+    /// Executable AST invariant contract (Proposal 03a). When present with severity=deny,
+    /// it gates the cognitive immune interceptor block-mode and generates CI integration tests.
+    pub contract: Option<Contract>,
     pub body: String,
     pub status: FactStatus,
     pub supersedes: Option<FactId>,
@@ -215,6 +261,7 @@ impl Fact {
             title,
             description: None,
             template: None,
+            contract: None,
             body,
             status: FactStatus::Stable,
             supersedes: None,
