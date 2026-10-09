@@ -1,5 +1,6 @@
 pub mod consolidate;
 pub mod contracts;
+pub mod council;
 pub mod domain;
 pub mod embeddings;
 pub mod fastbrain;

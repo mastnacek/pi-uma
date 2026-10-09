@@ -36,14 +36,14 @@ struct ChatMessage {
     content: String,
 }
 
-fn api_key() -> Result<String> {
+pub(crate) fn api_key() -> Result<String> {
     crate::embeddings::resolve_api_key()
         .filter(|key| !key.is_empty())
         .context("No OpenRouter API key found (env OPENROUTER_API_KEY or ~/.pi/agent/auth.json)")
 }
 
 /// One chat completion with a JSON-schema response format.
-fn complete(schema_name: &str, schema: serde_json::Value, user_payload: String) -> Result<String> {
+pub(crate) fn complete(schema_name: &str, schema: serde_json::Value, user_payload: String) -> Result<String> {
     let key = api_key()?;
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
@@ -94,7 +94,7 @@ fn complete(schema_name: &str, schema: serde_json::Value, user_payload: String) 
         .context("OpenRouter returned no choices")
 }
 
-fn truncate(text: &str, width: usize) -> String {
+pub(crate) fn truncate(text: &str, width: usize) -> String {
     if text.chars().count() <= width {
         text.to_string()
     } else {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-09 22:46:15",
+  "lastUpdated": "2026-10-09 23:02:23",
   "records": [
     {
       "id": "SPAI-001",
@@ -23,8 +23,8 @@
       "id": "SPAI-002",
       "title": "Run `uma consolidate --scope mozek_rust --judge jev` on the 2 Czech fact bodies as a live semantic check of the contradiction judge, then record the verdict in memory",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-08 22:45:08",
       "tags": [
         "consolidate",
@@ -94,8 +94,8 @@
       "id": "SPAI-006",
       "title": "Deferred: P04 skeptic on-demand + debt ledger + epistemic-humility mode; P05 muscle routines (operator-curated only, auto-synthesis proposal-only) + priming graph + doctor --dream retrieval practice. Speculative tail — revisit after P03a+P02 land",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "working",
+      "symbol": "/",
       "timestamp": "2026-10-08 23:15:49",
       "tags": [
         "roadmap",

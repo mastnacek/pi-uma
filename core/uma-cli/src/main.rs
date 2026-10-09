@@ -79,6 +79,9 @@ enum Commands {
 
     /// Staging area for shadow worker drafts: list, inspect, approve, or discard
     Staging(slices::staging::StagingArgs),
+
+    /// Internal Council: consult the adversarial Skeptic before risky work (read-only)
+    Skeptic(slices::skeptic::SkepticArgs),
 }
 
 fn main() -> Result<()> {
@@ -106,5 +109,6 @@ fn main() -> Result<()> {
         Commands::Sessions(args) => slices::sessions::run(args),
         Commands::Import(args) => slices::import::run(args),
         Commands::Staging(args) => slices::staging::run(args),
+        Commands::Skeptic(args) => slices::skeptic::run(args),
     }
 }

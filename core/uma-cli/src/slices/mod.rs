@@ -11,6 +11,7 @@ pub mod recall;
 pub mod risk;
 pub mod scopes;
 pub mod search;
+pub mod skeptic;
 pub mod secrets;
 pub mod sessions;
 pub mod skill;
