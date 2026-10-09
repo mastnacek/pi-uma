@@ -21,6 +21,7 @@ import { runUma, findUmaBinary } from "../../shared/client.js";
 import {
   buildRecallMessage,
   formatGateDecision,
+  isDegradedNote,
   type RecallVerdict,
 } from "./policy.js";
 
@@ -66,10 +67,12 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
 
       const verdict = JSON.parse(output.stdout) as RecallVerdict;
       // The operator sees the decision: what was asked, what the judge
-      // answered, what happens next. UI-only — the model never sees this.
+      // answered, what happens next. Only genuine degradations warn; normal
+      // model provenance is informative.
+      const isWarning = isDegradedNote(verdict.note);
       ctx.ui.notify(
         formatGateDecision(event.prompt, verdict, lang),
-        verdict.note ? "warning" : "info",
+        isWarning ? "warning" : "info",
       );
       return buildRecallMessage(verdict, lang);
     } catch {

@@ -78,48 +78,89 @@ function elide(text: string, width: number): string {
   return `${single.slice(0, width - 1)}…`;
 }
 
+/** Checks whether a verdict note represents a degraded/fallback condition. */
+export function isDegradedNote(note: string | null | undefined): boolean {
+  if (!note) return false;
+  const lower = note.toLowerCase();
+  return (
+    lower.includes("unavailable") ||
+    lower.includes("degraded") ||
+    lower.includes("fail") ||
+    lower.includes("error") ||
+    lower.includes("timeout") ||
+    lower.includes("fallback")
+  );
+}
+
+function czechFactCount(count: number): string {
+  if (count === 1) return "1 faktum";
+  if (count >= 2 && count <= 4) return `${count} fakta`;
+  return `${count} faktů`;
+}
+
 /**
- * Formats the gate's decision as the console report: what was asked, what
- * the judge answered, and what happens next. One compact block per turn —
- * observability the operator asked for, without becoming the context noise
- * the gate exists to prevent (this goes to the UI, never to the model).
+ * Formats the gate's decision as a clear, visually differentiated report:
+ * Distinct header, quoted prompt, clear status bullet, and structured fact items.
  */
 export function formatGateDecision(
   prompt: string,
   verdict: RecallVerdict,
   lang: "cs" | "en",
 ): string {
-  const asked =
+  const header =
     lang === "cs"
-      ? `Soudce ${verdict.judged_by} · „${elide(prompt, 60)}"`
-      : `Judge ${verdict.judged_by} · "${elide(prompt, 60)}"`;
+      ? `🧠 UMA FastBrain Recall Gate · Soudce: ${verdict.judged_by}`
+      : `🧠 UMA FastBrain Recall Gate · Judge: ${verdict.judged_by}`;
+
+  const promptLine =
+    lang === "cs"
+      ? `  Dotaz: „${elide(prompt, 60)}“`
+      : `  Prompt: "${elide(prompt, 60)}"`;
+
   const types = verdict.fact_types.join(", ");
+  const isDegraded = isDegradedNote(verdict.note);
+  const degradationNote =
+    isDegraded && verdict.note
+      ? lang === "cs"
+        ? `  Upozornění: ⚠ ${elide(verdict.note, 100)}`
+        : `  Notice: ⚠ ${elide(verdict.note, 100)}`
+      : undefined;
 
   if (!verdict.search) {
-    return lang === "cs"
-      ? `🧠 ${asked} → žádný trigger → paměť zůstává zavřená`
-      : `🧠 ${asked} → no trigger → memory stays closed`;
+    const statusLine =
+      lang === "cs"
+        ? `  Stav: ○ Žádný trigger → paměť zůstává zavřená`
+        : `  Status: ○ No trigger → memory stays closed`;
+    const lines = [header, promptLine, statusLine];
+    if (degradationNote) lines.push(degradationNote);
+    return lines.join("\n");
   }
 
-  const next =
+  const resultLine =
     verdict.recalled > 0
       ? lang === "cs"
-        ? `injektuju ${verdict.recalled} fakta (${elide(types, 40)})`
-        : `injecting ${verdict.recalled} fact(s) (${elide(types, 40)})`
+        ? `  Výsledek: ● Trigger (${types || "obecný"}) → injektováno ${czechFactCount(verdict.recalled)}`
+        : `  Result: ● Trigger (${types || "general"}) → injecting ${verdict.recalled} fact(s)`
       : lang === "cs"
-        ? "trigger, ale nic relevatního nenalezeno → nic se neinjektuje"
-        : "trigger, nothing relevant found → injecting nothing";
+        ? `  Výsledek: ◐ Trigger (${types || "obecný"}), nic relevantního nenalezeno → 0 faktů`
+        : `  Result: ◐ Trigger (${types || "general"}), nothing relevant found → 0 facts`;
 
-  const degraded = verdict.note ? ` ⚠ ${elide(verdict.note, 100)}` : "";
-  const head = `🧠 ${asked} → trigger (${types || "general"}) → ${next}${degraded}`;
+  const lines = [header, promptLine, resultLine];
+  if (degradationNote) {
+    lines.push(degradationNote);
+  }
 
-  // The operator sees exactly what was injected — same content the model
-  // gets, formatted under the decision line. A notice that something was
-  // injected, without the something, is not observability.
-  const factLines = verdict.facts.map(
-    (fact, index) =>
-      `   ${index + 1}. [${fact.fact_type}] ${fact.title} (${formatScope(fact.scope)})\n` +
-      `      ${elide(fact.snippet, 110)}`,
-  );
-  return factLines.length > 0 ? `${head}\n${factLines.join("\n")}` : head;
+  if (verdict.facts.length > 0) {
+    const memoryHeader = lang === "cs" ? "  Vyvolaná paměť:" : "  Recalled Memory:";
+    lines.push(memoryHeader);
+
+    for (const [index, fact] of verdict.facts.entries()) {
+      lines.push(
+        `    ${index + 1}. [${fact.fact_type}] ${fact.title} (${formatScope(fact.scope)})\n` +
+        `       ${elide(fact.snippet, 100)}`,
+      );
+    }
+  }
+
+  return lines.join("\n");
 }

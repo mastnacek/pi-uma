@@ -46,7 +46,7 @@ test("the injected header follows the configured language", () => {
   assert.ok(String(cs?.message?.content).includes("Paměť k tomuto úkolu"));
 });
 
-import { formatGateDecision } from "../src/slices/fastbrain/policy.ts";
+import { formatGateDecision, isDegradedNote } from "../src/slices/fastbrain/policy.ts";
 
 test("the decision report shows ask, verdict, and next action", () => {
   const report = formatGateDecision(
@@ -54,8 +54,9 @@ test("the decision report shows ask, verdict, and next action", () => {
     verdict([fact]),
     "en",
   );
-  assert.ok(report.includes('Judge jev · "Can we refactor the sync slice'), `asked: ${report}`);
-  assert.ok(report.includes("trigger (decision)"), `verdict: ${report}`);
+  assert.ok(report.includes("Judge: jev"), `judge: ${report}`);
+  assert.ok(report.includes('"Can we refactor the sync slice'), `prompt: ${report}`);
+  assert.ok(report.includes("Trigger (decision)"), `verdict: ${report}`);
   assert.ok(report.includes("injecting 1 fact(s)"), `next: ${report}`);
 });
 
@@ -65,7 +66,7 @@ test("a no-trigger verdict reports memory staying closed", () => {
     { ...verdict([fact]), search: false, fact_types: [], facts: [] },
     "en",
   );
-  assert.ok(report.includes("no trigger"), report);
+  assert.ok(report.includes("No trigger"), report);
   assert.ok(report.includes("memory stays closed"), report);
 });
 
@@ -80,8 +81,8 @@ test("a degraded judge verdict carries the warning", () => {
 
 test("long prompts are elided and whitespace collapsed", () => {
   const report = formatGateDecision("word ".repeat(40), verdict([fact]), "en");
-  // The decision line stays short even when the fact list follows.
-  assert.ok(report.split("\n")[0].length < 160, `decision line too long: ${report}`);
+  assert.ok(report.split("\n")[0].length < 160, `header line too long: ${report}`);
+  assert.ok(report.split("\n")[1].length < 160, `prompt line too long: ${report}`);
 });
 
 test("the injected facts are listed under the decision line", () => {
@@ -90,12 +91,10 @@ test("the injected facts are listed under the decision line", () => {
     verdict([fact, { ...fact, id: "01SECOND", title: "Second recalled fact" }]),
     "en",
   );
-  const lines = report.split("\n");
-  // Each fact takes two lines: numbered title + elided snippet.
-  assert.ok(lines[0].includes("injecting 2 fact(s)"), lines[0]);
-  assert.ok(lines[1].includes("1. [decision] Sync is git-based"), lines[1]);
-  assert.ok(lines[1].includes("project:ai-memory"), lines[1]);
-  assert.ok(lines[3].includes("2. [decision] Second recalled fact"), lines[3]);
+  assert.ok(report.includes("injecting 2 fact(s)"), report);
+  assert.ok(report.includes("1. [decision] Sync is git-based"), report);
+  assert.ok(report.includes("project:ai-memory"), report);
+  assert.ok(report.includes("2. [decision] Second recalled fact"), report);
 });
 
 test("no-trigger and zero-fact verdicts list no facts", () => {
@@ -104,8 +103,16 @@ test("no-trigger and zero-fact verdicts list no facts", () => {
     { ...verdict([fact]), search: false, fact_types: [], facts: [] },
     "en",
   );
-  assert.ok(!closed.includes("\n   1."), closed);
-  assert.ok(!formatGateDecision("why?", verdict([]), "en").includes("\n   1."));
+  assert.ok(!closed.includes("1. [decision]"), closed);
+  assert.ok(!formatGateDecision("why?", verdict([]), "en").includes("1. [decision]"));
+});
+
+test("isDegradedNote: standard model provenance is not a warning, degradation is", () => {
+  assert.equal(isDegradedNote("typesafe/jev-router"), false);
+  assert.equal(isDegradedNote(null), false);
+  assert.equal(isDegradedNote(undefined), false);
+  assert.equal(isDegradedNote("Jev unavailable (401); offline verdict"), true);
+  assert.equal(isDegradedNote("timeout occurred"), true);
 });
 
 import { buildTranslateContext } from "../src/slices/translate/prompt.ts";
