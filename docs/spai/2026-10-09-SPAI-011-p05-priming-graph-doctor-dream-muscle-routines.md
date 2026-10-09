@@ -2,19 +2,19 @@
 type: Todo
 title: "P05 deferred tail: priming graph (spreading activation) + uma doctor --dream (retrieval practice) + uma_muscle (operator-curated only)"
 timestamp: 2026-10-09 22:30:00
-status: working
+status: done
 source: pi-spai
 tags: [roadmap, p05, priming, dreaming, muscle]
 facets:
   priority: low
   project: pi-uma
   project_path: D:/01_programovani/pi/plugins/pi-uma
-spai_symbol: '/'
+spai_symbol: 'x'
 ---
 
 # SPAI-011: P05 deferred tail: priming graph (spreading activation) + uma doctor --dream (retrieval practice) + uma_muscle (operator-curated only)
 
-/ P05 deferred tail: priming graph (spreading activation) + uma doctor --dream (retrieval practice) + uma_muscle (operator-curated only) @pi-uma !low :roadmap:p05:priming:dreaming:muscle:
+x P05 deferred tail: priming graph (spreading activation) + uma doctor --dream (retrieval practice) + uma_muscle (operator-curated only) @pi-uma !low :roadmap:p05:priming:dreaming:muscle:
 
 ## Scope (proposal order)
 1. **Priming graph** — association graph over facts (links, tags, co-mentions); pre-activate related facts into the recall path when the agent touches a file. Pure kernel work + fastbrain recall gate hook.

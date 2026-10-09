@@ -8,7 +8,7 @@ tags:
   - s6
   - safety
   - execution
-status: stable
+status: deprecated
 generated:
   by: pi-agent/1.1
   at: "2026-10-08T10:26:02.679870200+00:00"
@@ -16,6 +16,7 @@ verified:
   - by: "human:operator"
     at: "2026-10-08T10:26:02.679874200+00:00"
 since: "2026-10-08T10:26:02.679874300+00:00"
+until: "2026-10-09T22:17:59.432370900+00:00"
 ---
 ### Context
 Procedural memory stores commands (slice S6). The PRD originally specified that `uma_skill_invoke` "expands template + runs".

@@ -7,6 +7,7 @@ pub mod import;
 pub mod list;
 pub mod mcp;
 pub mod migrate;
+pub mod muscle;
 pub mod read;
 pub mod recall;
 pub mod risk;

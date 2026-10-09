@@ -85,6 +85,9 @@ enum Commands {
 
     /// Internal Council: Familiarity Index / epistemic humility check (read-only)
     Humility(slices::humility::HumilityArgs),
+
+    /// Procedural muscle memory: run operator-curated routines (dry-run unless --confirm)
+    Muscle(slices::muscle::MuscleArgs),
 }
 
 fn main() -> Result<()> {
@@ -114,5 +117,6 @@ fn main() -> Result<()> {
         Commands::Staging(args) => slices::staging::run(args),
         Commands::Skeptic(args) => slices::skeptic::run(args),
         Commands::Humility(args) => slices::humility::run(args),
+        Commands::Muscle(args) => slices::muscle::run(args),
     }
 }
