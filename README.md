@@ -20,8 +20,11 @@ local-first long-term memory engine at [mastnacek/ai-memory](https://github.com/
   rules once contracts land.
 - **`/uma` commands**: search, list, read, timeline, doctor, lang, recall,
   immune, judge, auto-approve — with completions and Czech/English i18n.
-- **Skills**: `uma-memory` (harness-agnostic) and `uma-memory-pi` (Pi-specific
-  deltas), discovered from the conventional `skills/` directory.
+- **Skill**: `uma-memory-pi` — a single, self-sufficient skill (capture
+  triggers, quality contract, lifecycle, plus the Pi tools, approval modal,
+  and `/uma` commands), discovered from the conventional `skills/` directory.
+  The full harness-agnostic edition lives in the
+  [ai-memory repository](https://github.com/mastnacek/ai-memory).
 
 ## Install
 

@@ -5,15 +5,12 @@ description: Use UMA memory from the Pi agent — native uma_write/read/list/sea
 
 # UMA Memory Skill (Pi agent)
 
-This is the **Pi-specific** companion to the harness-agnostic UMA skill. Read the general skill
-— the `uma-memory` skill, canonical in the UMA repository
-([mastnacek/ai-memory](https://github.com/mastnacek/ai-memory), `skills/uma-memory/SKILL.md`) and shipped
-alongside this file in the Pi package — for the portable material: capture triggers, quality
-standards, the OKF v0.2 frontmatter table, lifecycle semantics, and the full CLI reference.
-**This file adds only what is specific to driving UMA from Pi.**
-
-> **Do not merge the two skills.** The general file must stay usable by agents that have no Pi
-> tools; this file may assume Pi's tool names, approval UI, and slash commands.
+Self-sufficient guide for using **UMA** (Universal Memory Architecture,
+[mastnacek/ai-memory](https://github.com/mastnacek/ai-memory)) from the Pi agent:
+when to capture memory, the quality contract, and the Pi-specific tools,
+approval modal, and `/uma` commands. This is the single skill the pi-uma
+package ships; the full harness-agnostic edition remains in the UMA
+repository (`skills/uma-memory/SKILL.md`).
 
 ---
 
@@ -120,3 +117,52 @@ happened, say so and wait rather than triggering the tool.
   `uma_supersede` when revising one.
 - **Search on demand.** Do not assume memories were injected into your context; retrieve
   explicitly when a task depends on prior decisions or preferences.
+
+---
+
+## 7. Portable essentials (from the harness-agnostic edition)
+
+### When to capture
+
+| Trigger | Type | Scope |
+| :--- | :--- | :--- |
+| Architectural choice made | `decision` | project |
+| User states a preference | `preference` | global |
+| Repeated codebase convention observed | `pattern` | project |
+| Wrong assumption corrected | `correction` | project / global |
+| Environmental fact (URL, port, build req.) | `fact` | project |
+| Non-obvious command worked out | `skill` (+ `template`) | project / global |
+
+Do NOT store: chat chatter, throwaway code dumps, things already fully documented in standard files.
+
+### Quality contract
+
+1. **Atomic** — one concept per fact.
+2. **Actionable title** — "Adopt VSA for CLI modules", not "Architecture notes".
+3. **Structured body** — Context / Rule / Consequences.
+4. **One-line description** — search snippet.
+5. **Tags** — lowercase ASCII keywords.
+6. **Invariants, not volatile state** — state the rule that stays true, not a count that was true when written.
+
+### Lifecycle
+
+- A fact that changed is **superseded**, never duplicated: the predecessor
+  is deprecated and chained via `supersedes`; default search stays clean.
+- Facts are OKF v0.2 documents: frontmatter keys `type`, `title`,
+  `description`, `tags`, `status`, `generated`, `verified`, `since`/`until`/
+  `stale_after`, plus UMA's `id`, `scope`, `supersedes`, `template`.
+- Retrieval modes: `keyword` (exact terms), `semantic` (meaning), `hybrid`
+  (default, RRF of both). Prefer search on demand over auto-injection.
+
+### CLI quick reference (the tools cover most of this)
+
+```bash
+uma search "query" --mode hybrid [--as-of DATE] [--include-deprecated]
+uma write --type decision --title "..." --tags a,b      # or via the uma_write tool
+uma read <ULID> ; uma list --scope global ; uma timeline --id <ULID>
+uma supersede <old-id> --title "..."                    # inherits template unless --template
+uma skill invoke <name> --set k=v                        # expands, NEVER executes
+```
+
+`skill` facts need a `template` with `{{placeholder}}` slots; UMA never
+runs the expansion — the caller does, under its own approval.
