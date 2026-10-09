@@ -19,6 +19,8 @@ export interface UmaProbeState {
   factsCount: number;
   draftsCount: number;
   projectScope: string;
+  /** Routine names discovered in .uma/skill (muscle: titles). */
+  muscleRoutines?: string[];
 }
 
 let cachedProbe: UmaProbeState | undefined;
@@ -66,6 +68,7 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
   }
 
   let factsCount = 0;
+  const muscleRoutines: string[] = [];
   const umaDir = path.join(cwd, ".uma");
   if (fs.existsSync(umaDir)) {
     try {
@@ -75,6 +78,15 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
             walk(path.join(dir, entry.name));
           } else if (entry.isFile() && entry.name.endsWith(".md")) {
             factsCount++;
+            try {
+              const head = fs.readFileSync(path.join(dir, entry.name), "utf8").slice(0, 400);
+              const titleMatch = head.match(/^title:\s*"?muscle:([a-z0-9-]+)"?/m);
+              if (titleMatch && !muscleRoutines.includes(titleMatch[1])) {
+                muscleRoutines.push(titleMatch[1]);
+              }
+            } catch {
+              // ignore
+            }
           }
         }
       };
@@ -104,7 +116,9 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
     factsCount,
     draftsCount,
     projectScope: `project:${projectName}`,
+    muscleRoutines,
   };
+
   lastProbeTime = now;
   return cachedProbe;
 }
@@ -168,8 +182,10 @@ export async function refreshDetector(
   }
 
   const probe = await probeUma(ctx.cwd, force);
+  state.muscleRoutineNames = probe.muscleRoutines ?? [];
 
-  const footerBadge = `🧠 UMA ${probe.version} [${state.config.immuneMode}]${probe.draftsCount > 0 ? ` · ✦ ${probe.draftsCount} draft(s)` : ""}`;
+  const routineBadge = probe.muscleRoutines && probe.muscleRoutines.length > 0 ? ` · 💪 ${probe.muscleRoutines.length}` : "";
+  const footerBadge = `🧠 UMA ${probe.version} [${state.config.immuneMode}]${probe.draftsCount > 0 ? ` · ✦ ${probe.draftsCount} draft(s)` : ""}${routineBadge}`;
   ctx.ui.setStatus("uma", footerBadge);
 
   if (ctx.mode === "tui") {

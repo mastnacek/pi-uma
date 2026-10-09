@@ -15,6 +15,8 @@ const NON_TERMINAL = new Set([
   "staging",
   "debt",
   "humility",
+  "muscle",
+  "skeptic",
 ]);
 
 export function getUmaCompletions(
@@ -136,6 +138,16 @@ export function getUmaCompletions(
       value: "humility ",
       label: "🧭 humility",
       description: "Epistemic-humility gate (on | off [--global])",
+    },
+    {
+      value: "muscle ",
+      label: "💪 muscle",
+      description: "Procedural routines (list | run <name> [--confirm])",
+    },
+    {
+      value: "skeptic ",
+      label: "😈 skeptic",
+      description: "Adversarial critique of a risky intent (<intent> [--files a,b] [--off])",
     },
   ];
 

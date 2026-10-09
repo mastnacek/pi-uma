@@ -1,6 +1,6 @@
 ---
 name: uma-memory-pi
-description: Use UMA memory from the Pi agent — native uma_write/read/list/search/supersede tools, the approval modal, and /uma commands. Load this whenever you capture or retrieve project decisions and preferences in Pi.
+description: Use UMA memory from the Pi agent — native uma_write/read/list/search/supersede tools, the approval modal, /uma commands, and the prudence + muscle surfaces (uma_skeptic, uma_humility, uma_debt, uma_muscle). Load this whenever you capture or retrieve project decisions and preferences, need an adversarial critique, or want to run a curated routine in Pi.
 ---
 
 # UMA Memory Skill (Pi agent)
@@ -27,6 +27,10 @@ In Pi, call the **tools** — they share the same store as the CLI and add the a
 | `uma_skill_invoke` | Expand a stored `skill` template into a concrete command. Args: `name`, `set` (`['tag=v1']`), `scope`. Read-only, ungated. Returns **text only** — run the command yourself. |
 | `uma_list` | List memories by `scope` and `type`. |
 | `uma_read` | Read one fact by `id` (ULID). |
+| `uma_skeptic` | Adversarial critique of a risky intent BEFORE executing it. Args: `intent` (synthetic Intent Statement), `files` (touched paths), `judge` (`jev`\|`off`). Read-only, ungated; the verdict is advisory. |
+| `uma_humility` | Familiarity check for unfamiliar/intricate subsystems (macros, FFI, unsafe). `action: check` before touching, `confirm` with a falsifiable hypothesis after the required reads. LOW verdict ⇒ read-only exploration first. |
+| `uma_debt` | Session-scoped Prospective Debt Ledger. `add` (requiredAction, blocking), `settle` when the owed work is done, `list`. Blocking debts must be settled before declaring a task finished. |
+| `uma_muscle` | Run operator-curated routines. `action: list` (read-only), `action: run` + `name` (DRY-RUN only), `action: run` + `confirm: true` (operator consent dialog; fails closed without an interactive UI). |
 
 The `uma` CLI is still available in `bash` (and is the only path in non-interactive runs), but
 inside an interactive Pi session the tools are preferred because they route through approval.
@@ -44,6 +48,43 @@ UMA as an execution primitive. If the expansion reports missing placeholders, su
 are left visible rather than silently blanked.
 
 To revise a skill, use `uma_supersede`; the template is inherited unless you pass a new one.
+
+### Muscle (compiled action chunks — consented execution)
+
+A **muscle routine** is an operator-curated skill fact titled `muscle:<name>`, tagged `muscle`,
+whose `template` is a JSON array of steps `[{"command":"...","args":[...],"label":"..."}]`.
+It is the execution counterpart of `uma_skill_invoke` (which only expands):
+
+- `uma_muscle {action:"list"}` — catalog of curated routines (read-only).
+- `uma_muscle {action:"run", name}` — **dry-run only**: prints what would execute, runs nothing.
+- `uma_muscle {action:"run", name, confirm:true}` — opens the operator consent dialog; in a
+  non-interactive mode there is no consent surface, so execution is **refused (fail-closed)**.
+  A decline also returns only the dry-run path — never retry.
+
+The shadow worker detects repeated command sequences (≥2× the same 3-command shape, hazardous
+commands excluded) and stages a routine PROPOSAL into `.uma/.staging/` — it never curates or runs
+itself. The operator promotes proposals through `/uma review` ([a]pprove → curated skill fact).
+Do not stage muscle proposals by hand unless the operator asks; the hook owns that path.
+
+### Prudence council (consult before risky work)
+
+- **Skeptic** — call `uma_skeptic` with a one-paragraph intent BEFORE architecturally sensitive
+  changes (locking, serialization, public APIs, migrations). Treat the verdict as advisory;
+  surface the concrete advice instead of silently ignoring it.
+- **Humility** — before touching a subsystem with no memory coverage or intricate constructs,
+  run `uma_humility {action:"check", intent, files}`. A LOW verdict demands read-only
+  exploration (≥3 related files) then `action:"confirm"` with a falsifiable hypothesis before
+  the first mutation.
+- **Debt Ledger** — when your action creates an obligation ("must verify X later"), record it
+  with `uma_debt {action:"add", requiredAction, blocking, sourceAction}` and settle it with
+  `settle` once done. Blocking debts are enforced at `agent_before_settle` (session end).
+
+### Contracts, doctor and dreaming
+
+- `uma contracts check` validates executable AST invariants (`.uma/contracts/*.yml`); the immune
+  interceptor may auto-block violating writes in `block` mode.
+- `uma doctor --strict` is the health gate; `--dream` runs retrieval practice over the store and
+  proposes REINFORCE/BLURRED only (never mutates without consent).
 
 ---
 
@@ -92,6 +133,16 @@ Consequences for you:
 /uma reindex
 /uma lang cs|en [--global]
 /uma auto-approve on|off [--global]
+/uma recall on|off [--global]      # fastbrain recall gate
+/uma judge jev|off [--global]      # recall judge transport
+/uma immune off|warn|ask|auto|block [--global]
+/uma hud on|off
+/uma review                        # staged-draft review modal (approve/edit/discard)
+/uma staging list|approve|discard
+/uma debt list|settle <id>|clear
+/uma humility on|off [--global]    # epistemic-humility gate
+/uma muscle list | run <name> [--confirm]
+/uma skeptic <intent> [--files a.rs,b.rs] [--off]
 ```
 
 `auto-approve on` skips the modal for trusted bulk work; `off` (default) keeps operator review.

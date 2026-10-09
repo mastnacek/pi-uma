@@ -92,4 +92,6 @@ export interface ExtensionState {
   muscleHistory?: { shapes: string[]; raw: string[] };
   /** Sequence keys already proposed this session (one proposal per sequence). */
   muscleProposed?: string[];
+  /** Routine names from the last detector probe (muscle run/list completions). */
+  muscleRoutineNames?: string[];
 }

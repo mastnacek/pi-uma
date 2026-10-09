@@ -6,6 +6,7 @@ import { saveConfig } from "../../shared/config.js";
 import { getUmaCompletions } from "./complete.js";
 import { translateOutputForDisplay } from "../../shared/translate_client.js";
 import { startStagingReview } from "../../shared/staging_client.js";
+import { confirmMuscleExecution } from "../../shared/muscle_dialog.js";
 
 export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void {
   const s = stringsFor(state.config.lang);
@@ -193,6 +194,45 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           );
         }
         void state.refreshDetector?.(ctx, true);
+      } else if (subcommand === "muscle") {
+        const action = cleanParts[1]?.toLowerCase();
+        if (action === "list") {
+          const res = await runUma(binPath, ["muscle", "list"], ctx.cwd);
+          ctx.ui.notify(res.stdout || res.stderr, "info");
+        } else if (action === "run" && cleanParts[2]) {
+          const wantsConfirm = cleanParts.includes("--confirm");
+          if (wantsConfirm) {
+            const proceed = await confirmMuscleExecution(ctx, state, cleanParts[2]);
+            if (!proceed) {
+              ctx.ui.notify(`Execution of '${cleanParts[2]}' declined; dry-run only.`, "warning");
+              return;
+            }
+            const res = await runUma(binPath, ["muscle", "run", cleanParts[2], "--confirm"], ctx.cwd);
+            ctx.ui.notify(res.stdout || res.stderr, res.code === 0 ? "info" : "error");
+          } else {
+            const res = await runUma(binPath, ["muscle", "run", cleanParts[2]], ctx.cwd);
+            ctx.ui.notify(res.stdout || res.stderr, "info");
+          }
+        } else {
+          ctx.ui.notify("Usage: /uma muscle [list | run <name> [--confirm]]", "info");
+        }
+      } else if (subcommand === "skeptic") {
+        const intentParts = cleanParts.slice(1);
+        const fileIndex = intentParts.indexOf("--files");
+        const intentText = (fileIndex >= 0 ? intentParts.slice(0, fileIndex) : intentParts)
+          .filter((p) => p !== "--off")
+          .join(" ");
+        if (!intentText) {
+          ctx.ui.notify("Usage: /uma skeptic <intent> [--files a.rs,b.rs] [--off]", "info");
+          return;
+        }
+        const args = ["skeptic", "check", intentText];
+        if (fileIndex >= 0 && intentParts[fileIndex + 1]) {
+          args.push("--files", intentParts[fileIndex + 1]);
+        }
+        if (intentParts.includes("--off")) args.push("--judge", "off");
+        const res = await runUma(binPath, args, ctx.cwd);
+        ctx.ui.notify(res.stdout || res.stderr, "info");
       } else if (subcommand === "debt") {
         const action = cleanParts[1]?.toLowerCase();
         const ledger = (state.debts = state.debts ?? []);

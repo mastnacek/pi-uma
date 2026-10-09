@@ -9,7 +9,7 @@ const state = (config: Partial<PluginConfig>) =>
 test("the /uma menu lists every subcommand the handler implements", () => {
   const items = getUmaCompletions("", state({}));
   const values = items.map((i) => i.value);
-  for (const expected of ["search ", "list", "read ", "reindex", "timeline", "export ", "doctor", "lang ", "auto-approve ", "recall ", "judge ", "immune ", "hud ", "review", "staging "]) {
+  for (const expected of ["search ", "list", "read ", "reindex", "timeline", "export ", "doctor", "lang ", "auto-approve ", "recall ", "judge ", "immune ", "hud ", "review", "staging ", "muscle ", "skeptic "]) {
     assert.ok(values.includes(expected), `menu missing: ${expected}`);
   }
 });
@@ -28,6 +28,17 @@ test("recall and judge complete with the current state marked", () => {
 
   const markers = getUmaCompletions("judge ", state({ fastbrainJudge: "off" }));
   assert.ok(markers.find((i) => i.value === "judge off")?.label.includes("✓"));
+});
+
+test("muscle and skeptic complete with parameter levels", () => {
+  const s = state({}) as never as { muscleRoutineNames?: string[] };
+  (s as { muscleRoutineNames?: string[] }).muscleRoutineNames = ["verify-uma"];
+  const muscle = getUmaCompletions("muscle ", s as never);
+  assert.ok(muscle.find((i) => i.value === "muscle list"));
+  assert.ok(muscle.find((i) => i.value === "muscle run verify-uma "));
+
+  const skeptic = getUmaCompletions("skeptic ", state({}));
+  assert.ok(skeptic.length > 0);
 });
 test("immune mode completes with the active mode marked", () => {
   const items = getUmaCompletions("immune ", state({ immuneMode: "ask" }));

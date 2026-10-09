@@ -286,6 +286,46 @@ export function getParameterCompletions(
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
   }
 
+  if (sub === "muscle") {
+    const knownRoutines = state.muscleRoutineNames ?? [];
+    const options: AutocompleteItem[] = [
+      { value: "muscle list", label: "list", description: "Show operator-curated routines" },
+      {
+        value: "muscle run ",
+        label: "run",
+        description: "Execute a routine (dry-run unless --confirm)",
+      },
+    ];
+    for (const name of knownRoutines) {
+      options.push({
+        value: `muscle run ${name} `,
+        label: `run ${name}`,
+        description: "Dry-run by default; add --confirm to execute",
+      });
+    }
+    return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
+  }
+
+  if (sub === "skeptic") {
+    return [
+      {
+        value: "skeptic ",
+        label: "skeptic <intent>",
+        description: "Adversarial critique of a risky intent before executing it",
+      },
+      {
+        value: "skeptic --files ",
+        label: "--files <a.rs,b.rs>",
+        description: "Attach the files the intent will touch",
+      },
+      {
+        value: "skeptic --off",
+        label: "--off",
+        description: "Deterministic offline judge (no Jev call)",
+      },
+    ].filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
+  }
+
   if (sub === "debt") {
     const open = state.debts ?? [];
     const options: AutocompleteItem[] = [
