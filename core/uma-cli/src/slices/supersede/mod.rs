@@ -97,6 +97,9 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
     // Inherit executable AST contract: a revision restates the architectural rule
     // and must not silently strip its CI invariants or immune block-mode.
     new_fact.contract = old_fact.contract.clone();
+    // Inherit synaptic plasticity and emotional saliency across supersession
+    new_fact.plasticity = old_fact.plasticity.clone();
+    new_fact.saliency = old_fact.saliency.clone();
     // Same for the validity deadline — but a re-verification SHOULD pass a new
     // one, or the revision inherits a date that may already have passed.
     new_fact.validity.stale_after = match args.stale_after {

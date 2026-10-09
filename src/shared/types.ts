@@ -11,6 +11,20 @@ export interface ContractDefinition {
   rule: ContractRule;
 }
 
+export interface PlasticityDefinition {
+  weight: number;
+  reinforcements: number;
+  frustrations: number;
+  last_activated?: string;
+  half_life_days: number;
+}
+
+export interface SaliencyDefinition {
+  shock_level: number;
+  multiplier: number;
+  immune_to_decay: boolean;
+}
+
 export interface MemoryProposal {
   title: string;
   body: string;
@@ -23,6 +37,10 @@ export interface MemoryProposal {
   template?: string;
   /** Executable AST invariant contract (Proposal 03a). */
   contract?: ContractDefinition;
+  /** Synaptic plasticity metadata (Proposal 03b / Hebbian fitness weight & decay). */
+  plasticity?: PlasticityDefinition;
+  /** Saliency & emotional valence (Proposal 05a / decay immunity). */
+  saliency?: SaliencyDefinition;
   /** ISO 8601 date/timestamp after which the claim needs re-verification. */
   stale_after?: string;
   /** ISO 8601 date/timestamp when the claim started to hold (imports). */

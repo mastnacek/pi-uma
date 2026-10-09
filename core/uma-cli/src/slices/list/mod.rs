@@ -36,8 +36,8 @@ pub fn run(args: ListArgs) -> Result<()> {
     // replaced rule next to its replacement is exactly the misleading-memory hazard
     // supersession exists to prevent.
     let stored = facts.len();
+    let now = Utc::now();
     if !args.include_deprecated {
-        let now = Utc::now();
         facts.retain(|fact| fact.is_active_at(now));
     }
 
@@ -53,6 +53,9 @@ pub fn run(args: ListArgs) -> Result<()> {
                     "tags": fact.tags,
                     "body": fact.body,
                     "contract": fact.contract,
+                    "plasticity": fact.plasticity,
+                    "saliency": fact.saliency,
+                    "effective_weight": fact.effective_weight(now),
                 })
             })
             .collect();

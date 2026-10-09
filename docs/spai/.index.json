@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-09 20:39:54",
+  "lastUpdated": "2026-10-09 21:50:47",
   "records": [
     {
       "id": "SPAI-001",
@@ -58,8 +58,8 @@
       "id": "SPAI-004",
       "title": "OKF v0.3 schema pass: plasticity (weight/reinforcements/half_life) + saliency (shock_level/multiplier/immune_to_decay) frontmatter blocks in domain.rs+serialization+migration+modal; doctor zombie report proposes (never auto-archives) facts below weight 0.25",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-08 23:15:09",
       "tags": [
         "roadmap",

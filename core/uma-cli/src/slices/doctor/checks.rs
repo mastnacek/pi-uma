@@ -64,6 +64,40 @@ pub fn count_stale_facts(facts: &[Fact], now: DateTime<Utc>) -> usize {
         .count()
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ZombieCandidate {
+    pub id: String,
+    pub title: String,
+    pub effective_weight: f64,
+    pub base_weight: f64,
+    pub half_life_days: u32,
+    pub scope: String,
+}
+
+/// Finds facts whose effective synaptic weight has decayed below threshold (default 0.25).
+pub fn find_zombie_facts(
+    facts: &[Fact],
+    now: DateTime<Utc>,
+    threshold: f64,
+) -> Vec<ZombieCandidate> {
+    facts
+        .iter()
+        .filter(|fact| fact.is_zombie(now, threshold))
+        .map(|fact| ZombieCandidate {
+            id: fact.id.to_string(),
+            title: fact.title.clone(),
+            effective_weight: fact.effective_weight(now),
+            base_weight: fact.plasticity.as_ref().map(|p| p.weight).unwrap_or(1.0),
+            half_life_days: fact
+                .plasticity
+                .as_ref()
+                .map(|p| p.half_life_days)
+                .unwrap_or(90),
+            scope: fact.scope.to_string(),
+        })
+        .collect()
+}
+
 /// Reads the index read-only and appends drift findings.
 pub fn inspect_index(db_path: &Path, disk_facts: usize, findings: &mut Vec<Finding>) {
     let health = match inspect(db_path) {
@@ -189,6 +223,32 @@ mod tests {
             1,
             "only the stable fact past its deadline counts"
         );
+    }
+
+    #[test]
+    fn test_find_zombie_facts_detects_decayed_weights() {
+        let mut healthy = fact();
+        healthy.plasticity = Some(uma_core::domain::Plasticity {
+            weight: 0.8,
+            reinforcements: 5,
+            frustrations: 0,
+            last_activated: Some(Utc::now()),
+            half_life_days: 90,
+        });
+
+        let mut zombie = fact();
+        zombie.plasticity = Some(uma_core::domain::Plasticity {
+            weight: 0.2,
+            reinforcements: 0,
+            frustrations: 3,
+            last_activated: Some(Utc::now() - Duration::days(100)),
+            half_life_days: 60,
+        });
+
+        let facts = vec![healthy, zombie];
+        let zombies = find_zombie_facts(&facts, Utc::now(), 0.25);
+        assert_eq!(zombies.len(), 1);
+        assert_eq!(zombies[0].base_weight, 0.2);
     }
 }
 

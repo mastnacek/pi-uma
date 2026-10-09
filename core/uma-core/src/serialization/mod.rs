@@ -1,0 +1,197 @@
+use std::str::FromStr;
+
+use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use yaml_rust2::{YamlEmitter, YamlLoader};
+
+use crate::domain::{ActorEvent, Fact, FactId, FactStatus, FactType, Scope, Validity};
+
+mod reader;
+mod writer;
+
+use reader::{parse_contract, parse_plasticity, parse_saliency};
+use writer::build_frontmatter_yaml;
+
+/// Serializes a Fact into an OKF v0.3 Markdown string with YAML frontmatter.
+pub fn fact_to_markdown(fact: &Fact) -> Result<String> {
+    let yaml = build_frontmatter_yaml(fact);
+
+    let mut frontmatter_str = String::new();
+    let mut emitter = YamlEmitter::new(&mut frontmatter_str);
+    emitter
+        .dump(&yaml)
+        .context("Failed to emit YAML frontmatter")?;
+
+    let frontmatter_str = frontmatter_str.trim_start_matches("---\n").trim();
+    Ok(format!("---\n{}\n---\n{}", frontmatter_str, fact.body))
+}
+
+/// Parses an OKF Markdown string into a Fact.
+pub fn markdown_to_fact(content: &str) -> Result<Fact> {
+    let (frontmatter_str, body) =
+        split_frontmatter(content).context("Invalid frontmatter format")?;
+
+    let yaml = YamlLoader::load_from_str(frontmatter_str)
+        .context("Failed to parse YAML frontmatter")?
+        .into_iter()
+        .next()
+        .context("Empty frontmatter")?;
+
+    let id_str = yaml["id"].as_str().context("Missing or invalid id")?;
+    let scope_str = yaml["scope"].as_str().context("Missing or invalid scope")?;
+    let type_str = yaml["type"].as_str().context("Missing or invalid type")?;
+    let title = yaml["title"]
+        .as_str()
+        .context("Missing or invalid title")?
+        .to_string();
+    let description = yaml["description"].as_str().map(String::from);
+    let template = yaml["template"].as_str().map(String::from);
+    let status_str = yaml["status"].as_str().unwrap_or("stable");
+    let status = FactStatus::from_str(status_str).unwrap_or(FactStatus::Stable);
+    let supersedes = yaml["supersedes"]
+        .as_str()
+        .and_then(|s| FactId::from_str(s).ok());
+
+    let generated = if let Some(by) = yaml["generated"]["by"].as_str() {
+        let at = yaml["generated"]["at"]
+            .as_str()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(Utc::now);
+        Some(ActorEvent {
+            by: by.to_string(),
+            at,
+        })
+    } else {
+        None
+    };
+
+    let mut verified = Vec::new();
+    if let Some(arr) = yaml["verified"].as_vec() {
+        for v in arr {
+            if let Some(by) = v["by"].as_str() {
+                let at = v["at"]
+                    .as_str()
+                    .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(Utc::now);
+                verified.push(ActorEvent {
+                    by: by.to_string(),
+                    at,
+                });
+            }
+        }
+    } else if let Some(by) = yaml["verified"]["by"].as_str() {
+        let at = yaml["verified"]["at"]
+            .as_str()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(Utc::now);
+        verified.push(ActorEvent {
+            by: by.to_string(),
+            at,
+        });
+    }
+
+    let since_str = yaml["since"].as_str().unwrap_or("");
+    let since = DateTime::parse_from_rfc3339(since_str)
+        .map(|dt| dt.with_timezone(&Utc))
+        .unwrap_or_else(|_| Utc::now());
+    let until = yaml["until"]
+        .as_str()
+        .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&Utc));
+    let stale_after = yaml["stale_after"]
+        .as_str()
+        .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.with_timezone(&Utc));
+
+    let tags = yaml["tags"]
+        .as_vec()
+        .map(|v| {
+            v.iter()
+                .filter_map(|y| y.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    let links = yaml["links"]
+        .as_vec()
+        .map(|v| {
+            v.iter()
+                .filter_map(|y| y.as_str().and_then(|s| FactId::from_str(s).ok()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let id = FactId::from_str(id_str).context("Invalid FactId")?;
+    let scope = parse_scope(scope_str).context("Invalid scope")?;
+    let fact_type = FactType::from_str(type_str).context("Invalid fact type")?;
+
+    let contract = parse_contract(&yaml);
+    let plasticity = parse_plasticity(&yaml);
+    let saliency = parse_saliency(&yaml);
+
+    Ok(Fact {
+        id,
+        scope,
+        fact_type,
+        title,
+        description,
+        template,
+        contract,
+        plasticity,
+        saliency,
+        body: body.to_string(),
+        status,
+        supersedes,
+        generated,
+        verified,
+        validity: Validity {
+            since,
+            until,
+            stale_after,
+        },
+        tags,
+        links,
+    })
+}
+
+fn split_frontmatter(content: &str) -> Option<(&str, &str)> {
+    let trimmed = content.trim_start();
+    if !trimmed.starts_with("---") {
+        return None;
+    }
+    let first_line_end = trimmed.find('\n')?;
+    let rest = &trimmed[first_line_end + 1..];
+
+    let mut search_idx = 0;
+    while let Some(pos) = rest[search_idx..].find("---") {
+        let abs_pos = search_idx + pos;
+        let is_line_start = abs_pos == 0
+            || rest.as_bytes()[abs_pos - 1] == b'\n'
+            || (abs_pos >= 2 && &rest[abs_pos - 2..abs_pos] == "\r\n");
+
+        if is_line_start {
+            let frontmatter = &rest[..abs_pos].trim_end_matches(['\r', '\n']);
+            let after_closing = &rest[abs_pos + 3..];
+            let body_start = after_closing
+                .find('\n')
+                .map(|idx| idx + 1)
+                .unwrap_or(after_closing.len());
+            let body = &after_closing[body_start..];
+            return Some((frontmatter, body));
+        }
+        search_idx = abs_pos + 3;
+    }
+    None
+}
+
+fn parse_scope(s: &str) -> Result<Scope> {
+    if s == "global" {
+        Ok(Scope::Global)
+    } else if let Some(name) = s.strip_prefix("project:") {
+        Ok(Scope::Project(name.to_string()))
+    } else {
+        anyhow::bail!("Invalid scope format: {}", s)
+    }
+}

@@ -19,7 +19,7 @@ pub mod vector_store;
 #[cfg(test)]
 mod tests {
     use crate::domain::{
-        Contract, ContractRule, ContractSeverity, Fact, FactType, Scope,
+        Contract, ContractRule, ContractSeverity, Fact, FactType, Plasticity, Saliency, Scope,
     };
     use crate::serialization::{fact_to_markdown, markdown_to_fact};
     use crate::store::Store;
@@ -83,6 +83,114 @@ mod tests {
             "Inviolable VSA Rule: Slices must NEVER import each other directly!"
         );
         assert_eq!(parsed_contract.rule.language.as_deref(), Some("rust"));
+    }
+
+    #[test]
+    fn test_fact_with_plasticity_and_saliency_roundtrip() {
+        let mut fact = Fact::new(
+            Scope::Global,
+            FactType::Pattern,
+            "Always use Result for error handling".to_string(),
+            "Never panic in production libraries.".to_string(),
+        );
+        fact.plasticity = Some(Plasticity {
+            weight: 0.85,
+            reinforcements: 12,
+            frustrations: 1,
+            last_activated: Some(chrono::Utc::now()),
+            half_life_days: 60,
+        });
+        fact.saliency = Some(Saliency {
+            shock_level: 4,
+            multiplier: 2.5,
+            immune_to_decay: true,
+        });
+
+        let markdown = fact_to_markdown(&fact).unwrap();
+        assert!(markdown.contains("plasticity:"));
+        assert!(markdown.contains("weight: 0.85"));
+        assert!(markdown.contains("reinforcements: 12"));
+        assert!(markdown.contains("saliency:"));
+        assert!(markdown.contains("shock_level: 4"));
+        assert!(markdown.contains("immune_to_decay: true"));
+
+        let parsed = markdown_to_fact(&markdown).unwrap();
+        assert_eq!(fact.id, parsed.id);
+        let p = parsed.plasticity.expect("plasticity must be parsed");
+        assert_eq!(p.weight, 0.85);
+        assert_eq!(p.reinforcements, 12);
+        assert_eq!(p.frustrations, 1);
+        assert_eq!(p.half_life_days, 60);
+
+        let s = parsed.saliency.expect("saliency must be parsed");
+        assert_eq!(s.shock_level, 4);
+        assert_eq!(s.multiplier, 2.5);
+        assert!(s.immune_to_decay);
+    }
+
+    #[test]
+    fn test_plasticity_decay_and_reinforcement() {
+        use chrono::Duration;
+        let now = chrono::Utc::now();
+        let past = now - Duration::days(90);
+
+        let mut p = Plasticity {
+            weight: 0.8,
+            reinforcements: 5,
+            frustrations: 0,
+            last_activated: Some(past),
+            half_life_days: 90,
+        };
+
+        // After 1 half-life (90 days), weight should be halved (0.8 * 0.5 = 0.4)
+        let decayed = p.effective_weight(now, false);
+        assert!((decayed - 0.4).abs() < 0.01, "expected ~0.4, got {}", decayed);
+
+        // Immune to decay stays at full weight
+        let immune_weight = p.effective_weight(now, true);
+        assert_eq!(immune_weight, 0.8);
+
+        // LTP reinforcement increases weight by 0.05
+        p.reinforce(now);
+        assert!((p.weight - 0.85).abs() < 0.001);
+        assert_eq!(p.reinforcements, 6);
+
+        // LTD frustration decreases weight by 0.25
+        p.frustrate(now);
+        assert!((p.weight - 0.60).abs() < 0.001);
+        assert_eq!(p.frustrations, 1);
+    }
+
+    #[test]
+    fn test_fact_zombie_detection() {
+        use chrono::Duration;
+        let now = chrono::Utc::now();
+        let old = now - Duration::days(200);
+
+        let mut fact = Fact::new(
+            Scope::Global,
+            FactType::Note,
+            "Old legacy pattern".to_string(),
+            "Nobody uses this anymore.".to_string(),
+        );
+        fact.plasticity = Some(Plasticity {
+            weight: 0.3,
+            reinforcements: 0,
+            frustrations: 2,
+            last_activated: Some(old),
+            half_life_days: 60,
+        });
+
+        // Threshold 0.25: decaying from 0.3 over 200 days drops below 0.25
+        assert!(fact.is_zombie(now, 0.25));
+
+        // When immune to decay, effective weight stays 0.3 (above threshold 0.25)
+        fact.saliency = Some(Saliency {
+            shock_level: 1,
+            multiplier: 1.0,
+            immune_to_decay: true,
+        });
+        assert!(!fact.is_zombie(now, 0.25));
     }
 
     #[test]

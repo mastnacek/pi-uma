@@ -120,6 +120,14 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
       `${theme.fg("muted", "⚙ contract:")} ${theme.fg("warning", `${proposal.contract.engine} [${proposal.contract.severity}]`)}`,
     );
   }
+  if (proposal.plasticity) {
+    chain.push(
+      `${theme.fg("muted", "⚡ fitness:")} ${theme.fg("success", `${proposal.plasticity.weight.toFixed(2)} [${proposal.plasticity.reinforcements}✓]`)}`,
+    );
+  }
+  if (proposal.saliency && proposal.saliency.immune_to_decay) {
+    chain.push(`${theme.fg("accent", "🛡 decay-immune")}`);
+  }
   for (const chip of chain) lines.push(row(`  ${chip}`));
   lines.push(row(""));
 

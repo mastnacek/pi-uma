@@ -5,10 +5,11 @@ use anyhow::{bail, Result};
 use chrono::Utc;
 use clap::Args;
 use serde_json::json;
-use uma_core::domain::Scope;
 use uma_core::store::Store;
 
-use checks::{count_fact_files, count_stale_facts, inspect_index, root_finding};
+use checks::{
+    count_fact_files, count_stale_facts, find_zombie_facts, inspect_index, root_finding,
+};
 use findings::{fail, ok, warn, Finding, Level};
 
 #[derive(Args, Debug, Clone)]
@@ -20,6 +21,10 @@ pub struct DoctorArgs {
     /// Exit non-zero when any check fails
     #[arg(long = "strict")]
     pub strict: bool,
+
+    /// Check specifically for zombie/rotting facts whose synaptic weight has decayed below 0.25
+    #[arg(long = "zombies", alias = "prune-zombies")]
+    pub zombies: bool,
 }
 
 /// Executes the Doctor vertical slice: a read-only health report on the store and
@@ -63,14 +68,16 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     // stale_after date needs re-verification whether or not it is indexed.
     let now = Utc::now();
     let mut stale_facts = 0usize;
+    let mut zombie_candidates = Vec::new();
     for root in [project_root.as_deref(), global_root.as_deref()]
         .into_iter()
         .flatten()
     {
         if root.exists() {
             let store = Store::new(root.to_path_buf());
-            if let Ok(facts) = store.list(&Scope::Global, None) {
+            if let Ok(facts) = store.list_all() {
                 stale_facts += count_stale_facts(&facts, now);
+                zombie_candidates.extend(find_zombie_facts(&facts, now, 0.25));
             }
         }
     }
@@ -81,6 +88,20 @@ pub fn run(args: DoctorArgs) -> Result<()> {
             "staleness",
             format!("{stale_facts} fact(s) are past their stale_after date and unverified"),
             "Review them: `uma list --include-deprecated` flags them [STALE]; extend with `uma supersede --stale-after`.",
+        ));
+    }
+
+    if zombie_candidates.is_empty() {
+        findings.push(ok(
+            "synaptic plasticity",
+            "no zombie facts (all active rules retain healthy synaptic fitness >= 0.25)",
+        ));
+    } else {
+        let count = zombie_candidates.len();
+        findings.push(warn(
+            "synaptic plasticity",
+            format!("{count} decaying zombie rule(s) detected with synaptic fitness < 0.25"),
+            "Proposal only: review decaying facts with `uma list` and archive with `uma supersede` or reinforce.",
         ));
     }
 
