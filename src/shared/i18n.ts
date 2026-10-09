@@ -42,6 +42,10 @@ export interface Strings {
   hudCurrent: string;
   debtAutoCaptured: string;
   debtStillOpen: string;
+  humilityDialogTitle: string;
+  humilityGateEnabled: string;
+  humilityGateDisabled: string;
+  humilityGateCurrent: string;
   descUmaCommand: string;
   scopeGlobal: string;
   scopeProject: string;
@@ -114,6 +118,10 @@ const STRINGS: Record<Locale, Strings> = {
     hudCurrent: "UMA Detector HUD state: ",
     debtAutoCaptured: "📋 Cognitive debt auto-recorded from the Skeptic verdict (see /uma debt or uma_debt list)",
     debtStillOpen: "Blocking cognitive debts still open: ",
+    humilityDialogTitle: "🧭 UMA epistemic humility",
+    humilityGateEnabled: "Humility gate enabled (asks before mutating unfamiliar subsystems)",
+    humilityGateDisabled: "Humility gate disabled",
+    humilityGateCurrent: "Humility gate state: ",
     descUmaCommand: "Universal Memory Architecture (UMA) manager",
     scopeGlobal: "Global (all projects)",
     scopeProject: "Project",
@@ -177,6 +185,10 @@ const STRINGS: Record<Locale, Strings> = {
     hudCurrent: "Stav detektoru UMA HUD: ",
     debtAutoCaptured: "📋 Kognitivní dluh automaticky zapsán z verdiktu Skeptika (viz /uma debt nebo uma_debt list)",
     debtStillOpen: "Otevřené blokující kognitivní dluhy: ",
+    humilityDialogTitle: "🧭 UMA epistemická pokora",
+    humilityGateEnabled: "Brána pokory zapnuta (ptá se před zásahem do neznámých subsystémů)",
+    humilityGateDisabled: "Brána pokory vypnuta",
+    humilityGateCurrent: "Stav brány pokory: ",
     descUmaCommand: "Správa paměťového systému UMA",
     scopeGlobal: "Globální (všechny projekty)",
     scopeProject: "Projekt",

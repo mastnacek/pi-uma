@@ -14,7 +14,14 @@
 
 use serde::{Deserialize, Serialize};
 
+mod humility;
+pub(crate) mod humility_transport;
 pub(crate) mod jev_transport;
+
+pub use humility::{
+    assess_familiarity, complexity_signals, offline_familiarity, Familiarity, HumilityInput,
+    HumilityVerdict,
+};
 
 use crate::fastbrain::{Backend, Judge};
 

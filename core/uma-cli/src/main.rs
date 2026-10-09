@@ -82,6 +82,9 @@ enum Commands {
 
     /// Internal Council: consult the adversarial Skeptic before risky work (read-only)
     Skeptic(slices::skeptic::SkepticArgs),
+
+    /// Internal Council: Familiarity Index / epistemic humility check (read-only)
+    Humility(slices::humility::HumilityArgs),
 }
 
 fn main() -> Result<()> {
@@ -110,5 +113,6 @@ fn main() -> Result<()> {
         Commands::Import(args) => slices::import::run(args),
         Commands::Staging(args) => slices::staging::run(args),
         Commands::Skeptic(args) => slices::skeptic::run(args),
+        Commands::Humility(args) => slices::humility::run(args),
     }
 }

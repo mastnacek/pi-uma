@@ -14,6 +14,9 @@ const DEFAULT_CONFIG: PluginConfig = {
   immuneMode: "warn",
   fastbrainJudge: "off",
   hud: true,
+  // The humility confirm gate is a stronger measure — the operator's explicit
+  // choice (/uma humility on), consistent with immuneMode's default-warn.
+  humilityGate: false,
 };
 
 export function getGlobalConfigPath(): string {

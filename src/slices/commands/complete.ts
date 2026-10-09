@@ -14,6 +14,7 @@ const NON_TERMINAL = new Set([
   "list",
   "staging",
   "debt",
+  "humility",
 ]);
 
 export function getUmaCompletions(
@@ -130,6 +131,11 @@ export function getUmaCompletions(
       value: "debt ",
       label: "📋 debt",
       description: "Prospective Debt Ledger (list | settle <id> | clear)",
+    },
+    {
+      value: "humility ",
+      label: "🧭 humility",
+      description: "Epistemic-humility gate (on | off [--global])",
     },
   ];
 

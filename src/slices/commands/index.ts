@@ -175,6 +175,24 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           ctx.ui.notify(`${liveStrings.autoApproveCurrent}${state.config.autoApprove ? "ON" : "OFF"}`, "info");
         }
         void state.refreshDetector?.(ctx, true);
+      } else if (subcommand === "humility") {
+        const wantsGlobal = isGlobal || cleanParts.includes("--global");
+        const target = cleanParts[1];
+        if (target === "on" || target === "true") {
+          saveConfig({ humilityGate: true }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          state.config = { ...state.config, humilityGate: true };
+          ctx.ui.notify(liveStrings.humilityGateEnabled, "info");
+        } else if (target === "off" || target === "false") {
+          saveConfig({ humilityGate: false }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          state.config = { ...state.config, humilityGate: false };
+          ctx.ui.notify(liveStrings.humilityGateDisabled, "info");
+        } else {
+          ctx.ui.notify(
+            `${liveStrings.humilityGateCurrent}${state.config.humilityGate ? "ON" : "OFF"} (on | off [--global])`,
+            "info",
+          );
+        }
+        void state.refreshDetector?.(ctx, true);
       } else if (subcommand === "debt") {
         const action = cleanParts[1]?.toLowerCase();
         const ledger = (state.debts = state.debts ?? []);

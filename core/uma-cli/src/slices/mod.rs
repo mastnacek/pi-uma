@@ -2,6 +2,7 @@ pub mod consolidate;
 pub mod contracts;
 pub mod doctor;
 pub mod export;
+pub mod humility;
 pub mod import;
 pub mod list;
 pub mod mcp;

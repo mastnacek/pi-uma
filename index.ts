@@ -10,6 +10,8 @@ import { registerConsolidateTool } from "./src/slices/consolidate/index.js";
 import { registerSkillTool } from "./src/slices/skill/index.js";
 import { registerSkepticTool } from "./src/slices/skeptic/index.js";
 import { registerDebtLedger } from "./src/slices/debt/index.js";
+import { registerHumilityTool } from "./src/slices/humility/index.js";
+import { registerHumilityGate } from "./src/hooks/humility_gate.js";
 import { registerFastbrainHook } from "./src/slices/fastbrain/index.js";
 import { registerCommands } from "./src/slices/commands/index.js";
 import { registerDetector } from "./src/slices/detector/index.js";
@@ -63,7 +65,9 @@ export default function umaExtension(pi: ExtensionAPI): void {
   registerConsolidateTool(pi, state);
   registerSkillTool(pi, state);
   registerSkepticTool(pi, state);
+  track(registerHumilityTool(pi, state));
   track(registerDebtLedger(pi, state));
+  track(registerHumilityGate(pi, state));
   track(registerFastbrainHook(pi, state));
   track(registerDetector(pi, state));
   track(registerShadowWorker(pi, state));

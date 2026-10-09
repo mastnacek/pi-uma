@@ -255,6 +255,37 @@ export function getParameterCompletions(
     ].filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
   }
 
+  if (sub === "humility") {
+    const current = state.config.humilityGate;
+    const options: AutocompleteItem[] = [
+      {
+        value: "humility on",
+        label: current ? "on ✓" : "on",
+        description: current
+          ? "Humility gate armed · ● ACTIVE"
+          : "Ask before mutating flagged unfamiliar subsystems",
+      },
+      {
+        value: "humility on --global",
+        label: "on --global",
+        description: "Arm the humility gate globally (~/.pi/agent/uma.json)",
+      },
+      {
+        value: "humility off",
+        label: !current ? "off ✓" : "off",
+        description: !current
+          ? "Humility gate disabled · ● ACTIVE"
+          : "Disable the humility confirm gate",
+      },
+      {
+        value: "humility off --global",
+        label: "off --global",
+        description: "Disable the humility gate globally (~/.pi/agent/uma.json)",
+      },
+    ];
+    return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
+  }
+
   if (sub === "debt") {
     const open = state.debts ?? [];
     const options: AutocompleteItem[] = [

@@ -63,6 +63,8 @@ export interface PluginConfig {
   fastbrainJudge: "off" | "jev";
   /** Live detector / HUD widget visible above the status line / editor. */
   hud: boolean;
+  /** Humility gate: ask before mutating a flagged low-familiarity subsystem. */
+  humilityGate: boolean;
 }
 
 export interface ExtensionState {
@@ -77,5 +79,13 @@ export interface ExtensionState {
     requiredAction: string;
     blocking: boolean;
     createdAt: number;
+  }>;
+  /** Flagged low-familiarity subsystems (Proposal 04, Pillar IV). */
+  humilityFlags?: Array<{
+    dir: string;
+    flaggedAt: number;
+    confirmed: boolean;
+    hypothesis?: string;
+    reads: string[];
   }>;
 }
