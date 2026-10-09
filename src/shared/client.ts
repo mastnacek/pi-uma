@@ -159,3 +159,19 @@ export async function executeUma(
     };
   }
 }
+
+/**
+ * Maps a tool's scope parameter onto the CLI convention. The literal word
+ * "project" (a model convention, seen in the wild) and an empty string
+ * mean "the current repository" — which is the CLI default, so the flag
+ * is simply omitted. A real project name passes through; "global" is a
+ * real scope in the CLI as well.
+ */
+export function scopeArgForCli(scope: string | undefined): string | undefined {
+  if (!scope || scope.trim().length === 0) return undefined;
+  const normalized = scope.trim().toLowerCase();
+  if (normalized === "project" || normalized === "current" || normalized === "cwd") {
+    return undefined;
+  }
+  return scope.trim();
+}

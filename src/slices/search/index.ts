@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { ExtensionState } from "../../shared/types.js";
-import { executeUma } from "../../shared/client.js";
+import { executeUma, scopeArgForCli } from "../../shared/client.js";
 
 export function registerSearchTool(pi: ExtensionAPI, _state: ExtensionState): void {
   pi.registerTool({
@@ -44,7 +44,8 @@ export function registerSearchTool(pi: ExtensionAPI, _state: ExtensionState): vo
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const args = ["search", params.query];
       if (params.mode) args.push("--mode", params.mode);
-      if (params.scope) args.push("--scope", params.scope);
+      const scopeArg = scopeArgForCli(params.scope);
+      if (scopeArg) args.push("--scope", scopeArg);
       if (params.type) args.push("--type", params.type);
       if (params.includeDeprecated) args.push("--include-deprecated");
       if (params.asOf) args.push("--as-of", params.asOf);
