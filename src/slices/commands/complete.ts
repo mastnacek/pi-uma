@@ -11,6 +11,7 @@ const NON_TERMINAL = new Set([
   "export",
   "timeline",
   "list",
+  "staging",
 ]);
 
 export function getUmaCompletions(
@@ -247,6 +248,31 @@ export function getUmaCompletions(
       ].filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
     }
 
+    if (sub === "staging") {
+      return [
+        {
+          value: "staging review",
+          label: "review",
+          description: "Launch interactive staging review modal",
+        },
+        {
+          value: "staging list",
+          label: "list",
+          description: "List staged drafts via CLI",
+        },
+        {
+          value: "staging approve ",
+          label: "approve <ID>",
+          description: "Approve and promote a staged draft",
+        },
+        {
+          value: "staging discard ",
+          label: "discard <ID>",
+          description: "Discard and delete a staged draft",
+        },
+      ].filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
+    }
+
     if (sub === "doctor") {
       return [
         {
@@ -336,6 +362,16 @@ export function getUmaCompletions(
       value: "hud ",
       label: `📟 hud (${currentHud ? "on" : "off"})`,
       description: `Toggle status detector HUD widget (current: ${currentHud ? "on" : "off"})`,
+    },
+    {
+      value: "review",
+      label: "✦ review",
+      description: "Launch interactive review modal for staged drafts",
+    },
+    {
+      value: "staging ",
+      label: "📥 staging",
+      description: "Manage staged drafts (review | list | approve | discard)",
     },
   ];
 

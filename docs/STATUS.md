@@ -54,7 +54,7 @@ deterministic contracts, probabilistic verdicts may only warn**
 | Proposal | Shipped | Remaining |
 | :--- | :--- | :--- |
 | **01 Cognitive immune system** (interceptor) | **Shipped**: (a) **Block-mode** for deterministic contract-backed rules (`severity: deny`) in `auto`/`block` modes — fails closed before writing to disk and returns synthetic self-correction guidance to the agent. (b) **Warn/Confirm mode** for heuristic containment and file pain scores. | Jev-per-edit advisory (System 1 model classification) beyond deterministic ast-grep AST invariants. |
-| **02 Shadow brain** (zero-latency mining) | Nothing yet. Telemetry triggers studied; S9 session mining is the offline precursor. | SPAI-005: turn_end/tool_result capture → `.uma/.staging/` drafts → `ctx.ui.setStatus` indicator → `/uma review` batch consent. |
+| **02 Shadow brain** (zero-latency mining) | **Shipped**: (a) Telemetry mining on `tool_result` (compiler/test recovery, dependency changes) and `turn_end` (user corrections). (b) Isolated staging area in `.uma/.staging/<ULID>.json`. (c) Live status HUD indicator `✦ N draft(s)`. (d) Full interactive TUI review modal window (`/uma review`) with inline editing and batch approval/discard. | None (full P02 scope completed). |
 | **03 Plasticity & contracts** | **P03a+P03b+P05a Shipped**: (a) Executable contracts: `contract:` frontmatter block, `uma contracts export` / `check`, and CI architecture invariants. (b) OKF v0.3 schema pass: `plasticity:` (weight/reinforcements/decay) and `saliency:` (shock_level/decay-immunity) frontmatter blocks, plus `uma doctor` zombie reaper reporting decaying rules (< 0.25). | None (full P03 scope completed). |
 | **04 Council & prudence** | **Pain score** (the deterministic Pillar II): kernel `risk/` + `uma risk pain` — corrections ×15 (cap 45), reverts ×20 (cap 60), churn ×2 (cap 20); bands low/medium/critical with band-specific guidance. Live: all repo files currently low. | Pillar I skeptic (on-demand only), Pillar III debt ledger, Pillar IV epistemic-humility mode — SPAI-006 (deferred). |
 | **05 Muscle / priming / saliency / dreaming** | Nothing yet. `saliency` is folded into the SPAI-004 schema pass. | Muscle routines must be operator-curated (auto-synthesis proposal-only — they collide with the "skills expand, never execute" decision); priming graph and `doctor --dream` deferred. |
@@ -68,9 +68,9 @@ reflex.
 
 ## 3. Baseline numbers
 
-- 169 Rust tests (74 CLI + 90 core + 1 architecture invariant + 4 integration) + 42 TypeScript tests, 0 warnings
-- CLI: 20 commands; kernel: 17 modules; plugin: 7 tools, 4 hooks, 4 slash-surface groups
-- Roadmap tracking: SPAI-001 (native Jev transport), SPAI-003 (contracts - SHIPPED), SPAI-004 (OKF v0.3 plasticity & saliency - SHIPPED), SPAI-005 (shadow worker - NEXT UP), SPAI-006 (deferred tail)
+- 170 Rust tests (74 CLI + 91 core + 1 architecture invariant + 4 integration) + 44 TypeScript tests, 0 warnings
+- CLI: 21 commands (added `staging`); kernel: 18 modules (added `staging`); plugin: 7 tools, 5 hooks, 5 slash-surface groups
+- Roadmap tracking: SPAI-001 (native Jev transport), SPAI-003 (contracts - SHIPPED), SPAI-004 (OKF v0.3 - SHIPPED), SPAI-005 (shadow worker - SHIPPED), SPAI-006 (deferred tail)
 - Latest commit: see `git log -1` (chain continues from `12e992e`)
 
 ---

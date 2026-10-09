@@ -11,6 +11,7 @@ import { registerSkillTool } from "./src/slices/skill/index.js";
 import { registerFastbrainHook } from "./src/slices/fastbrain/index.js";
 import { registerCommands } from "./src/slices/commands/index.js";
 import { registerDetector } from "./src/slices/detector/index.js";
+import { registerShadowWorker } from "./src/slices/shadow/index.js";
 import { evaluateApprovalGate } from "./src/hooks/approval_gate.js";
 import { registerImmuneInterceptor } from "./src/hooks/immune_interceptor.js";
 
@@ -61,5 +62,6 @@ export default function umaExtension(pi: ExtensionAPI): void {
   registerSkillTool(pi, state);
   track(registerFastbrainHook(pi, state));
   track(registerDetector(pi, state));
+  track(registerShadowWorker(pi, state));
   registerCommands(pi, state);
 }

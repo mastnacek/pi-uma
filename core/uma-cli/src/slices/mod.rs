@@ -14,6 +14,7 @@ pub mod search;
 pub mod secrets;
 pub mod sessions;
 pub mod skill;
+pub mod staging;
 pub mod supersede;
 pub mod sync;
 pub mod timeline;

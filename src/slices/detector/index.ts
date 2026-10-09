@@ -17,6 +17,7 @@ export interface UmaProbeState {
   binaryType: "bundled" | "local" | "system" | "missing";
   contractsCount: number;
   factsCount: number;
+  draftsCount: number;
   projectScope: string;
 }
 
@@ -70,7 +71,7 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
     try {
       const walk = (dir: string) => {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-          if (entry.isDirectory() && entry.name !== "contracts") {
+          if (entry.isDirectory() && entry.name !== "contracts" && entry.name !== ".staging") {
             walk(path.join(dir, entry.name));
           } else if (entry.isFile() && entry.name.endsWith(".md")) {
             factsCount++;
@@ -83,6 +84,17 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
     }
   }
 
+  let draftsCount = 0;
+  const stagingDir = path.join(cwd, ".uma", ".staging");
+  if (fs.existsSync(stagingDir)) {
+    try {
+      const files = fs.readdirSync(stagingDir);
+      draftsCount = files.filter((f) => f.endsWith(".json")).length;
+    } catch {
+      // ignore
+    }
+  }
+
   const projectName = path.basename(cwd) || "project";
 
   cachedProbe = {
@@ -90,6 +102,7 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
     binaryType,
     contractsCount,
     factsCount,
+    draftsCount,
     projectScope: `project:${projectName}`,
   };
   lastProbeTime = now;
@@ -108,6 +121,7 @@ export function formatDetectorLine(
   const recallLabel = `⚡ recall:${state.config.recallGate ? `on [${state.config.fastbrainJudge}]` : "off"}`;
   const gateLabel = `🔒 gate:${state.config.autoApprove ? "auto" : "modal"}`;
   const storeLabel = `📁 ${probe.projectScope} (${probe.factsCount} facts)`;
+  const draftsLabel = probe.draftsCount > 0 ? `✦ ${probe.draftsCount} draft(s)` : undefined;
 
   const parts = [
     `${statusEmoji} UMA ${probe.version} [${binLabel}]`,
@@ -116,6 +130,9 @@ export function formatDetectorLine(
     gateLabel,
     storeLabel,
   ];
+  if (draftsLabel) {
+    parts.push(draftsLabel);
+  }
 
   const raw = parts.join(" │ ");
   if (visibleWidth(raw) <= maxWidth) {
@@ -147,7 +164,7 @@ export async function refreshDetector(
 
   const probe = await probeUma(ctx.cwd, force);
 
-  const footerBadge = `🧠 UMA ${probe.version} [${state.config.immuneMode}]`;
+  const footerBadge = `🧠 UMA ${probe.version} [${state.config.immuneMode}]${probe.draftsCount > 0 ? ` · ✦ ${probe.draftsCount} draft(s)` : ""}`;
   ctx.ui.setStatus("uma", footerBadge);
 
   if (ctx.mode === "tui") {

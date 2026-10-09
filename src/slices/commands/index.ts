@@ -5,6 +5,7 @@ import { stringsFor, normalizeLocale } from "../../shared/i18n.js";
 import { saveConfig } from "../../shared/config.js";
 import { getUmaCompletions } from "./complete.js";
 import { translateOutputForDisplay } from "../../shared/translate_client.js";
+import { startStagingReview } from "../../shared/staging_client.js";
 
 export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void {
   const s = stringsFor(state.config.lang);
@@ -73,6 +74,17 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         }
         const res = await runUma(binPath, ["export", "--okf", ...cleanParts.slice(1)], ctx.cwd);
         ctx.ui.notify(res.stdout || res.stderr, "info");
+      } else if (subcommand === "review") {
+        await startStagingReview(ctx, state);
+      } else if (subcommand === "staging") {
+        const subAction = cleanParts[1]?.toLowerCase();
+        if (subAction === "review" || !subAction) {
+          await startStagingReview(ctx, state);
+        } else {
+          const res = await runUma(binPath, ["staging", ...cleanParts.slice(1)], ctx.cwd);
+          ctx.ui.notify(res.stdout || res.stderr, "info");
+          void state.refreshDetector?.(ctx, true);
+        }
       } else if (subcommand === "lang") {
         const target = cleanParts[1];
         if (target === "cs" || target === "en") {

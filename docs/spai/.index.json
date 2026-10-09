@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-09 21:50:47",
+  "lastUpdated": "2026-10-09 22:03:53",
   "records": [
     {
       "id": "SPAI-001",
@@ -76,8 +76,8 @@
       "id": "SPAI-005",
       "title": "P02 shadow worker: telemetry capture (turn_end/tool_result: compiler recovery, reverts, dependency changes) → .uma/.staging/ drafts (JSON, no index pollution) → ctx.ui.setStatus \"✦ N drafts\" + /uma review batch approval through the modal",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-08 23:15:12",
       "tags": [
         "roadmap",

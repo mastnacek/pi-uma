@@ -76,6 +76,9 @@ enum Commands {
 
     /// Extract memory candidates from agent sessions (proposals only)
     Import(slices::import::ImportArgs),
+
+    /// Staging area for shadow worker drafts: list, inspect, approve, or discard
+    Staging(slices::staging::StagingArgs),
 }
 
 fn main() -> Result<()> {
@@ -102,5 +105,6 @@ fn main() -> Result<()> {
         Commands::Secrets(args) => slices::secrets::run(args),
         Commands::Sessions(args) => slices::sessions::run(args),
         Commands::Import(args) => slices::import::run(args),
+        Commands::Staging(args) => slices::staging::run(args),
     }
 }

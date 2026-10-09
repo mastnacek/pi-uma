@@ -12,6 +12,7 @@ pub mod serialization;
 pub mod similarity;
 pub mod skill;
 pub mod sources;
+pub mod staging;
 pub mod store;
 pub mod timeline;
 pub mod vector_store;
