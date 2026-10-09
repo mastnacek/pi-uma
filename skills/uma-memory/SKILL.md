@@ -5,9 +5,10 @@ description: Store, search, and recall structured project decisions, user prefer
 
 # UMA Memory Skill (harness-agnostic)
 
-> **Mirror note:** the canonical copy for non-Pi harnesses lives at the repo root
-> (`skills/uma-memory/SKILL.md`). This copy ships inside the Pi package so globally
-> installed Pi agents can read it; keep the two in sync when the content changes.
+> **Mirror note:** the canonical copy lives in the UMA repository
+> ([mastnacek/ai-memory](https://github.com/mastnacek/ai-memory), `skills/uma-memory/SKILL.md`).
+> This copy ships inside the Pi package so globally installed Pi agents can read it;
+> keep the two in sync when the content changes.
 
 This skill guides **any** coding agent on when, why, and how to capture, organize, and retrieve
 structured long-term memories with the **UMA (Universal Memory Architecture)** engine.
