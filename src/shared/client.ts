@@ -10,6 +10,11 @@ export function findUmaBinary(cwd: string): string {
   const fallback = isWindows ? "uma-cli.exe" : "uma-cli";
 
   const candidates = [
+    // The engine binary ships with the package (bin/), so a plain clone
+    // works without a Rust toolchain or PATH entry.
+    path.join(__dirname, "..", "bin", primary),
+    path.join(__dirname, "..", "..", "bin", primary),
+    path.join(cwd, "bin", primary),
     // Consolidated repo layout: the Rust workspace lives in core/.
     path.join(__dirname, "..", "..", "core", "target", "release", primary),
     path.join(__dirname, "..", "..", "core", "target", "debug", primary),
@@ -34,6 +39,9 @@ export function findUmaBinary(cwd: string): string {
     }
   }
 
+  // Nothing exists anywhere: return a path anyway (callers spawn it), but
+  // runUma turns the failure into an actionable error for the model.
+
   return primary;
 }
 
@@ -42,6 +50,20 @@ export function runUma(
   args: string[],
   cwd: string
 ): Promise<{ stdout: string; stderr: string; code: number }> {
+  // The missing-engine case must reach the MODEL as an instruction, not
+  // surface as a bare ENOENT: a model that sees only "spawn failed"
+  // improvises (it once stored a memory rule in an unrelated gotchas
+  // file). Tell it exactly what happened and what to tell the operator.
+  if (!fs.existsSync(binPath)) {
+    return Promise.reject(
+      new Error(
+        `UMA engine binary not found (looked for: ${binPath} and standard locations). ` +
+        "Do NOT store this request anywhere else. " +
+        "Tell the operator to restore the engine: reinstall the plugin " +
+        "(pi update --extensions) or build it (cd core && cargo build --release).",
+      ),
+    );
+  }
   return new Promise((resolve, reject) => {
     execFile(binPath, args, { cwd }, (error, stdout, stderr) => {
       if (error && "code" in error && typeof error.code === "number" && error.code !== 0) {

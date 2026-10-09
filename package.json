@@ -9,6 +9,7 @@
     "index.ts",
     "src",
     "skills",
+    "bin",
     "README.md",
     "LICENSE"
   ],
@@ -38,7 +39,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "syncbin": "node -e \"const fs=require('fs');fs.mkdirSync('bin',{recursive:true});fs.copyFileSync(process.platform==='win32'?'core/target/release/uma.exe':'core/target/release/uma',process.platform==='win32'?'bin/uma.exe':'bin/uma');console.log('bin synced')\""
   },
   "license": "MIT"
 }
