@@ -68,9 +68,11 @@ reflex.
 
 ## 3. Baseline numbers
 
-- 170 Rust tests (74 CLI + 91 core + 1 architecture invariant + 4 integration) + 44 TypeScript tests, 0 warnings
-- CLI: 21 commands (added `staging`); kernel: 18 modules (added `staging`); plugin: 7 tools, 5 hooks, 5 slash-surface groups
-- Roadmap tracking: SPAI-001 (native Jev transport), SPAI-003 (contracts - SHIPPED), SPAI-004 (OKF v0.3 - SHIPPED), SPAI-005 (shadow worker - SHIPPED), SPAI-006 (deferred tail)
+- **Version 0.2.0** (workspace `Cargo.toml` + `package.json`; verify with `uma --version`)
+- 171 Rust tests (74 CLI + 92 core incl. live Jev transport + 1 architecture invariant + 4 integration) + 44 TypeScript tests, 0 warnings
+- CLI: 21 commands; kernel: 18 modules; plugin: 7 tools, 5 hooks, 5 slash-surface groups
+- Roadmap tracking: SPAI-001 (CANCELLED — OpenRouter `typesafe/jev-router` IS the canonical transport),
+  SPAI-003 (contracts - SHIPPED), SPAI-004 (OKF v0.3 - SHIPPED), SPAI-005 (shadow worker + Jev distillation - SHIPPED), SPAI-006 (deferred tail)
 - Latest commit: see `git log -1` (chain continues from `12e992e`)
 
 ---

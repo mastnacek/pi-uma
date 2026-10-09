@@ -1,6 +1,6 @@
 {
   "name": "@mastnacek/pi-uma",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Universal Memory Architecture (UMA) plugin for Pi coding agent with interactive modal approval and VSA architecture",
   "type": "module",
   "main": "index.ts",

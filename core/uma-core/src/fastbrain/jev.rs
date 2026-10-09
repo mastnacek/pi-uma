@@ -281,4 +281,49 @@ mod tests {
         let need = parse_recall(r#"{"search": false, "fact_types": []}"#).unwrap();
         assert!(!need.search);
     }
+
+    /// Live Jev transport verification: the OpenRouter `typesafe/jev-router`
+    /// endpoint is the production System-1 judge, not an emulation to mock.
+    /// Runs whenever credentials resolve (OPENROUTER_API_KEY or
+    /// ~/.pi/agent/auth.json); without credentials the test skips loudly
+    /// rather than substituting a fake model.
+    #[test]
+    fn test_live_jev_transport_endpoints() {
+        if crate::embeddings::resolve_api_key().is_none() {
+            eprintln!("skipping live Jev check: no OpenRouter credentials");
+            return;
+        }
+
+        // recall_need: a plain greeting must not trigger memory search.
+        let greeting = recall_need("hello, how are you").expect("live recall call");
+        assert_eq!(greeting.judged_by, Backend::Jev);
+        assert!(!greeting.answer.search, "greeting must not trigger recall");
+
+        // recall_need: a project-convention question must trigger it.
+        let project_q = recall_need("why did we adopt vertical slice architecture for this repository?")
+            .expect("live recall call");
+        assert!(project_q.answer.search, "convention question must trigger recall");
+
+        // relationship: two opposing statements are a contradiction.
+        let rel = relationship(
+            "Always use pnpm for package management.",
+            "Never use pnpm; use npm instead.",
+        )
+        .expect("live relationship call");
+        assert_eq!(rel.judged_by, Backend::Jev);
+        assert_eq!(rel.answer, Relationship::Contradiction);
+
+        // distill_telemetry: a specific, well-evidenced recovery event must
+        // produce durable knowledge with populated fields. (Vague context is
+        // correctly judged non-durable — that conservatism is the point of the
+        // System-1 triage, so the live example must carry real signal.)
+        let draft = distill_telemetry(
+            "compiler_recovery",
+            "cargo test failed: SQLite 'database is locked' when two writers opened the index concurrently. Fix: enable WAL mode with 'PRAGMA journal_mode=WAL' and set busy_timeout=5000. After the fix all tests passed.",
+        )
+        .expect("live distill call");
+        assert!(draft.answer.is_durable, "evidenced recovery must be durable knowledge");
+        assert!(!draft.answer.title.is_empty());
+        assert!(!draft.answer.rule.is_empty());
+    }
 }

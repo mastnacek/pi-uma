@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-09 22:03:53",
+  "lastUpdated": "2026-10-09 22:46:15",
   "records": [
     {
       "id": "SPAI-001",
       "title": "Jev native transport: swap the OpenRouter chat-completion emulation in uma-core/src/fastbrain/jev.rs for the native System One API (api.typesafe.ai/v1/systemone, TYPESAFE_API_KEY) to get calibrated probabilities per answer, not the router's flat 0.8",
       "type": "Idea",
-      "status": "idea",
-      "symbol": "?",
+      "status": "cancelled",
+      "symbol": "z",
       "timestamp": "2026-10-08 22:45:00",
       "tags": [
         "fastbrain",
