@@ -148,3 +148,35 @@ pub struct RecallNeed {
     pub fact_types: Vec<String>,
     pub notes: Option<String>,
 }
+
+/// A distilled candidate draft produced by the System-1 shadow observer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DistilledDraft {
+    pub is_durable: bool,
+    pub fact_type: String,
+    pub title: String,
+    pub context: String,
+    pub rule: String,
+    pub tags: Vec<String>,
+}
+
+/// Distills telemetry into a structured memory candidate using the requested judge.
+pub fn judge_distill_telemetry(
+    trigger: &str,
+    raw_context: &str,
+    judge: Judge,
+) -> Result<Judgment<DistilledDraft>, String> {
+    match judge {
+        Judge::Offline => offline::distill_telemetry(trigger, raw_context),
+        Judge::Jev => match jev::distill_telemetry(trigger, raw_context) {
+            Ok(judgment) => Ok(judgment),
+            Err(failure) => {
+                let mut degraded = offline::distill_telemetry(trigger, raw_context)?;
+                degraded.judged_by = Backend::Offline;
+                degraded.confidence *= 0.5;
+                degraded.notes = Some(format!("Jev unavailable ({failure}); offline fallback"));
+                Ok(degraded)
+            }
+        },
+    }
+}

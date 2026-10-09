@@ -105,7 +105,39 @@ export async function createStagedDraft(
   }
 }
 
+export async function distillTelemetry(
+  cwd: string,
+  trigger: string,
+  context: string,
+  judge: string,
+): Promise<boolean> {
+  try {
+    const binPath = findUmaBinary(cwd);
+    const args = [
+      "staging",
+      "distill",
+      "--trigger",
+      trigger,
+      "--context",
+      context,
+      "--judge",
+      judge === "off" ? "off" : "jev",
+      "--json",
+    ];
+    const res = await runUma(binPath, args, cwd);
+    if (res.code === 0 && res.stdout) {
+      const parsed = JSON.parse(res.stdout) as { id?: string; durable?: boolean };
+      return parsed.durable !== false && Boolean(parsed.id);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): () => void {
+  const judge = () => (state.config.fastbrainJudge === "off" ? "off" : "jev");
+
   const unsub1 = pi.on("tool_result", async (event, ctx) => {
     // 1. Telemetry on command execution: compiler / test recovery
     if (event.toolName === "bash") {
@@ -133,24 +165,14 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
         const prev = lastCommandFailure;
         lastCommandFailure = null;
 
-        const title = `Compiler recovery: ${prev.command.slice(0, 50)}`;
-        const body =
-          `### Context\nCommand \`${prev.command}\` initially failed:\n\`\`\`\n` +
-          `${prev.output.trim()}\n\`\`\`\n\n### Fix\n` +
-          `Subsequent command succeeded: \`${cmd}\`.\n\n### Rule\nPreserve this verified resolution pattern.`;
+        const context =
+          `Command \`${prev.command}\` initially failed:\n${prev.output.trim()}\n\nSubsequent command succeeded: \`${cmd}\`.`;
 
-        const saved = await createStagedDraft(ctx.cwd, {
-          type: "correction",
-          title,
-          body,
-          trigger: "compiler_recovery",
-          confidence: 0.9,
-          tags: ["recovery", "compiler", "test"],
+        void distillTelemetry(ctx.cwd, "compiler_recovery", context, judge()).then((created) => {
+          if (created) {
+            void state.refreshDetector?.(ctx, true);
+          }
         });
-
-        if (saved) {
-          void state.refreshDetector?.(ctx, true);
-        }
       }
     }
 
@@ -161,19 +183,13 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
       if (filePath.endsWith("Cargo.toml") || filePath.endsWith("package.json")) {
         const addedText = typeof input?.content === "string" ? input.content : "";
         if (addedText.includes("dependencies") || event.toolName === "edit") {
-          const title = `Dependency update in ${filePath.split(/[/\\]/).pop()}`;
-          const body = `### Context\nModified project dependencies in \`${filePath}\`.\n\n### Rule\nDocument the framework/library choice and version constraint.`;
-          const saved = await createStagedDraft(ctx.cwd, {
-            type: "decision",
-            title,
-            body,
-            trigger: "dependency_change",
-            confidence: 0.8,
-            tags: ["dependency", "architecture"],
+          const context = `File: ${filePath}\nModified dependencies:\n${addedText.slice(0, 300)}`;
+
+          void distillTelemetry(ctx.cwd, "dependency_change", context, judge()).then((created) => {
+            if (created) {
+              void state.refreshDetector?.(ctx, true);
+            }
           });
-          if (saved) {
-            void state.refreshDetector?.(ctx, true);
-          }
         }
       }
     }
@@ -200,21 +216,11 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
           : "";
 
     if (userText && detectUserCorrection(userText) && userText.length < 300) {
-      const title = `User guidance: ${userText.replace(/\s+/g, " ").trim().slice(0, 50)}`;
-      const body = `### Context\nUser provided directional correction during task execution.\n\n### Instruction\n> ${userText.trim()}\n\n### Rule\nRespect this guidance in subsequent turns.`;
-
-      const saved = await createStagedDraft(ctx.cwd, {
-        type: "preference",
-        title,
-        body,
-        trigger: "user_correction",
-        confidence: 0.85,
-        tags: ["preference", "user-guidance"],
+      void distillTelemetry(ctx.cwd, "user_correction", userText.trim(), judge()).then((created) => {
+        if (created) {
+          void state.refreshDetector?.(ctx, true);
+        }
       });
-
-      if (saved) {
-        void state.refreshDetector?.(ctx, true);
-      }
     }
   });
 

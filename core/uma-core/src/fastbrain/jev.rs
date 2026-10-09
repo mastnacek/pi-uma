@@ -12,7 +12,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::json;
 
-use super::{Backend, Judgment, RecallNeed, Relationship};
+use super::{Backend, DistilledDraft, Judgment, RecallNeed, Relationship};
 
 /// The router model OpenRouter currently serves.
 pub const DEFAULT_MODEL: &str = "typesafe/jev-router";
@@ -198,6 +198,62 @@ pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>> {
     Ok(Judgment {
         answer: parse_recall(&content)?,
         confidence: 0.8,
+        judged_by: Backend::Jev,
+        notes: Some(DEFAULT_MODEL.to_string()),
+    })
+}
+
+/// Distills telemetry into a structured memory candidate using Jev.
+pub fn distill_telemetry(trigger: &str, raw_context: &str) -> Result<Judgment<DistilledDraft>> {
+    let schema = json!({
+        "type": "object",
+        "properties": {
+            "is_durable": { "type": "boolean" },
+            "fact_type": { "type": "string", "enum": ["correction", "preference", "decision", "skill"] },
+            "title": { "type": "string" },
+            "context": { "type": "string" },
+            "rule": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["is_durable", "fact_type", "title", "context", "rule", "tags"],
+        "additionalProperties": false,
+    });
+
+    let prompt = format!(
+        "You are the System-1 Shadow Observer analyzing developer activity.\n\
+         Given an observed behavioral inflection point, decide if this is durable engineering \
+         knowledge worth preserving in long-term memory.\n\
+         If it is routine chatter or ephemeral, set is_durable=false.\n\
+         If durable, synthesize a concise one-line title, context, actionable rule, and tags.\n\n\
+         Trigger: {trigger}\n\
+         Observed Context:\n{raw_context}"
+    );
+
+    let content = complete("distill_telemetry", schema, prompt)?;
+
+    #[derive(Deserialize)]
+    struct Answer {
+        is_durable: bool,
+        fact_type: String,
+        title: String,
+        context: String,
+        rule: String,
+        tags: Vec<String>,
+    }
+
+    let parsed: Answer = serde_json::from_str(content.trim())
+        .with_context(|| format!("Unparsable distill answer: {}", truncate(&content, 120)))?;
+
+    Ok(Judgment {
+        answer: DistilledDraft {
+            is_durable: parsed.is_durable,
+            fact_type: parsed.fact_type,
+            title: parsed.title,
+            context: parsed.context,
+            rule: parsed.rule,
+            tags: parsed.tags,
+        },
+        confidence: 0.85,
         judged_by: Backend::Jev,
         notes: Some(DEFAULT_MODEL.to_string()),
     })

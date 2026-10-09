@@ -25,6 +25,31 @@ pub enum StagingCommand {
     Discard(DiscardDraftArgs),
     /// Create a new staged draft (called by shadow telemetry worker)
     Create(CreateDraftArgs),
+    /// Distill telemetry using System-1 Jev and stage durable knowledge
+    Distill(DistillArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct DistillArgs {
+    /// Inflection point trigger: compiler_recovery, user_correction, dependency_change
+    #[arg(long = "trigger")]
+    pub trigger: String,
+
+    /// Raw context text (errors, user instructions, changed lines)
+    #[arg(long = "context")]
+    pub context: String,
+
+    /// Session ID
+    #[arg(long = "session")]
+    pub session_id: Option<String>,
+
+    /// Which judge to use: jev (default) or off
+    #[arg(long = "judge", default_value = "jev", value_parser = ["off", "jev"])]
+    pub judge: String,
+
+    /// Emit as JSON
+    #[arg(long = "json")]
+    pub json: bool,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -159,6 +184,58 @@ pub fn run(args: StagingArgs) -> Result<()> {
 
             let path = save_draft(&store, &draft)?;
             println!("Created staged draft: {} at {:?}", draft.id, path);
+        }
+        StagingCommand::Distill(distill) => {
+            let judge = match distill.judge.as_str() {
+                "jev" => uma_core::fastbrain::Judge::Jev,
+                _ => uma_core::fastbrain::Judge::Offline,
+            };
+
+            let judgment = uma_core::fastbrain::judge_distill_telemetry(
+                &distill.trigger,
+                &distill.context,
+                judge,
+            )
+            .map_err(|e| anyhow::anyhow!("Distillation failed: {e}"))?;
+
+            let answer = judgment.answer;
+            if !answer.is_durable {
+                if distill.json {
+                    println!("{}", serde_json::json!({ "durable": false, "judged_by": judgment.judged_by.as_str() }));
+                } else {
+                    println!(
+                        "Telemetry judged not durable by {} — skipping staging.",
+                        judgment.judged_by.as_str()
+                    );
+                }
+                return Ok(());
+            }
+
+            let fact_type = FactType::from_str(&answer.fact_type)?;
+            let project = Store::current_project_name().unwrap_or_else(|| "project".to_string());
+            let body = format!("### Context\n{}\n\n### Rule\n{}", answer.context, answer.rule);
+            let mut fact = Fact::new(Scope::Project(project), fact_type, answer.title, body);
+            fact.tags = answer.tags;
+
+            let draft = StagedDraft::new(
+                judgment.confidence,
+                StagedProvenance {
+                    session_id: distill.session_id,
+                    trigger_type: distill.trigger,
+                    context: Some(distill.context),
+                },
+                fact,
+            );
+
+            let path = save_draft(&store, &draft)?;
+            if distill.json {
+                println!("{}", serde_json::to_string_pretty(&draft)?);
+            } else {
+                println!(
+                    "Distilled and saved draft [{}] '{}' via {} at {:?}",
+                    draft.fact.fact_type, draft.fact.title, judgment.judged_by.as_str(), path
+                );
+            }
         }
     }
 

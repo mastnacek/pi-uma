@@ -8,7 +8,7 @@
 
 use crate::similarity::{has_negation, jaccard, tokenize};
 
-use super::{Judgment, RecallNeed, Relationship};
+use super::{DistilledDraft, Judgment, RecallNeed, Relationship};
 
 /// Token overlap above which two texts are the same rule said twice.
 const DUPLICATE_THRESHOLD: f64 = 0.75;
@@ -115,6 +115,60 @@ pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>, String> {
             notes: None,
         },
         confidence: if hits_recall_marker { 0.8 } else { 0.5 },
+        judged_by: super::Backend::Offline,
+        notes: None,
+    })
+}
+
+/// Deterministic distillation of telemetry when offline.
+pub fn distill_telemetry(trigger: &str, raw_context: &str) -> Result<Judgment<DistilledDraft>, String> {
+    let first_line = raw_context
+        .lines()
+        .next()
+        .unwrap_or("")
+        .trim();
+
+    let (is_durable, fact_type, title, rule, tags) = match trigger {
+        "compiler_recovery" => (
+            true,
+            "correction".to_string(),
+            format!("Compiler recovery: {}", first_line.chars().take(60).collect::<String>()),
+            "Preserve verified resolution pattern.".to_string(),
+            vec!["compiler".to_string(), "recovery".to_string()],
+        ),
+        "user_correction" => (
+            true,
+            "preference".to_string(),
+            format!("User guidance: {}", first_line.chars().take(60).collect::<String>()),
+            "Respect user directional guidance.".to_string(),
+            vec!["preference".to_string(), "guidance".to_string()],
+        ),
+        "dependency_change" => (
+            true,
+            "decision".to_string(),
+            format!("Dependency update: {}", first_line.chars().take(60).collect::<String>()),
+            "Document dependency choice and version constraint.".to_string(),
+            vec!["dependency".to_string(), "architecture".to_string()],
+        ),
+        _ => (
+            false,
+            "note".to_string(),
+            "Telemetry note".to_string(),
+            "Context only.".to_string(),
+            vec!["telemetry".to_string()],
+        ),
+    };
+
+    Ok(Judgment {
+        answer: DistilledDraft {
+            is_durable,
+            fact_type,
+            title,
+            context: raw_context.to_string(),
+            rule,
+            tags,
+        },
+        confidence: 0.7,
         judged_by: super::Backend::Offline,
         notes: None,
     })
