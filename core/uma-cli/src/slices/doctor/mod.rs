@@ -1,4 +1,5 @@
 mod checks;
+mod dream;
 mod findings;
 
 use anyhow::{bail, Result};
@@ -25,6 +26,20 @@ pub struct DoctorArgs {
     /// Check specifically for zombie/rotting facts whose synaptic weight has decayed below 0.25
     #[arg(long = "zombies", alias = "prune-zombies")]
     pub zombies: bool,
+
+    /// Retrieval practice (Proposal 05): test facts nearing their decay half-life
+    /// with a synthetic question; reinforce or propose review. READ-ONLY: it
+    /// never mutates plasticity directly — results are printed as proposals.
+    #[arg(long = "dream")]
+    pub dream: bool,
+
+    /// Which judge to use for --dream: jev (default) or off
+    #[arg(long = "judge", default_value = "jev", value_parser = ["off", "jev"])]
+    pub judge: String,
+
+    /// How many facts to test in one dream pass (default 3)
+    #[arg(long = "dream-max", default_value_t = 3)]
+    pub dream_max: usize,
 }
 
 /// Executes the Doctor vertical slice: a read-only health report on the store and
@@ -103,6 +118,21 @@ pub fn run(args: DoctorArgs) -> Result<()> {
             format!("{count} decaying zombie rule(s) detected with synaptic fitness < 0.25"),
             "Proposal only: review decaying facts with `uma list` and archive with `uma supersede` or reinforce.",
         ));
+    }
+
+    // Retrieval practice (Proposal 05, Pillar IV): test facts nearing decay.
+    if args.dream {
+        let judge = match args.judge.as_str() {
+            "jev" => uma_core::fastbrain::Judge::Jev,
+            _ => uma_core::fastbrain::Judge::Offline,
+        };
+        dream::dream_over_roots(
+            &[project_root.as_deref(), global_root.as_deref()],
+            now,
+            judge,
+            args.dream_max,
+            args.json,
+        )?;
     }
 
     let db_path = Store::central_db_path()?;

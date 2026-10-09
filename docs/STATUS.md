@@ -57,7 +57,7 @@ deterministic contracts, probabilistic verdicts may only warn**
 | **02 Shadow brain** (zero-latency mining) | **Shipped**: (a) Telemetry mining on `tool_result` (compiler/test recovery, dependency changes) and `turn_end` (user corrections). (b) Isolated staging area in `.uma/.staging/<ULID>.json`. (c) Live status HUD indicator `✦ N draft(s)`. (d) Full interactive TUI review modal window (`/uma review`) with inline editing and batch approval/discard. | None (full P02 scope completed). |
 | **03 Plasticity & contracts** | **P03a+P03b+P05a Shipped**: (a) Executable contracts: `contract:` frontmatter block, `uma contracts export` / `check`, and CI architecture invariants. (b) OKF v0.3 schema pass: `plasticity:` (weight/reinforcements/decay) and `saliency:` (shock_level/decay-immunity) frontmatter blocks, plus `uma doctor` zombie reaper reporting decaying rules (< 0.25). | None (full P03 scope completed). |
 | **04 Council & prudence** | **ALL FOUR PILLARS SHIPPED**. Pillar I Skeptic (on-demand): kernel `council/` + `uma skeptic check` + `uma_skeptic` tool — Jev devil's advocate with offline pain-proxy fallback; advisory only. Pillar II Pain score: kernel `risk/` + `uma risk pain`. Pillar III Debt Ledger: session-RAM ledger (`uma_debt` + `/uma debt`), auto-capture from Skeptic contract verdicts, capped settle-boundary enforcement on `agent_before_settle`. Pillar IV Epistemic Humility: kernel `council/humility` (Familiarity Index, Jev + offline) + `uma humility check` + `uma_humility` tool (check/confirm) + read-tracking and the `/uma humility on` confirm gate — LOW familiarity requires Read-Only Explorative Mode (≥3 reads + confirmed hypothesis). | None. |
-| **05 Muscle / priming / saliency / dreaming** | `saliency` shipped with the OKF v0.3 pass. | Muscle routines must be operator-curated (auto-synthesis proposal-only — they collide with the "skills expand, never execute" decision); priming graph and `doctor --dream` deferred (SPAI-006 tail). |
+| **05 Muscle / priming / saliency / dreaming** | **Priming graph SHIPPED**: deterministic association graph (links > shared tags > file co-mention) + spreading activation; the recall gate appends pre-activated neighbors tagged `[primed]`. **`uma doctor --dream` SHIPPED**: retrieval practice — Jev synthesizes a question, answers, self-grades; correct → REINFORCE proposal, wrong → BLURRED review proposal; read-only, nothing auto-applied (live-verified end-to-end). `saliency` shipped with OKF v0.3. | `uma_muscle` remains: must be operator-curated only (auto-synthesis collides with the "skills expand, never execute" decision, amendable via the approval modal). |
 
 **Summary of the pyramid**: L0 is complete and hardened. L1 exists in its
 advisory half (pain score + rule warnings). L2–L5 are designed, sequenced,
@@ -69,13 +69,11 @@ reflex.
 ## 3. Baseline numbers
 
 - **Version 0.5.0** (workspace `Cargo.toml` + `package.json`; verify with `uma --version`)
-- 187 Rust tests (81 CLI + 101 core incl. live Jev skeptic & humility + 1 architecture invariant + 4 integration) + 54 TypeScript tests, 0 warnings
-- CLI: 23 commands (added `humility`); kernel: 19 modules; plugin: 10 tools (added `uma_humility`), 8 hooks (added humility gate + read tracking), 5 slash-surface groups (+`/uma humility`)
-- Roadmap tracking: SPAI-001 (CANCELLED — OpenRouter `typesafe/jev-router` IS the canonical transport),
-  SPAI-002 (live consolidate check - DONE, clean verdict), SPAI-003 (contracts - SHIPPED),
-  SPAI-004 (OKF v0.3 - SHIPPED), SPAI-005 (shadow worker + Jev distillation - SHIPPED),
-  SPAI-006 (Internal Council COMPLETE: Pillar I Skeptic, Pillar III Debt Ledger,
-  Pillar IV Epistemic Humility all SHIPPED; P05 muscle/priming/dreaming remains as the deferred tail)
+- 193 Rust tests (81 CLI + 107 core incl. live Jev skeptic & humility + 6 priming + 1 architecture invariant + 4 integration) + 54 TypeScript tests, 0 warnings
+- CLI: 23 commands; kernel: 20 modules (added `priming`); plugin: 10 tools, 8 hooks, 5 slash-surface groups
+- P05 status: priming graph SHIPPED (recall gate appends primed neighbors),
+  `uma doctor --dream` SHIPPED (Jev retrieval practice, proposals only — live-verified),
+  `uma_muscle` remains (requires amending the skills-never-execute decision via the modal)
 - Latest commit: see `git log -1` (chain continues from `12e992e`)
 
 ---

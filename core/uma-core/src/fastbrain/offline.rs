@@ -8,6 +8,8 @@
 
 use crate::similarity::{has_negation, jaccard, tokenize};
 
+use crate::domain::Fact;
+
 use super::{DistilledDraft, Judgment, RecallNeed, Relationship};
 
 /// Token overlap above which two texts are the same rule said twice.
@@ -118,6 +120,21 @@ pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>, String> {
         judged_by: super::Backend::Offline,
         notes: None,
     })
+}
+
+/// Offline dream: a template question over the fact's own title.
+pub fn dream_question(fact: &Fact) -> String {
+    format!("What is the rule '{}' about?", fact.title)
+}
+
+/// Offline dream answer check: no model means no answer — the honest verdict
+/// is "blurred, review manually", never a fake pass.
+pub fn dream_answer(question: &str, fact: &Fact) -> (String, bool) {
+    let _ = (question, fact);
+    (
+        "(offline dreaming cannot answer; review manually)".to_string(),
+        false,
+    )
 }
 
 /// Deterministic distillation of telemetry when offline.

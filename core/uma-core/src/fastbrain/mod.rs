@@ -22,6 +22,7 @@
 //! secret ever reaches a judge (the secrets gate runs first on anything a
 //! judge would see).
 
+pub mod dream;
 pub mod jev;
 pub mod offline;
 

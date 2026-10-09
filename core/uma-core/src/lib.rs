@@ -6,6 +6,7 @@ pub mod embeddings;
 pub mod fastbrain;
 pub mod health;
 pub mod indexer;
+pub mod priming;
 pub mod risk;
 pub mod search;
 pub mod secrets;

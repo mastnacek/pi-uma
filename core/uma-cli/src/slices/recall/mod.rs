@@ -218,8 +218,74 @@ fn recall_facts(
             }));
         }
     }
+
+    // Priming (Proposal 05, Pillar II): neighbors of every hit arrive warm.
+    facts = prime_neighbors(facts, max, &mut notes);
     facts.truncate(max);
     Ok((facts, notes))
+}
+
+/// Spreads activation from the direct hits and appends the strongest
+/// pre-activated neighbors (tagged with "primed" provenance in the JSON).
+fn prime_neighbors(
+    mut facts: Vec<serde_json::Value>,
+    max: usize,
+    notes: &mut Vec<String>,
+) -> Vec<serde_json::Value> {
+    if facts.is_empty() || facts.len() >= max {
+        return facts;
+    }
+
+    let hits: Vec<String> = facts
+        .iter()
+        .filter_map(|f| f.get("id").and_then(|v| v.as_str()).map(String::from))
+        .collect();
+
+    // Load the facts behind the hits so the graph can be built.
+    let mut hit_facts = Vec::new();
+    for id in &hits {
+        if let Ok(fact_id) = id.parse::<uma_core::domain::FactId>() {
+            if let Ok(fact) = uma_core::store::Store::find_by_id(&fact_id) {
+                hit_facts.push(fact);
+            }
+        }
+    }
+    if hit_facts.is_empty() {
+        return facts;
+    }
+
+    let graph = uma_core::priming::AssociationGraph::build(&hit_facts);
+    let mut seen: Vec<String> = hits.clone();
+
+    for hit_id in &hits {
+        for activated in graph.spread(hit_id, 0.5, 1) {
+            if seen.contains(&activated.id) || activated.id == *hit_id {
+                continue;
+            }
+            if facts.len() >= max {
+                break;
+            }
+            if let Ok(fact_id) = activated.id.parse::<uma_core::domain::FactId>() {
+                if let Ok(neighbor) = uma_core::store::Store::find_by_id(&fact_id) {
+                    seen.push(activated.id.clone());
+                    facts.push(serde_json::json!({
+                        "id": neighbor.id,
+                        "title": neighbor.title,
+                        "fact_type": neighbor.fact_type.to_string(),
+                        "scope": neighbor.scope.to_string(),
+                        "score": activated.activation,
+                        "snippet": format!("[primed {:.2}] {}", activated.activation, neighbor.body.lines().next().unwrap_or("")),
+                        "tags": neighbor.tags,
+                    }));
+                }
+            }
+        }
+    }
+
+    if facts.len() > hits.len() {
+        notes.push("primed neighbors included (spreading activation)".to_string());
+    }
+    facts
 }
 
 /// Builds the search query from the prompt: meaningful words only, capped, so
