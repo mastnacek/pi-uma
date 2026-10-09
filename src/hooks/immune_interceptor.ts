@@ -12,6 +12,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../shared/types.js";
 import { runUma, findUmaBinary } from "../shared/client.js";
+import { stringsFor } from "../shared/i18n.js";
 import {
   assessEdit,
   decideImmuneAction,
@@ -112,7 +113,7 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
           // call with the reason — consented blocking, the consent model
           // intact.
           if (action.message.length > 0) {
-            const proceed = await ctx.ui.confirm("🛡️ UMA immune interceptor", action.message);
+            const proceed = await ctx.ui.confirm(stringsFor(state.config.lang).immuneDialogTitle, action.message);
             if (proceed === false) {
               return { block: true, reason: action.message };
             }
