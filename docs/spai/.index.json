@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-10 21:56:50",
+  "lastUpdated": "2026-10-10 22:25:12",
   "records": [
     {
       "id": "SPAI-001",
@@ -302,6 +302,22 @@
       "project": "pi-uma",
       "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-10-SPAI-017-dedikovany-orchestrator-pameti-pi-instance-v-herdr.md"
+    },
+    {
+      "id": "SPAI-018",
+      "title": "Fáze B dokončena: plugin pi-orchestrator vygenerován (VSA), otestován (7/7 testů), vytvořen public GitHub repo mastnacek/pi-orchestrator a zaregistrován v settings.json",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-10 22:25:09",
+      "tags": [
+        "orchestrator",
+        "herdr"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-10-SPAI-018-faze-b-dokoncena-plugin-pi-orchestrator-vygenerova.md"
     }
   ]
 }
