@@ -11,6 +11,7 @@ pub mod muscle;
 pub mod read;
 pub mod recall;
 pub mod risk;
+pub mod route;
 pub mod scopes;
 pub mod search;
 pub mod skeptic;

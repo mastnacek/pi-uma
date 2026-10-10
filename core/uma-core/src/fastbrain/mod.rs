@@ -25,6 +25,7 @@
 pub mod dream;
 pub mod jev;
 pub mod offline;
+pub mod route;
 
 use serde::{Deserialize, Serialize};
 

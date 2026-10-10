@@ -68,6 +68,9 @@ enum Commands {
     /// Decide whether a message needs memory recall (read-only; S3 gate)
     Recall(slices::recall::RecallArgs),
 
+    /// System-1 task routing verdict: which specialist gets this prompt (read-only)
+    Route(slices::route::RouteArgs),
+
     /// Scan text for credentials and injection signatures (read-only)
     Secrets(slices::secrets::SecretsArgs),
 
@@ -111,6 +114,7 @@ fn main() -> Result<()> {
         Commands::Scopes(args) => slices::scopes::run(args),
         Commands::Risk(args) => slices::risk::run(args),
         Commands::Recall(args) => slices::recall::run(args),
+        Commands::Route(args) => slices::route::run(args),
         Commands::Secrets(args) => slices::secrets::run(args),
         Commands::Sessions(args) => slices::sessions::run(args),
         Commands::Import(args) => slices::import::run(args),
