@@ -1,4 +1,5 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { wrapText } from "./wrap.ts";
 import type { Strings } from "./i18n.js";
 import type { MemoryProposal } from "./types.js";
 
@@ -138,7 +139,7 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
 
   // ── Body: full-text scroll window, or the 8-line preview ──────────────
   const bodyHeading = `  ${theme.fg("mdHeading", theme.bold("📄 " + s.bodyLabel))}`;
-  const bodyLines = bodyText.split("\n");
+  const bodyLines = wrapText(bodyText, inner - 6);
   const renderBodyLine = (line: string, dim: boolean): string => {
     if (line.startsWith("### ") || line.startsWith("## ")) {
       const heading = line.replace(/^#+ /, "").trim();

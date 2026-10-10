@@ -9,6 +9,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Editor, type EditorTheme, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { runUma, findUmaBinary } from "../../shared/client.js";
 import { DisplayTranslation } from "../../shared/translate_client.js";
+import { wrapText } from "../../shared/wrap.ts";
 
 export interface StagedDraftRecord {
   id: string;
@@ -48,6 +49,7 @@ export async function showStagingReviewModal(
   // Translation & scroll state
   let showTranslation = lang === "cs";
   let scrollOffset = 0;
+  let lastInnerWidth = 80;
   const VIEWPORT = 12;
 
   const translations = new Map<string, DisplayTranslation>();
@@ -101,6 +103,7 @@ export async function showStagingReviewModal(
         const lines: string[] = [];
         const renderWidth = Math.max(40, width);
         const inner = renderWidth - 2;
+        lastInnerWidth = inner;
 
         const draft = currentDraft();
         if (!draft) {
@@ -151,8 +154,11 @@ export async function showStagingReviewModal(
         lines.push(row(`  ${transChip}`));
         lines.push(row(""));
 
-        // Title
-        lines.push(row(`  ${theme.fg("mdHeading", theme.bold("📌 " + draft.fact.title))}`));
+        // Title (wrapped automatically so long titles never clip)
+        const titleLines = wrapText("📌 " + draft.fact.title, inner - 4);
+        for (const tl of titleLines) {
+          lines.push(row(`  ${theme.fg("mdHeading", theme.bold(tl))}`));
+        }
         lines.push(row(""));
 
         // Body
@@ -163,14 +169,13 @@ export async function showStagingReviewModal(
           }
         } else {
           const bodyText = dt.bodyFor(draft.fact.body, showTranslation);
-          const bodyLines = bodyText.split("\n");
+          const bodyLines = wrapText(bodyText, inner - 4);
           const maxScroll = Math.max(0, bodyLines.length - VIEWPORT);
           scrollOffset = Math.min(Math.max(0, scrollOffset), maxScroll);
 
           const visibleSlice = bodyLines.slice(scrollOffset, scrollOffset + VIEWPORT);
           for (const bl of visibleSlice) {
-            const fit = truncateToWidth(bl, inner - 4);
-            lines.push(row(`  ${theme.fg("text", fit)}`));
+            lines.push(row(`  ${theme.fg("text", bl)}`));
           }
 
           if (bodyLines.length > VIEWPORT) {
@@ -227,7 +232,7 @@ export async function showStagingReviewModal(
         // Vertical scroll within draft body
         const dt = getTranslation(draft);
         const bodyText = dt.bodyFor(draft.fact.body, showTranslation);
-        const totalLines = bodyText.split("\n").length;
+        const totalLines = wrapText(bodyText, Math.max(20, lastInnerWidth - 4)).length;
         const maxScroll = Math.max(0, totalLines - VIEWPORT);
 
         if (matchesKey(data, "up") || data === "k") {
