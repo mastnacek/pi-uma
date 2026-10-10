@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-10 20:49:55",
+  "lastUpdated": "2026-10-10 21:09:58",
   "records": [
     {
       "id": "SPAI-001",
@@ -286,6 +286,22 @@
       "project": "pi-uma",
       "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-10-SPAI-016-faze-1-z-proposal-08-concurrency-stressrs-contract.md"
+    },
+    {
+      "id": "SPAI-017",
+      "title": "Dedikovaný orchestrátor paměti: pi instance v herdr panelu, jejíž jediná práce je řídit UMA — System 1 (fastbrain/offline→Jev) rozhoduje komu delegovat kontext a prompty, System 2 řeší jen těžké úkoly; routing core v uma-core (VSA Rust), tenké pluginy v panelech; UMA scopes jako sdílená sběrnice",
+      "type": "Idea",
+      "status": "idea",
+      "symbol": "?",
+      "timestamp": "2026-10-10 21:09:58",
+      "tags": [
+        "orchestrator",
+        "architektura",
+        "herdr"
+      ],
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-10-SPAI-017-dedikovany-orchestrator-pameti-pi-instance-v-herdr.md"
     }
   ]
 }
