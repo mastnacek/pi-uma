@@ -1,13 +1,14 @@
 /**
  * Interactive TUI Modal for reviewing staged memory drafts (Proposal 02).
  *
- * Allows browsing through drafts, editing their contents inline, and approving
- * or discarding them one by one.
+ * Allows browsing through drafts, viewing translated contents inline, scrolling
+ * through long bodies, editing fields, and approving or discarding one by one.
  */
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Editor, type EditorTheme, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { runUma, findUmaBinary } from "../../shared/client.js";
+import { DisplayTranslation } from "../../shared/translate_client.js";
 
 export interface StagedDraftRecord {
   id: string;
@@ -31,6 +32,7 @@ export async function showStagingReviewModal(
   ctx: ExtensionContext,
   drafts: StagedDraftRecord[],
   onDraftAction?: () => void,
+  lang = "cs",
 ): Promise<{ approved: number; discarded: number }> {
   if (ctx.mode !== "tui" || !ctx.hasUI || drafts.length === 0) {
     return { approved: 0, discarded: 0 };
@@ -42,6 +44,13 @@ export async function showStagingReviewModal(
   let discardedCount = 0;
   let activeDrafts = [...drafts];
   let editingField: "title" | "body" | null = null;
+
+  // Translation & scroll state
+  let showTranslation = lang === "cs";
+  let scrollOffset = 0;
+  const VIEWPORT = 12;
+
+  const translations = new Map<string, DisplayTranslation>();
 
   await ctx.ui.custom<void>((tui, theme, _kb, done) => {
     const editorTheme: EditorTheme = {
@@ -65,12 +74,23 @@ export async function showStagingReviewModal(
       tui.requestRender();
     }
 
+    function getTranslation(draft: StagedDraftRecord): DisplayTranslation {
+      let dt = translations.get(draft.id);
+      if (!dt) {
+        dt = new DisplayTranslation(ctx, refresh);
+        translations.set(draft.id, dt);
+        if (showTranslation) dt.start(draft.fact.body);
+      }
+      return dt;
+    }
+
     editor.onSubmit = (value) => {
       const draft = currentDraft();
       if (draft && editingField === "title" && value.trim()) {
         draft.fact.title = value.trim();
       } else if (draft && editingField === "body" && value.trim()) {
         draft.fact.body = value.trim();
+        translations.delete(draft.id);
       }
       editingField = null;
       refresh();
@@ -87,6 +107,9 @@ export async function showStagingReviewModal(
           lines.push(theme.fg("muted", "No more drafts in staging."));
           return lines;
         }
+
+        const dt = getTranslation(draft);
+        if (showTranslation) dt.start(draft.fact.body);
 
         const titleText = ` ✦ UMA Staging Review • Draft ${currentIndex + 1} of ${activeDrafts.length} `;
         const titleW = visibleWidth(titleText);
@@ -113,6 +136,19 @@ export async function showStagingReviewModal(
         const typeBadge = theme.fg("accent", theme.bold(`[${draft.fact.fact_type.toUpperCase()}]`));
         const tagsBadge = draft.fact.tags.length > 0 ? draft.fact.tags.map((t) => "#" + t).join(" ") : "(no tags)";
         lines.push(row(`  ${typeBadge}  🏷️ ${theme.fg("dim", tagsBadge)}`));
+
+        // Translation status chip
+        let transChip = "";
+        if (dt.pending) {
+          transChip = theme.fg("dim", " [⏳ Překládám...]");
+        } else if (showTranslation && !dt.failed) {
+          transChip = theme.fg("dim", " [🇨🇿 Zobrazen český překlad • 't' pro originál]");
+        } else if (dt.failed) {
+          transChip = theme.fg("warning", ` [⚠️ Překlad selhal: ${dt.error ?? "chyba"}]`);
+        } else {
+          transChip = theme.fg("dim", " [🇬🇧 Zobrazen anglický originál • 't' pro překlad]");
+        }
+        lines.push(row(`  ${transChip}`));
         lines.push(row(""));
 
         // Title
@@ -126,13 +162,21 @@ export async function showStagingReviewModal(
             lines.push(row(`    ${el}`));
           }
         } else {
-          const bodyLines = draft.fact.body.split("\n");
-          for (const bl of bodyLines.slice(0, 8)) {
+          const bodyText = dt.bodyFor(draft.fact.body, showTranslation);
+          const bodyLines = bodyText.split("\n");
+          const maxScroll = Math.max(0, bodyLines.length - VIEWPORT);
+          scrollOffset = Math.min(Math.max(0, scrollOffset), maxScroll);
+
+          const visibleSlice = bodyLines.slice(scrollOffset, scrollOffset + VIEWPORT);
+          for (const bl of visibleSlice) {
             const fit = truncateToWidth(bl, inner - 4);
             lines.push(row(`  ${theme.fg("text", fit)}`));
           }
-          if (bodyLines.length > 8) {
-            lines.push(row(`  ${theme.fg("dim", `+${bodyLines.length - 8} more lines...`)}`));
+
+          if (bodyLines.length > VIEWPORT) {
+            const pct = Math.round(((scrollOffset + visibleSlice.length) / bodyLines.length) * 100);
+            const scrollInfo = `↕ [Scroll: řádky ${scrollOffset + 1}–${Math.min(scrollOffset + VIEWPORT, bodyLines.length)} z ${bodyLines.length} (${pct}%) • ↑/↓ nebo j/k]`;
+            lines.push(row(`  ${theme.fg("dim", scrollInfo)}`));
           }
         }
 
@@ -142,8 +186,9 @@ export async function showStagingReviewModal(
         // Actions
         const actions =
           `  ${theme.fg("success", "[Enter/a] Approve")}   ` +
-          `${theme.fg("accent", "[e] Edit")}   ` +
+          `${theme.fg("accent", "[e] Title  [b] Body")}   ` +
           `${theme.fg("error", "[d] Discard")}   ` +
+          `${theme.fg("warning", "[t] Translate")}   ` +
           `${theme.fg("muted", "[Tab/→] Next")}   ` +
           `${theme.fg("dim", "[Esc/q] Close")}`;
         lines.push(row(actions));
@@ -169,13 +214,55 @@ export async function showStagingReviewModal(
           return true;
         }
 
-        // Approve
+        // Toggle display translation ('t' or 'c')
+        if (data.toLowerCase() === "t" || data.toLowerCase() === "c") {
+          showTranslation = !showTranslation;
+          const dt = getTranslation(draft);
+          if (showTranslation) dt.start(draft.fact.body);
+          scrollOffset = 0;
+          refresh();
+          return true;
+        }
+
+        // Vertical scroll within draft body
+        const dt = getTranslation(draft);
+        const bodyText = dt.bodyFor(draft.fact.body, showTranslation);
+        const totalLines = bodyText.split("\n").length;
+        const maxScroll = Math.max(0, totalLines - VIEWPORT);
+
+        if (matchesKey(data, "up") || data === "k") {
+          if (scrollOffset > 0) {
+            scrollOffset = Math.max(0, scrollOffset - 1);
+            refresh();
+          }
+          return true;
+        }
+        if (matchesKey(data, "down") || data === "j") {
+          if (scrollOffset < maxScroll) {
+            scrollOffset = Math.min(maxScroll, scrollOffset + 1);
+            refresh();
+          }
+          return true;
+        }
+        if (matchesKey(data, "pageUp")) {
+          scrollOffset = Math.max(0, scrollOffset - VIEWPORT);
+          refresh();
+          return true;
+        }
+        if (matchesKey(data, "pageDown")) {
+          scrollOffset = Math.min(maxScroll, scrollOffset + VIEWPORT);
+          refresh();
+          return true;
+        }
+
+        // Approve (always promotes original draft fact, never the display translation)
         if (matchesKey(data, "enter") || data.toLowerCase() === "a") {
           void (async () => {
             await runUma(binPath, ["staging", "approve", draft.id], ctx.cwd);
             approvedCount++;
             onDraftAction?.();
             activeDrafts.splice(currentIndex, 1);
+            scrollOffset = 0;
             if (activeDrafts.length === 0) {
               done();
             } else {
@@ -193,6 +280,7 @@ export async function showStagingReviewModal(
             discardedCount++;
             onDraftAction?.();
             activeDrafts.splice(currentIndex, 1);
+            scrollOffset = 0;
             if (activeDrafts.length === 0) {
               done();
             } else {
@@ -203,10 +291,16 @@ export async function showStagingReviewModal(
           return true;
         }
 
-        // Edit
+        // Edit Title ('e') or Body ('b')
         if (data.toLowerCase() === "e") {
           editingField = "title";
           editor.setText(draft.fact.title);
+          refresh();
+          return true;
+        }
+        if (data.toLowerCase() === "b") {
+          editingField = "body";
+          editor.setText(draft.fact.body);
           refresh();
           return true;
         }
@@ -215,6 +309,7 @@ export async function showStagingReviewModal(
         if (matchesKey(data, "tab") || matchesKey(data, "right") || data.toLowerCase() === "n") {
           if (activeDrafts.length > 1) {
             currentIndex = (currentIndex + 1) % activeDrafts.length;
+            scrollOffset = 0;
             refresh();
           }
           return true;
@@ -222,6 +317,7 @@ export async function showStagingReviewModal(
         if (matchesKey(data, "left") || data.toLowerCase() === "p") {
           if (activeDrafts.length > 1) {
             currentIndex = (currentIndex - 1 + activeDrafts.length) % activeDrafts.length;
+            scrollOffset = 0;
             refresh();
           }
           return true;

@@ -1,0 +1,48 @@
+{
+  "id": "01M4KTAAYS25BBPZZF6KBFXAX5",
+  "status": "draft",
+  "confidence": 0.8,
+  "provenance": {
+    "session_id": null,
+    "trigger_type": "muscle_synthesis",
+    "context": null
+  },
+  "fact": {
+    "id": "01M4KTAAYS25BBPZZF6KBFXAX5",
+    "scope": {
+      "Project": "pi-uma"
+    },
+    "fact_type": "Skill",
+    "title": "muscle:grep--r-ls",
+    "description": null,
+    "template": "[{\"command\":\"grep\",\"args\":[\"-r\",\"\\\"ask\\\"\",\"D:/01_programovani/pi/plugins/pi-uma/src/\",\"--include=\\\"*.ts\\\"\",\"|\",\"head\",\"-30\"],\"label\":\"grep -r \\\"ask\\\" D:/01_programovani/pi/plugins/pi-uma/src/ --in\"},{\"command\":\"ls\",\"args\":[\"-la\",\"D:/01_programovani/pi/plugins/pi-uma/src/slices/\"],\"label\":\"ls -la D:/01_programovani/pi/plugins/pi-uma/src/slices/\"},{\"command\":\"grep\",\"args\":[\"-r\",\"\\\"1c\\\"\",\"D:/01_programovani/pi/plugins/pi-uma/\",\"--include=\\\"*.md\\\"\",\"--include=\\\"*.ts\\\"\",\"--include=\\\"*.rs\\\"\",\"|\",\"head\",\"-20\"],\"label\":\"grep -r \\\"1c\\\" D:/01_programovani/pi/plugins/pi-uma/ --include\"}]",
+    "contract": null,
+    "plasticity": null,
+    "saliency": null,
+    "body": "### Context\nThe same 3-command sequence was observed 2× in this session (shadow-worker repetition detection).\n\n### Steps\n- grep -r \"ask\" D:/01_programovani/pi/plugins/pi-uma/src/ --include=\"*.ts\" | head -30\n- ls -la D:/01_programovani/pi/plugins/pi-uma/src/slices/\n- grep -r \"1c\" D:/01_programovani/pi/plugins/pi-uma/ --include=\"*.md\" --include=\"*.ts\" --include=\"*.rs\" | head -20\n- grep -r \"/uma\" D:/01_programovani/pi/plugins/pi-uma/src/slices/commands/ --include=\"*.ts\" | head -30\n- ls -la D:/01_programovani/pi/plugins/pi-uma/src/slices/tools/ 2>/dev/null || echo \"No tools slice\"\n- grep -r '\"ask\"' D:/01_programovani/pi/plugins/pi-uma/src/ --include=\"*.ts\" | head -20\n\n### Rule\nRun the sequence as one motor chunk with `uma muscle run grep--r-ls --confirm`.",
+    "status": "Stable",
+    "supersedes": null,
+    "generated": {
+      "by": "pi-agent/1.1",
+      "at": "2026-10-10T21:08:18.521248800Z"
+    },
+    "verified": [
+      {
+        "by": "human:operator",
+        "at": "2026-10-10T21:08:18.521252300Z"
+      }
+    ],
+    "validity": {
+      "since": "2026-10-10T21:08:18.521252300Z",
+      "until": null,
+      "stale_after": null
+    },
+    "tags": [
+      "muscle",
+      "routine",
+      "routine-proposal",
+      "shadow-worker"
+    ],
+    "links": []
+  }
+}

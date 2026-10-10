@@ -1,0 +1,48 @@
+{
+  "id": "01M4KS6KVEJYPPXJRQBWBVQD75",
+  "status": "draft",
+  "confidence": 0.8,
+  "provenance": {
+    "session_id": null,
+    "trigger_type": "muscle_synthesis",
+    "context": null
+  },
+  "fact": {
+    "id": "01M4KS6KVEJYPPXJRQBWBVQD75",
+    "scope": {
+      "Project": "pi-uma"
+    },
+    "fact_type": "Skill",
+    "title": "muscle:ls--la-find",
+    "description": null,
+    "template": "[{\"command\":\"ls\",\"args\":[\"-la\",\"D:/01_programovani/pi/plugins/pi-uma\"],\"label\":\"ls -la D:/01_programovani/pi/plugins/pi-uma\"},{\"command\":\"find\",\"args\":[\"D:/01_programovani/pi/plugins/pi-uma\",\"-name\",\"\\\"*.yaml\\\"\",\"-o\",\"-name\",\"\\\"*.yml\\\"\",\"-o\",\"-name\",\"\\\"*ast*\\\"\",\"-o\",\"-name\",\"\\\"*contract*\\\"\",\"2>/dev/null\",\"|\",\"head\",\"-50\"],\"label\":\"find D:/01_programovani/pi/plugins/pi-uma -name \\\"*.yaml\\\" -o \"},{\"command\":\"ls\",\"args\":[\"-la\",\"D:/01_programovani/pi/plugins/pi-uma/core/uma-core/src/contracts/\"],\"label\":\"ls -la D:/01_programovani/pi/plugins/pi-uma/core/uma-core/sr\"}]",
+    "contract": null,
+    "plasticity": null,
+    "saliency": null,
+    "body": "### Context\nThe same 3-command sequence was observed 2× in this session (shadow-worker repetition detection).\n\n### Steps\n- ls -la D:/01_programovani/pi/plugins/pi-uma\n- find D:/01_programovani/pi/plugins/pi-uma -name \"*.yaml\" -o -name \"*.yml\" -o -name \"*ast*\" -o -name \"*contract*\" 2>/dev/null | head -50\n- ls -la D:/01_programovani/pi/plugins/pi-uma/core/uma-core/src/contracts/\n- ls -la D:/01_programovani/pi/plugins/pi-uma/.uma/contracts/\n- find D:/01_programovani/pi/plugins/pi-uma -name \"architecture_invariants.rs\" 2>/dev/null\n- ls -la D:/01_programovani/pi/plugins/pi-uma/src/\n\n### Rule\nRun the sequence as one motor chunk with `uma muscle run ls--la-find --confirm`.",
+    "status": "Stable",
+    "supersedes": null,
+    "generated": {
+      "by": "pi-agent/1.1",
+      "at": "2026-10-10T20:48:47.982307500Z"
+    },
+    "verified": [
+      {
+        "by": "human:operator",
+        "at": "2026-10-10T20:48:47.982311Z"
+      }
+    ],
+    "validity": {
+      "since": "2026-10-10T20:48:47.982311100Z",
+      "until": null,
+      "stale_after": null
+    },
+    "tags": [
+      "muscle",
+      "routine",
+      "routine-proposal",
+      "shadow-worker"
+    ],
+    "links": []
+  }
+}

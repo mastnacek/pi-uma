@@ -30,9 +30,14 @@ export async function startStagingReview(
     return { approved: 0, discarded: 0 };
   }
 
-  const result = await showStagingReviewModal(ctx, drafts, () => {
-    void state.refreshDetector?.(ctx, true);
-  });
+  const result = await showStagingReviewModal(
+    ctx,
+    drafts,
+    () => {
+      void state.refreshDetector?.(ctx, true);
+    },
+    state.config.lang,
+  );
 
   void state.refreshDetector?.(ctx, true);
 
