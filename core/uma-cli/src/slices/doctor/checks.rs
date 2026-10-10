@@ -28,7 +28,11 @@ pub fn root_finding(label: &'static str, root: &Path) -> Finding {
     }
 }
 
-/// Counts Markdown fact documents under a root. A missing root is simply zero.
+/// Counts valid Markdown fact documents under a root. A missing root is simply zero.
+///
+/// Only documents that parse as valid OKF facts are counted: arbitrary Markdown
+/// files (READMEs, scratch notes, invalid test fixtures) are ignored so they do
+/// not cause spurious index-coverage drift warnings.
 pub fn count_fact_files(root: Option<&Path>) -> usize {
     let Some(root) = root else {
         return 0;
@@ -40,7 +44,14 @@ pub fn count_fact_files(root: Option<&Path>) -> usize {
         .into_iter()
         .flatten()
         .filter(|entry| {
-            entry.file_type().is_file() && entry.path().extension().is_some_and(|x| x == "md")
+            if !entry.file_type().is_file() || !entry.path().extension().is_some_and(|x| x == "md") {
+                return false;
+            }
+            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                uma_core::serialization::markdown_to_fact(&content).is_ok()
+            } else {
+                false
+            }
         })
         .count()
 }

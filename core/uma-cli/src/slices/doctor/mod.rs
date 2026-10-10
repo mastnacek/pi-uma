@@ -77,11 +77,19 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         )),
     }
 
-    let disk_facts =
-        count_fact_files(project_root.as_deref()) + count_fact_files(global_root.as_deref());
+    let all_roots = Store::all_known_roots().unwrap_or_else(|_| {
+        [project_root.clone(), global_root.clone()]
+            .into_iter()
+            .flatten()
+            .collect()
+    });
+    let disk_facts: usize = all_roots
+        .iter()
+        .map(|r| count_fact_files(Some(r.as_path())))
+        .sum();
     findings.push(ok(
         "fact files",
-        format!("{disk_facts} Markdown document(s) across both scopes"),
+        format!("{disk_facts} Markdown document(s) across all scopes"),
     ));
 
     // Staleness is a store-level concern, not an index one: a fact past its
@@ -89,10 +97,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     let now = Utc::now();
     let mut stale_facts = 0usize;
     let mut zombie_candidates = Vec::new();
-    for root in [project_root.as_deref(), global_root.as_deref()]
-        .into_iter()
-        .flatten()
-    {
+    for root in &all_roots {
         if root.exists() {
             let store = Store::new(root.to_path_buf());
             if let Ok(facts) = store.list_all() {
@@ -130,12 +135,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     // stays on disk and in `timeline`, it just leaves the active set.
     let mut archived = 0usize;
     if args.zombies && !zombie_candidates.is_empty() {
-        archived = prune_zombies(
-            &[project_root.as_deref(), global_root.as_deref()],
-            now,
-            args.confirm,
-            args.json,
-        )?;
+        archived = prune_zombies(&all_roots, now, args.confirm, args.json)?;
     }
 
     // Retrieval practice (Proposal 05, Pillar IV): test facts nearing decay.
@@ -144,13 +144,9 @@ pub fn run(args: DoctorArgs) -> Result<()> {
             "jev" => uma_core::fastbrain::Judge::Jev,
             _ => uma_core::fastbrain::Judge::Offline,
         };
-        dream::dream_over_roots(
-            &[project_root.as_deref(), global_root.as_deref()],
-            now,
-            judge,
-            args.dream_max,
-            args.json,
-        )?;
+        let root_refs: Vec<Option<&std::path::Path>> =
+            all_roots.iter().map(|p| Some(p.as_path())).collect();
+        dream::dream_over_roots(&root_refs, now, judge, args.dream_max, args.json)?;
     }
 
     let db_path = Store::central_db_path()?;
@@ -186,7 +182,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
 /// from the active set and default search while `timeline` keeps the history.
 /// Returns how many facts were archived.
 fn prune_zombies(
-    roots: &[Option<&std::path::Path>],
+    roots: &[std::path::PathBuf],
     now: chrono::DateTime<Utc>,
     confirm: bool,
     json: bool,
@@ -194,7 +190,7 @@ fn prune_zombies(
     // Collect (store, fact) pairs so the confirm path can write each fact
     // back to the store it came from.
     let mut located: Vec<(Store, uma_core::domain::Fact)> = Vec::new();
-    for root in roots.iter().flatten() {
+    for root in roots {
         if !root.exists() {
             continue;
         }

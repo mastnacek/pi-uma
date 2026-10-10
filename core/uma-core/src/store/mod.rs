@@ -35,7 +35,7 @@ impl Store {
         Ok(Self::new(global_root))
     }
 
-    /// Whether this store is a canonical root (global or the current project's `.uma`).
+    /// Whether this store is a canonical root (global or a git repository's `.uma`).
     ///
     /// Only canonical stores feed the shared central index. Ad-hoc
     /// `Store::new(path)` instances (tests, temp dirs) write Markdown only, so
@@ -51,7 +51,52 @@ impl Store {
                 return true;
             }
         }
+        // A foreign project store resolved through the central index or
+        // containing a parent with a .git repository is also canonical.
+        if self.root.file_name().is_some_and(|n| n == ".uma") {
+            if let Some(parent) = self.root.parent() {
+                if parent.join(".git").exists() {
+                    return true;
+                }
+            }
+        }
         false
+    }
+
+    /// Returns every known store root across all scopes: the global store, the
+    /// current repository's `.uma` (if in a repo), plus all foreign project store
+    /// roots recorded in the central index.
+    pub fn all_known_roots() -> Result<Vec<PathBuf>> {
+        let mut roots = Vec::new();
+        if let Ok(global) = Self::global_root_path() {
+            if global.exists() && !roots.contains(&global) {
+                roots.push(global);
+            }
+        }
+        if let Ok(git_root) = Self::find_git_root() {
+            let project_uma = git_root.join(".uma");
+            if project_uma.exists() && !roots.contains(&project_uma) {
+                roots.push(project_uma);
+            }
+        }
+        if let Ok(indexer) = Self::central_indexer() {
+            if let Ok(mut stmt) = indexer
+                .connection()
+                .prepare("SELECT DISTINCT file_path FROM facts_fts WHERE file_path != ''")
+            {
+                if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                    for path_str in rows.flatten() {
+                        if let Some(root) = PathBuf::from(&path_str).parent().and_then(|t| t.parent()) {
+                            let root = root.to_path_buf();
+                            if root.exists() && !roots.contains(&root) {
+                                roots.push(root);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(roots)
     }
 
     /// Returns the project store instance for the current git repository.

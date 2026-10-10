@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-10 21:47:01",
+  "lastUpdated": "2026-10-10 21:56:50",
   "records": [
     {
       "id": "SPAI-001",
@@ -259,8 +259,8 @@
       "id": "SPAI-015",
       "title": "Doctor index-coverage warning přežije --reindex (65 rows vs 60 files) — hint se cyklí; porovnávat indexed rows včetně deprecated nebo opravit hint",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-10 20:39:48",
       "tags": [
         "uma-eval",
