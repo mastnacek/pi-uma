@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-10 00:28:04",
+  "lastUpdated": "2026-10-10 20:39:48",
   "records": [
     {
       "id": "SPAI-001",
@@ -221,6 +221,71 @@
       "project": "pi-uma",
       "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-10-SPAI-012-p05b-muscle-pi-tools-register-uma-muscle-tool-list.md"
+    },
+    {
+      "id": "SPAI-013",
+      "title": "Proposal 08: Testovací matice a kognitivní benchmark (UMA-Eval Suite)",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-10 14:15:15",
+      "tags": [
+        "testing",
+        "eval",
+        "architecture"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-10-SPAI-013-proposal-08-testovaci-matice-a-kognitivni-benchmar.md"
+    },
+    {
+      "id": "SPAI-014",
+      "title": "Offline recall judge je příliš konzervativní — fráze 'how did we solve X last time' netrigruje recall, jen explicitní 'remember'. Zvážit slabší práh nebo fallback na hybrid search",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-10 20:35:28",
+      "tags": [
+        "uma-eval",
+        "recall"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-10-SPAI-014-offline-recall-judge-je-prilis-konzervativni-fraze.md"
+    },
+    {
+      "id": "SPAI-015",
+      "title": "Doctor index-coverage warning přežije --reindex (65 rows vs 60 files) — hint se cyklí; porovnávat indexed rows včetně deprecated nebo opravit hint",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-10 20:39:48",
+      "tags": [
+        "uma-eval",
+        "doctor"
+      ],
+      "priority": "low",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-10-SPAI-015-doctor-index-coverage-warning-prezije-reindex-65-r.md"
+    },
+    {
+      "id": "SPAI-016",
+      "title": "Fáze 1 z proposal 08: concurrency_stress.rs, contracts decay simulace, muscle_perf benchmark, --as-of flag, doctor --prune-zombies",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-10 20:39:48",
+      "tags": [
+        "uma-eval",
+        "testing"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-10-SPAI-016-faze-1-z-proposal-08-concurrency-stressrs-contract.md"
     }
   ]
 }
