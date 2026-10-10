@@ -23,6 +23,6 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 regex = "1.11"
 
 [workspace.package]
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
