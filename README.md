@@ -4,7 +4,7 @@ Pi coding-agent extension for **UMA (Universal Memory Architecture)** — the
 local-first, neurocognitively-inspired long-term memory engine. The complete
 system (Rust kernel + CLI + Pi plugin) lives in this single repository.
 
-## What it provides (v0.5.0)
+## What it provides (v0.7.1)
 
 - **10 tools**: `uma_write`, `uma_read`, `uma_list`, `uma_search`,
   `uma_supersede`, `uma_consolidate`, `uma_skill_invoke`, `uma_skeptic`
@@ -310,6 +310,9 @@ without a Rust toolchain or PATH entry. To rebuild it:
 ```bash
 cd core && cargo build --release && npm run syncbin
 ```
+
+> **Version**: The plugin and Rust core are both at **v0.7.1** (see `package.json`
+> and `core/Cargo.toml`).
 
 ---
 
