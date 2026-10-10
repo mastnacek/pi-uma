@@ -54,3 +54,33 @@ fn test_recall_type_hints() {
     assert!(judgment.answer.search);
     assert!(judgment.answer.fact_types.contains(&"decision".to_string()));
 }
+
+#[test]
+fn test_recall_natural_past_tense_phrasings_trigger() {
+    // Regression (SPAI-014): real-world phrasings that slipped through.
+    let judgment = recall_need("How did we solve the WAL locking issue last time?").unwrap();
+    assert!(judgment.answer.search, "bare 'last time' must trigger recall");
+    assert!(judgment.answer.fact_types.contains(&"decision".to_string()));
+
+    let judgment = recall_need("What did we agree on for the sync transport?").unwrap();
+    assert!(judgment.answer.search);
+
+    let judgment = recall_need("Minule jsme to řešili přes OpenRouter").unwrap();
+    assert!(judgment.answer.search, "Czech 'minule' must trigger recall");
+
+    let judgment = recall_need("We fixed this before, what was the fix?").unwrap();
+    assert!(judgment.answer.search);
+}
+
+#[test]
+fn test_recall_plain_work_requests_stay_quiet() {
+    // Guard against over-triggering after widening the markers.
+    let judgment = recall_need("Fix the parser bug in store/mod.rs").unwrap();
+    assert!(!judgment.answer.search);
+
+    let judgment = recall_need("Add a new CLI flag for output format").unwrap();
+    assert!(!judgment.answer.search);
+
+    let judgment = recall_need("What is 2+2?").unwrap();
+    assert!(!judgment.answer.search);
+}

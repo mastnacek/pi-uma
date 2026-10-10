@@ -18,11 +18,25 @@ const DUPLICATE_THRESHOLD: f64 = 0.75;
 const RELATED_THRESHOLD: f64 = 0.3;
 
 /// Words that mark a message as dependent on remembered context.
+///
+/// Keep these specific enough to avoid false positives on ordinary work
+/// requests ("fix the parser bug"), but cover the natural phrasings of
+/// "we have been here before": bare time references ("last time",
+/// "previously"), past collective action ("we decided", "we solved"),
+/// and their Czech equivalents.
 const RECALL_MARKERS: &[&str] = &[
     "as before",
     "like last time",
+    "last time",
+    "previously",
+    "earlier",
     "as agreed",
     "as decided",
+    "we decided",
+    "we agreed",
+    "have we",
+    "we solved",
+    "we fixed",
     "the usual",
     "again",
     "same as",
@@ -37,6 +51,11 @@ const RECALL_MARKERS: &[&str] = &[
     "znovu",
     "pamatujes",
     "jako vzdy",
+    "minule",
+    "naposled",
+    "domluvili",
+    "resili jsme",
+    "minule jsme",
 ];
 
 /// Maps message keywords to the fact types worth searching for them.
@@ -47,6 +66,8 @@ const TYPE_HINTS: &[(&str, &str)] = &[
     ("why ", "decision"),
     ("how do i", "skill"),
     ("how to", "skill"),
+    ("how did we", "decision"),
+    ("what did we", "decision"),
     ("convention", "pattern"),
     ("style", "pattern"),
     ("prefer", "preference"),
