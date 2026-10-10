@@ -96,3 +96,37 @@ fn test_curate_routine_validates_template_before_store() {
 
     assert!(curate_routine("bad", "not a template [", Scope::Global, None).is_err());
 }
+
+#[test]
+fn test_find_routine_ignores_deprecated_predecessor() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let store = Store::new(dir.path().to_path_buf());
+
+    // Write original routine with 1 step.
+    let mut original = curate_routine(
+        "sample",
+        r#"[{"command":"echo","args":["v1"]}]"#,
+        Scope::Project("p".to_string()),
+        None,
+    )?;
+    store.write(&original)?;
+
+    // Supersede: mark original deprecated, write revision with 2 steps.
+    original.status = crate::domain::FactStatus::Deprecated;
+    original.validity.until = Some(chrono::Utc::now() - chrono::Duration::seconds(10));
+    store.write(&original)?;
+
+    let revision = curate_routine(
+        "sample",
+        r#"[{"command":"echo","args":["v2"]},{"command":"echo","args":["v2b"]}]"#,
+        Scope::Project("p".to_string()),
+        None,
+    )?;
+    store.write(&revision)?;
+
+    let found = find_routine(Some(&store), "sample")?;
+    assert_eq!(found.steps.len(), 2, "must pick the active 2-step revision, not the deprecated 1-step predecessor");
+    assert_eq!(found.steps[0].args, vec!["v2"]);
+
+    Ok(())
+}

@@ -172,6 +172,12 @@ pub fn find_routine(store_hint: Option<&Store>, name: &str) -> Result<MuscleRout
 
     for root in &roots {
         for fact in walk_skills(root)? {
+            // A superseded routine keeps its muscle tag on disk (deprecated,
+            // never deleted) — without this filter the retired revision could
+            // win the walk order and silently run the old step list.
+            if !fact.is_active_at(chrono::Utc::now()) {
+                continue;
+            }
             let routine_name = fact.title.strip_prefix("muscle:").unwrap_or(&fact.title);
             let name_matches = routine_name.eq_ignore_ascii_case(name)
                 || fact.tags.iter().any(|t| t.eq_ignore_ascii_case(&wanted));

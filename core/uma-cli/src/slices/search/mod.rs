@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::str::FromStr;
 use uma_core::{domain::FactType, search::SearchMode, store::Store};
@@ -82,9 +81,8 @@ pub fn run(args: SearchArgs) -> Result<()> {
     let as_of_dt = args
         .as_of
         .as_deref()
-        .map(DateTime::parse_from_rfc3339)
-        .transpose()?
-        .map(|dt| dt.with_timezone(&Utc));
+        .map(crate::shared::parse::parse_as_of)
+        .transpose()?;
 
     let outcome = Store::search_all(
         &args.query,

@@ -20,6 +20,11 @@ pub struct ListArgs {
     #[arg(long = "include-deprecated")]
     pub include_deprecated: bool,
 
+    /// Point-in-time list: facts active at this moment (RFC 3339, bare date,
+    /// or relative +Nd, e.g. +90d to preview the decayed future)
+    #[arg(long = "as-of")]
+    pub as_of: Option<String>,
+
     /// Emit the facts as a JSON array (full bodies, no truncation)
     #[arg(long = "json")]
     pub json: bool,
@@ -36,7 +41,12 @@ pub fn run(args: ListArgs) -> Result<()> {
     // replaced rule next to its replacement is exactly the misleading-memory hazard
     // supersession exists to prevent.
     let stored = facts.len();
-    let now = Utc::now();
+    let as_of = args
+        .as_of
+        .as_deref()
+        .map(crate::shared::parse::parse_as_of)
+        .transpose()?;
+    let now = as_of.unwrap_or_else(Utc::now);
     if !args.include_deprecated {
         facts.retain(|fact| fact.is_active_at(now));
     }

@@ -4,7 +4,7 @@
 //! is the common case and is understood as end of day UTC.
 
 use anyhow::{bail, Result};
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 
 /// Parses an RFC 3339 timestamp (`2026-12-31T23:59:59Z`), or a bare date
 /// (`2026-12-31`) understood as 23:59:59 UTC on that day.
@@ -29,6 +29,28 @@ pub fn parse_datetime_or_date(input: &str) -> Result<DateTime<Utc>> {
     Err(anyhow::anyhow!(
         "Invalid timestamp '{trimmed}'. Use RFC 3339 (2026-12-31T23:59:59Z) or a date (2026-12-31)."
     ))
+}
+
+/// Parses an `--as-of` value: RFC 3339, a bare date, or a relative `+Nd`
+/// (`+30d` = thirty days from now) for time-travel simulation of decay.
+///
+/// The relative form exists because the common case is *"what does memory
+/// look like a month from now if nothing gets reinforced?"* — asking the
+/// user to compute that timestamp by hand defeats the simulation.
+pub fn parse_as_of(input: &str) -> Result<DateTime<Utc>> {
+    let trimmed = input.trim();
+
+    if let Some(inner) = trimmed.strip_prefix('+') {
+        let Some(days) = inner.strip_suffix('d') else {
+            bail!("Invalid relative time '{trimmed}'. Use +Nd, e.g. +30d for thirty days from now.");
+        };
+        let days: i64 = days
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Invalid relative time '{trimmed}'. Use +Nd, e.g. +30d."))?;
+        return Ok(Utc::now() + Duration::days(days));
+    }
+
+    parse_datetime_or_date(trimmed)
 }
 
 #[cfg(test)]
@@ -57,5 +79,26 @@ mod tests {
     fn test_garbage_is_rejected_loudly() {
         let err = parse_datetime_or_date("next tuesday").unwrap_err();
         assert!(err.to_string().contains("Invalid timestamp"));
+    }
+
+    #[test]
+    fn test_as_of_relative_days_land_in_the_future() {
+        let before = Utc::now();
+        let dt = parse_as_of("+30d").unwrap();
+        let after = Utc::now();
+        assert!(dt >= before + Duration::days(30));
+        assert!(dt <= after + Duration::days(30));
+    }
+
+    #[test]
+    fn test_as_of_absolute_forms_still_work() {
+        assert!(parse_as_of("2026-12-31").is_ok());
+        assert!(parse_as_of("2026-12-31T12:00:00Z").is_ok());
+    }
+
+    #[test]
+    fn test_as_of_rejects_unitless_and_garbage_relative() {
+        assert!(parse_as_of("+30").is_err(), "missing the d suffix");
+        assert!(parse_as_of("+xd").is_err());
     }
 }

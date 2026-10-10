@@ -27,6 +27,11 @@ pub struct DoctorArgs {
     #[arg(long = "zombies", alias = "prune-zombies")]
     pub zombies: bool,
 
+    /// Archive the detected zombie facts (deprecate, never delete).
+    /// Only meaningful with --prune-zombies; without it nothing is modified.
+    #[arg(long = "confirm")]
+    pub confirm: bool,
+
     /// Retrieval practice (Proposal 05): test facts nearing their decay half-life
     /// with a synthetic question; reinforce or propose review. READ-ONLY: it
     /// never mutates plasticity directly — results are printed as proposals.
@@ -120,6 +125,19 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         ));
     }
 
+    // --prune-zombies turns the proposal into a focused report; --confirm
+    // executes the archive. Deprecation, never deletion: a pruned zombie
+    // stays on disk and in `timeline`, it just leaves the active set.
+    let mut archived = 0usize;
+    if args.zombies && !zombie_candidates.is_empty() {
+        archived = prune_zombies(
+            &[project_root.as_deref(), global_root.as_deref()],
+            now,
+            args.confirm,
+            args.json,
+        )?;
+    }
+
     // Retrieval practice (Proposal 05, Pillar IV): test facts nearing decay.
     if args.dream {
         let judge = match args.judge.as_str() {
@@ -151,7 +169,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         ));
     }
 
-    report(&findings, &args)?;
+    report(&findings, &args, archived)?;
 
     let failed = findings.iter().filter(|f| f.level == Level::Fail).count();
     if args.strict && failed > 0 {
@@ -160,7 +178,91 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     Ok(())
 }
 
-fn report(findings: &[Finding], args: &DoctorArgs) -> Result<()> {
+/// Focused zombie report — and, with `confirm`, the archival itself.
+///
+/// The report path lists every zombie with its decayed weight so the operator
+/// reviews before consenting. The confirm path rewrites each zombie as
+/// Deprecated with a closed validity window (never deletes), which drops it
+/// from the active set and default search while `timeline` keeps the history.
+/// Returns how many facts were archived.
+fn prune_zombies(
+    roots: &[Option<&std::path::Path>],
+    now: chrono::DateTime<Utc>,
+    confirm: bool,
+    json: bool,
+) -> Result<usize> {
+    // Collect (store, fact) pairs so the confirm path can write each fact
+    // back to the store it came from.
+    let mut located: Vec<(Store, uma_core::domain::Fact)> = Vec::new();
+    for root in roots.iter().flatten() {
+        if !root.exists() {
+            continue;
+        }
+        let store = Store::new(root.to_path_buf());
+        if let Ok(facts) = store.list_all() {
+            for fact in facts {
+                if fact.is_zombie(now, 0.25) {
+                    located.push((Store::new(root.to_path_buf()), fact));
+                }
+            }
+        }
+    }
+
+    if located.is_empty() {
+        return Ok(0);
+    }
+
+    if json {
+        let payload: Vec<_> = located
+            .iter()
+            .map(|(_, fact)| {
+                json!({
+                    "id": fact.id.to_string(),
+                    "title": fact.title,
+                    "scope": fact.scope.to_string(),
+                    "effective_weight": fact.effective_weight(now),
+                    "action": if confirm { "archived" } else { "would_archive" },
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+    } else {
+        println!(
+            "\nZombie rules (synaptic fitness < 0.25){}:",
+            if confirm { " — archiving" } else { " — proposal" }
+        );
+        for (_, fact) in &located {
+            println!(
+                "  [{:.2}] {} — {} ({})",
+                fact.effective_weight(now),
+                fact.id,
+                fact.title,
+                fact.scope
+            );
+        }
+        if !confirm {
+            println!("\nReview them, then archive with `uma doctor --prune-zombies --confirm`.");
+        }
+    }
+
+    if !confirm {
+        return Ok(0);
+    }
+
+    let mut archived = 0usize;
+    for (store, mut fact) in located {
+        fact.status = uma_core::domain::FactStatus::Deprecated;
+        fact.validity.until = Some(now);
+        store.write(&fact)?;
+        archived += 1;
+    }
+    if !json {
+        println!("Archived {archived} zombie fact(s) (deprecated, never deleted).");
+    }
+    Ok(archived)
+}
+
+fn report(findings: &[Finding], args: &DoctorArgs, archived: usize) -> Result<()> {
     let failed = findings.iter().filter(|f| f.level == Level::Fail).count();
     let warned = findings.iter().filter(|f| f.level == Level::Warn).count();
 
@@ -198,7 +300,11 @@ fn report(findings: &[Finding], args: &DoctorArgs) -> Result<()> {
         findings.len(),
         findings.len() - warned - failed
     );
-    println!("Nothing was modified.");
+    if archived > 0 {
+        println!("Archived {archived} zombie fact(s).");
+    } else {
+        println!("Nothing was modified.");
+    }
     Ok(())
 }
 
@@ -234,5 +340,23 @@ mod tests {
     fn test_missing_root_counts_as_zero() {
         assert_eq!(count_fact_files(Some(std::path::Path::new("/nope"))), 0);
         assert_eq!(count_fact_files(None), 0);
+    }
+
+    #[test]
+    fn test_prune_zombies_args_parsing() {
+        let cli = TestCli::try_parse_from(["uma", "doctor", "--prune-zombies"]).expect("should parse");
+        match cli.command {
+            Top::Doctor(args) => {
+                assert!(args.zombies);
+                assert!(!args.confirm);
+            }
+        }
+        let cli = TestCli::try_parse_from(["uma", "doctor", "--prune-zombies", "--confirm"]).expect("should parse");
+        match cli.command {
+            Top::Doctor(args) => {
+                assert!(args.zombies);
+                assert!(args.confirm);
+            }
+        }
     }
 }

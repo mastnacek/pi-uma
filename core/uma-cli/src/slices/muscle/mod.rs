@@ -135,6 +135,9 @@ fn list_routines() -> Result<Vec<MuscleRoutine>> {
             let Ok(fact) = uma_core::serialization::markdown_to_fact(&content) else {
                 continue;
             };
+            if !fact.is_active_at(chrono::Utc::now()) {
+                continue;
+            }
             if !fact.tags.iter().any(|t| t.eq_ignore_ascii_case("muscle")) {
                 continue;
             }
