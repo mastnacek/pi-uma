@@ -185,7 +185,8 @@ export async function refreshDetector(
   state.muscleRoutineNames = probe.muscleRoutines ?? [];
 
   const routineBadge = probe.muscleRoutines && probe.muscleRoutines.length > 0 ? ` · 💪 ${probe.muscleRoutines.length}` : "";
-  const footerBadge = `🧠 UMA ${probe.version} [${state.config.immuneMode}]${probe.draftsCount > 0 ? ` · ✦ ${probe.draftsCount} draft(s)` : ""}${routineBadge}`;
+  const appendBadge = state.config.appendPrompt ? " · 📝 append" : "";
+  const footerBadge = `🧠 UMA ${probe.version} [${state.config.immuneMode}]${appendBadge}${probe.draftsCount > 0 ? ` · ✦ ${probe.draftsCount} draft(s)` : ""}${routineBadge}`;
   ctx.ui.setStatus("uma", footerBadge);
 
   if (ctx.mode === "tui") {

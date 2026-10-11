@@ -65,6 +65,8 @@ export interface PluginConfig {
   hud: boolean;
   /** Humility gate: ask before mutating a flagged low-familiarity subsystem. */
   humilityGate: boolean;
+  /** Append active UMA rules to system prompt (via systemPromptOptions.sections.uma_rules). */
+  appendPrompt: boolean;
 }
 
 export interface ExtensionState {

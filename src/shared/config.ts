@@ -17,6 +17,8 @@ const DEFAULT_CONFIG: PluginConfig = {
   // The humility confirm gate is a stronger measure — the operator's explicit
   // choice (/uma humility on), consistent with immuneMode's default-warn.
   humilityGate: false,
+  // System prompt enhancement (append rules into systemPromptOptions.sections.uma_rules)
+  appendPrompt: false,
 };
 
 export function getGlobalConfigPath(): string {

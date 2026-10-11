@@ -9,7 +9,7 @@ const state = (config: Partial<PluginConfig>) =>
 test("the /uma menu lists every subcommand the handler implements", () => {
   const items = getUmaCompletions("", state({}));
   const values = items.map((i) => i.value);
-  for (const expected of ["search ", "list", "read ", "reindex", "timeline", "export ", "doctor", "lang ", "auto-approve ", "recall ", "judge ", "immune ", "hud ", "review", "staging ", "muscle ", "skeptic "]) {
+  for (const expected of ["search ", "list", "read ", "reindex", "timeline", "export ", "doctor", "lang ", "auto-approve ", "recall ", "append ", "judge ", "immune ", "hud ", "review", "staging ", "muscle ", "skeptic "]) {
     assert.ok(values.includes(expected), `menu missing: ${expected}`);
   }
 });
@@ -28,6 +28,19 @@ test("recall and judge complete with the current state marked", () => {
 
   const markers = getUmaCompletions("judge ", state({ fastbrainJudge: "off" }));
   assert.ok(markers.find((i) => i.value === "judge off")?.label.includes("✓"));
+});
+
+test("append completes with current state marked and global persistence", () => {
+  const on = getUmaCompletions("append ", state({ appendPrompt: true }));
+  const onEntry = on.find((i) => i.value === "append on");
+  assert.ok(onEntry?.label.includes("✓"), "active option carries the checkmark");
+
+  const off = getUmaCompletions("append ", state({ appendPrompt: false }));
+  const offEntry = off.find((i) => i.value === "append off");
+  assert.ok(offEntry?.label.includes("✓"));
+
+  const globalOpt = getUmaCompletions("append on", state({ appendPrompt: false }));
+  assert.ok(globalOpt.some((o) => o.value === "append on --global"));
 });
 
 test("muscle and skeptic complete with parameter levels", () => {

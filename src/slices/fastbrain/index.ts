@@ -17,7 +17,12 @@ import type {
   BeforeAgentStartEventResult,
 } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../../shared/types.js";
-import { runUma, findUmaBinary } from "../../shared/client.js";
+import {
+  runUma,
+  findUmaBinary,
+  fetchActiveRules,
+  formatRulesForSystemPrompt,
+} from "../../shared/client.js";
 import {
   buildRecallMessage,
   formatGateDecision,
@@ -43,7 +48,20 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined>
 
 export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): () => void {
   const unsubscribe = pi.on("before_agent_start", async (event, ctx) => {
-    // Operator toggle (default off — S3 stays paused unless reopened).
+    // 1. System prompt enhancement (abendum / append toggle)
+    if (state.config.appendPrompt && event.systemPromptOptions?.sections) {
+      try {
+        const rules = await fetchActiveRules(process.cwd());
+        const rulesText = formatRulesForSystemPrompt(rules);
+        if (rulesText) {
+          event.systemPromptOptions.sections.uma_rules = rulesText;
+        }
+      } catch {
+        // fail quiet
+      }
+    }
+
+    // 2. Operator toggle for recall gate (default off — S3 stays paused unless reopened).
     if (!state.config.recallGate) return undefined;
     if (isCommand(event.prompt)) return undefined;
 

@@ -117,6 +117,24 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           );
         }
         void state.refreshDetector?.(ctx, true);
+      } else if (subcommand === "append") {
+        const wantsGlobal = isGlobal || cleanParts.includes("--global");
+        const target = cleanParts[1]?.toLowerCase();
+        if (target === "on" || target === "true") {
+          saveConfig({ appendPrompt: true }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          state.config = { ...state.config, appendPrompt: true };
+          ctx.ui.notify(liveStrings.appendEnabled, "info");
+        } else if (target === "off" || target === "false") {
+          saveConfig({ appendPrompt: false }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          state.config = { ...state.config, appendPrompt: false };
+          ctx.ui.notify(liveStrings.appendDisabled, "info");
+        } else {
+          ctx.ui.notify(
+            `${liveStrings.appendCurrent}${state.config.appendPrompt ? "ON" : "OFF"}\n/uma append on|off [--global]`,
+            "info",
+          );
+        }
+        void state.refreshDetector?.(ctx, true);
       } else if (subcommand === "judge") {
         const wantsGlobal = isGlobal || cleanParts.includes("--global");
         const target = cleanParts[1];

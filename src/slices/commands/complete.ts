@@ -6,6 +6,7 @@ const NON_TERMINAL = new Set([
   "lang",
   "auto-approve",
   "recall",
+  "append",
   "judge",
   "immune",
   "hud",
@@ -103,6 +104,11 @@ export function getUmaCompletions(
       value: "recall ",
       label: `🧠 recall (${currentGate ? "on" : "off"})`,
       description: `Toggle the fastbrain recall gate (current: ${currentGate ? "on" : "off"})`,
+    },
+    {
+      value: "append ",
+      label: `📝 append (${state.config.appendPrompt ? "on" : "off"})`,
+      description: `Toggle system prompt memory rules append (current: ${state.config.appendPrompt ? "on" : "off"})`,
     },
     {
       value: "judge ",

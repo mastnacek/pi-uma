@@ -106,6 +106,25 @@ export function getParameterCompletions(
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
   }
 
+  if (sub === "append") {
+    const currentAppend = state.config.appendPrompt;
+    const options: AutocompleteItem[] = [
+      {
+        value: "append on",
+        label: currentAppend ? "on ✓" : "on",
+        description: currentAppend ? "System prompt append ON · ● ACTIVE" : "System prompt append ON (project)",
+      },
+      { value: "append on --global", label: "on --global", description: "System prompt append ON globally (~/.pi/agent/uma.json)" },
+      {
+        value: "append off",
+        label: !currentAppend ? "off ✓" : "off",
+        description: !currentAppend ? "System prompt append OFF · ● ACTIVE" : "System prompt append OFF (project)",
+      },
+      { value: "append off --global", label: "off --global", description: "System prompt append OFF globally (~/.pi/agent/uma.json)" },
+    ];
+    return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
+  }
+
   if (sub === "judge") {
     const options: AutocompleteItem[] = [
       {

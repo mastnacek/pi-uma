@@ -175,3 +175,49 @@ export function scopeArgForCli(scope: string | undefined): string | undefined {
   }
   return scope.trim();
 }
+
+export interface RuleSummary {
+  id: string;
+  title: string;
+  fact_type: string;
+  body: string;
+}
+
+/** Fetches active decisions and patterns for system prompt enhancement. */
+export async function fetchActiveRules(cwd: string): Promise<RuleSummary[]> {
+  const binPath = findUmaBinary(cwd);
+  try {
+    const outputs = await Promise.all([
+      runUma(binPath, ["list", "--json", "--type", "decision"], cwd),
+      runUma(binPath, ["list", "--json", "--type", "pattern"], cwd),
+    ]);
+    const rules: RuleSummary[] = [];
+    for (const output of outputs) {
+      if (output && output.code === 0 && output.stdout) {
+        try {
+          const parsed = JSON.parse(output.stdout) as RuleSummary[];
+          rules.push(...parsed);
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
+    return rules;
+  } catch {
+    return [];
+  }
+}
+
+/** Formats active rules into a concise Markdown section for system prompt options. */
+export function formatRulesForSystemPrompt(rules: RuleSummary[]): string {
+  if (rules.length === 0) return "";
+  const lines: string[] = [
+    "## Project Memory & Architectural Rules (from UMA)",
+    "Strictly follow these recorded decisions and patterns when implementing solutions:",
+  ];
+  for (const r of rules.slice(0, 10)) {
+    const summaryLine = r.body.split("\n")[0] || "";
+    lines.push(`- [${r.fact_type}] ${r.title}: ${summaryLine}`);
+  }
+  return lines.join("\n");
+}

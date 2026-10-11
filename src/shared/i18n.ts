@@ -34,6 +34,9 @@ export interface Strings {
   recallGateDisabled: string;
   recallGateCurrent: string;
   recallJudgeLabel: string;
+  appendEnabled: string;
+  appendDisabled: string;
+  appendCurrent: string;
   immuneModeEnabled: string;
   immuneModeCurrent: string;
   immuneModeLabel: string;
@@ -113,6 +116,9 @@ const STRINGS: Record<Locale, Strings> = {
     recallGateDisabled: "Fastbrain recall gate OFF (recall stays explicit)",
     recallGateCurrent: "Recall gate state: ",
     recallJudgeLabel: "Judge",
+    appendEnabled: "System prompt append ON (active UMA rules injected into system prompt)",
+    appendDisabled: "System prompt append OFF (no rules injected into system prompt)",
+    appendCurrent: "System prompt append state: ",
     immuneModeEnabled: "Immune interceptor mode updated: ",
     immuneModeCurrent: "Immune interceptor mode: ",
     immuneModeLabel: "Immune",
@@ -183,6 +189,9 @@ const STRINGS: Record<Locale, Strings> = {
     recallGateDisabled: "Recallová brána VYPNUTÁ (recall zůstává explicitní)",
     recallGateCurrent: "Stav recallové brány: ",
     recallJudgeLabel: "Soudce",
+    appendEnabled: "Připojování pravidel do system promptu ZAPNUTO (aktivní UMA pravidla v promptu)",
+    appendDisabled: "Připojování pravidel do system promptu VYPNUTO",
+    appendCurrent: "Stav připojování pravidel do system promptu: ",
     immuneModeEnabled: "Režim imunního interceptoru nastaven: ",
     immuneModeCurrent: "Režim imunního interceptoru: ",
     immuneModeLabel: "Imunita",
