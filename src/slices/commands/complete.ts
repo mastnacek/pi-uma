@@ -51,6 +51,11 @@ export function getUmaCompletions(
   // Level 1: Top-level subcommands
   const subcommands: AutocompleteItem[] = [
     {
+      value: "help",
+      label: "❓ help",
+      description: "Detailed configuration guide and documentation",
+    },
+    {
       value: "search ",
       label: "🔍 search",
       description: "Search memory facts (BM25 keyword search)",

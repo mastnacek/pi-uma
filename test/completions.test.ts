@@ -9,7 +9,7 @@ const state = (config: Partial<PluginConfig>) =>
 test("the /uma menu lists every subcommand the handler implements", () => {
   const items = getUmaCompletions("", state({}));
   const values = items.map((i) => i.value);
-  for (const expected of ["search ", "list", "read ", "reindex", "timeline", "export ", "doctor", "lang ", "auto-approve ", "recall ", "append ", "judge ", "immune ", "hud ", "review", "staging ", "muscle ", "skeptic "]) {
+  for (const expected of ["help", "search ", "list", "read ", "reindex", "timeline", "export ", "doctor", "lang ", "auto-approve ", "recall ", "append ", "judge ", "immune ", "hud ", "review", "staging ", "muscle ", "skeptic "]) {
     assert.ok(values.includes(expected), `menu missing: ${expected}`);
   }
 });

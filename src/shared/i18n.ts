@@ -37,6 +37,8 @@ export interface Strings {
   appendEnabled: string;
   appendDisabled: string;
   appendCurrent: string;
+  detailedHelp: string;
+  compHelp: string;
   immuneModeEnabled: string;
   immuneModeCurrent: string;
   immuneModeLabel: string;
@@ -119,6 +121,49 @@ const STRINGS: Record<Locale, Strings> = {
     appendEnabled: "System prompt append ON (active UMA rules injected into system prompt)",
     appendDisabled: "System prompt append OFF (no rules injected into system prompt)",
     appendCurrent: "System prompt append state: ",
+    compHelp: "Detailed guide and configuration documentation",
+    detailedHelp: `── UMA (Universal Memory Architecture) — Guide & Configuration ──
+
+1. ARCHITECTURE & PRINCIPLES
+  • UMA is a local-first memory system for the Pi coding agent.
+  • Source of truth: Human-readable Markdown files with OKF v0.2 frontmatter in .uma/ (project) and global store.
+  • Search engine: Centralized SQLite FTS5 index (index.db) with hybrid RRF fusion (BM25 keywords + vector embeddings).
+
+2. SYSTEM PROMPT ENHANCEMENT (MEMORY PRIMING)
+  • /uma append on|off [--global]
+    - on: Dynamically injects active architectural decisions and patterns into the model's leading system prompt (section uma_rules) before each turn. The model obeys project rules from word one without spending tool calls.
+    - off: Rules are not injected automatically (default, saves context tokens).
+
+3. COGNITIVE IMMUNE INTERCEPTOR (ARCHITECTURE GUARD)
+  • /uma immune <mode> [--global]
+    - off: Interceptor disabled.
+    - warn: Displays warnings in TUI, never blocks tool execution.
+    - ask: Displays an interactive confirmation dialog on rule breaches (default safe mode).
+    - auto / block: Hard-blocks deterministic AST invariant violations (e.g. cross-slice imports).
+
+4. FASTBRAIN RECALL GATE & JUDGE (S3 SLICE)
+  • /uma recall on|off [--global]
+    - on: Fastbrain evaluates prompts before the turn and recalls relevant facts conditionally.
+    - off: Recall stays explicit (agent queries memory via tools only when needed).
+  • /uma judge off|jev [--global]
+    - off: Deterministic offline keyword heuristics (0 ms, 0 cost).
+    - jev: Semantic triage via TypeSafe Jev model on OpenRouter.
+
+5. APPROVAL MODAL & STAGING
+  • /uma auto-approve on|off [--global]
+    - off (recommended): Displays interactive modal review with translation toggle ('t'), word-wrapping, and vertical scrolling.
+    - on: Commits memory changes automatically without modal review.
+  • /uma review (or /uma staging review)
+    - Interactive review modal for memory drafts captured by the Shadow Brain observer.
+
+6. PROCEDURAL MUSCLE & INTERNAL COUNCIL
+  • /uma muscle list                 — Lists operator-curated routines.
+  • /uma muscle run <name> [--confirm] — Executes routine (dry-run without --confirm).
+  • /uma skeptic "<intent>"          — Adversarial critique before risky mutations.
+  • /uma humility on|off             — Epistemic humility gate for unfamiliar codebases.
+  • /uma doctor                      — Read-only store and index health diagnostic.
+
+Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across all sessions.`,
     immuneModeEnabled: "Immune interceptor mode updated: ",
     immuneModeCurrent: "Immune interceptor mode: ",
     immuneModeLabel: "Immune",
@@ -192,6 +237,49 @@ const STRINGS: Record<Locale, Strings> = {
     appendEnabled: "Připojování pravidel do system promptu ZAPNUTO (aktivní UMA pravidla v promptu)",
     appendDisabled: "Připojování pravidel do system promptu VYPNUTO",
     appendCurrent: "Stav připojování pravidel do system promptu: ",
+    compHelp: "Podrobná česká nápověda a popis všech nastavení",
+    detailedHelp: `── UMA (Universal Memory Architecture) — Nápověda a konfigurace ──
+
+1. ZÁKLADNÍ ARCHITEKTURA A PRINCIP
+  • UMA je lokální paměťový systém pro Pi coding agenta.
+  • Zdroj pravdy: Lidsky čitelné Markdown soubory s hlavičkou OKF v0.2 v .uma/ (projekt) a v uživatelském profilu (globální).
+  • Rychlé vyhledávání: Centralizovaný SQLite index (index.db) s hybridním vyhledáváním (BM25 klíčová slova + sémantické vektory).
+
+2. PŘIPOJOVÁNÍ PRAVIDEL DO SYSTEM PROMPTU (MEMORY PRIMING)
+  • /uma append on|off [--global]
+    - on: Před každým tahem vloží aktivní architektonická rozhodnutí a vzory projektu přímo do systémového promptu modelu (sekce uma_rules). Model pravidla dodržuje ihned bez volání nástrojů.
+    - off: Pravidla se do promptu automaticky nepřipojují (výchozí stav, šetří kontext).
+
+3. KOGNITIVNÍ IMUNITNÍ SYSTÉM (OCHRANA ARCHITEKTURY)
+  • /uma immune <režim> [--global]
+    - off: Imunitní interceptor je vypnutý.
+    - warn: Pouze zobrazuje varování v TUI, nikdy neblokuje kód.
+    - ask: Při dotyku chráněného pravidla zobrazí potvrzovací dialog (výchozí bezpečný režim).
+    - auto / block: Deterministicky zablokuje pokus o porušení AST kontraktu (např. zakázaný cross-slice import).
+
+4. RECALLOVÁ BRÁNA A SOUDCE (FASTBRAIN S3)
+  • /uma recall on|off [--global]
+    - on: Fastbrain před spuštěním agenta vyhodnotí dotaz a automaticky přitáhne relevantní fakta.
+    - off: Recall zůstává explicitní (agent volá uma_search pouze když sám potřebuje).
+  • /uma judge off|jev [--global]
+    - off: Deterministické lokální markery (0 ms, 0 Kč, funguje offline).
+    - jev: Sémantické hodnocení přes model TypeSafe Jev na OpenRouteru.
+
+5. SCHVALOVÁNÍ ZÁPISŮ A STAGING
+  • /uma auto-approve on|off [--global]
+    - off (doporučeno): Každý návrh na zápis či změnu paměti zobrazí interaktivní modální okno s překladem do češtiny (klávesa 't'), zalamováním a rolováním.
+    - on: Ukládá fakta do paměti bez potvrzování.
+  • /uma review (nebo /uma staging review)
+    - Otevře interaktivní okno pro kontrolu a schválení konceptů zachycených pozorovatelem na pozadí (Shadow Brain).
+
+6. SVALOVÁ PAMĚŤ A VNITŘNÍ RADA
+  • /uma muscle list                 — Zobrazí kurátorské rutiny.
+  • /uma muscle run <název> [--confirm] — Spustí rutinu (bez --confirm bezpečný dry-run).
+  • /uma skeptic "<záměr>"           — Oponent před rizikovou architektonickou změnou.
+  • /uma humility on|off             — Vyžaduje prozkoumání neznámého subsystému před mutací.
+  • /uma doctor                      — Čtecí kontrola zdraví storu a indexu.
+
+Tip: Přidejte přepínač --global pro trvalé uložení do ~/.pi/agent/uma.json (platí pro všechny projekty).`,
     immuneModeEnabled: "Režim imunního interceptoru nastaven: ",
     immuneModeCurrent: "Režim imunního interceptoru: ",
     immuneModeLabel: "Imunita",

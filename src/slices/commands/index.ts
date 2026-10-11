@@ -38,6 +38,11 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         ctx.ui.notify(note ? `${note}\n\n${shown}` : shown, "info");
       };
 
+      if (subcommand === "help" || subcommand === "setup") {
+        ctx.ui.notify(liveStrings.detailedHelp, "info");
+        return;
+      }
+
       if (subcommand === "search") {
         const query = cleanParts.slice(1).join(" ");
         if (!query) {
