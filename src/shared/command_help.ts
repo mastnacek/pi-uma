@@ -44,6 +44,8 @@ export interface CommandHelpStrings {
   paramHumilityOn: string;
   paramHumilityOff: string;
   paramGlobalSuffix: string;
+  activeMarker: (active: boolean) => string;
+  enumMarker: (val: string) => string;
 }
 
 const csHelp: CommandHelpStrings = {
@@ -94,6 +96,8 @@ const csHelp: CommandHelpStrings = {
   paramHumilityOn: "Před mutací neznámého subsystému vyžaduje přečtení alespoň 3 souborů a hypotézu",
   paramHumilityOff: "Běžný režim bez povinného zkoumání neznámého kódu",
   paramGlobalSuffix: " (globálně pro všechny projekty v ~/.pi/agent/uma.json)",
+  activeMarker: (active) => (active ? " · ● ZAPNUTO" : " · ○ VYPNUTO"),
+  enumMarker: (val) => (val ? ` · ● AKTIVNÍ: ${val.toUpperCase()}` : ""),
 };
 
 const enHelp: CommandHelpStrings = {
@@ -144,6 +148,8 @@ const enHelp: CommandHelpStrings = {
   paramHumilityOn: "Require reading >=3 files and confirming hypothesis before mutating unfamiliar code",
   paramHumilityOff: "Normal operation without mandatory explorative reads",
   paramGlobalSuffix: " (globally across all projects in ~/.pi/agent/uma.json)",
+  activeMarker: (active) => (active ? " · ● ACTIVE" : " · ○ INACTIVE"),
+  enumMarker: (val) => (val ? ` · ● ACTIVE: ${val.toUpperCase()}` : ""),
 };
 
 export function commandHelpFor(locale: Locale): CommandHelpStrings {

@@ -33,8 +33,10 @@ export function getUmaCompletions(
   const currentLang = state.config.lang;
   const currentAuto = state.config.autoApprove;
   const currentGate = state.config.recallGate;
+  const currentAppend = Boolean(state.config.appendPrompt);
   const currentJudge = state.config.fastbrainJudge;
   const currentHud = state.config.hud !== false;
+  const currentHumility = state.config.humilityGate;
 
   const firstToken = tokens[0]?.toLowerCase();
   const atParameterLevel =
@@ -106,32 +108,32 @@ export function getUmaCompletions(
     {
       value: "auto-approve ",
       label: `✅ auto-approve (${currentAuto ? "on" : "off"})`,
-      description: h.cmdAutoApprove(currentAuto),
+      description: `${h.cmdAutoApprove(currentAuto)}${h.activeMarker(currentAuto)}`,
     },
     {
       value: "recall ",
       label: `🧠 recall (${currentGate ? "on" : "off"})`,
-      description: h.cmdRecall(currentGate),
+      description: `${h.cmdRecall(currentGate)}${h.activeMarker(currentGate)}`,
     },
     {
       value: "append ",
-      label: `📝 append (${state.config.appendPrompt ? "on" : "off"})`,
-      description: h.cmdAppend(Boolean(state.config.appendPrompt)),
+      label: `📝 append (${currentAppend ? "on" : "off"})`,
+      description: `${h.cmdAppend(currentAppend)}${h.activeMarker(currentAppend)}`,
     },
     {
       value: "judge ",
       label: `⚖️ judge (${currentJudge})`,
-      description: h.cmdJudge(currentJudge),
+      description: `${h.cmdJudge(currentJudge)}${h.enumMarker(currentJudge)}`,
     },
     {
       value: "immune ",
       label: `🛡️ immune (${state.config.immuneMode})`,
-      description: h.cmdImmune(state.config.immuneMode),
+      description: `${h.cmdImmune(state.config.immuneMode)}${h.enumMarker(state.config.immuneMode)}`,
     },
     {
       value: "hud ",
       label: `📟 hud (${currentHud ? "on" : "off"})`,
-      description: h.cmdHud(currentHud),
+      description: `${h.cmdHud(currentHud)}${h.activeMarker(currentHud)}`,
     },
     {
       value: "review",
@@ -150,8 +152,8 @@ export function getUmaCompletions(
     },
     {
       value: "humility ",
-      label: "🧭 humility",
-      description: h.cmdHumility,
+      label: `🧭 humility (${currentHumility ? "on" : "off"})`,
+      description: `${h.cmdHumility}${h.activeMarker(currentHumility)}`,
     },
     {
       value: "muscle ",
