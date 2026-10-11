@@ -8,6 +8,7 @@
 
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import type { ExtensionState } from "../../shared/types.js";
+import { commandHelpFor } from "../../shared/command_help.ts";
 
 const valid_immune = ["off", "warn", "ask", "auto", "block"] as const;
 
@@ -21,6 +22,9 @@ export function getParameterCompletions(
   const currentGate = state.config.recallGate;
   const currentJudge = state.config.fastbrainJudge;
   const currentHud = state.config.hud !== false;
+  const currentHumility = state.config.humilityGate;
+  const currentImmune = state.config.immuneMode;
+  const h = commandHelpFor(state.config.lang);
 
   if (sub === "lang") {
     const options: AutocompleteItem[] = [
@@ -53,24 +57,22 @@ export function getParameterCompletions(
       {
         value: "auto-approve on",
         label: currentAuto ? "on ✓" : "on",
-        description: currentAuto
-          ? "Auto-approve without modal · ● ACTIVE"
-          : "Auto-approve without modal (project)",
+        description: `${h.paramAutoApproveOn}${currentAuto ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "auto-approve on --global",
         label: "on --global",
-        description: "Auto-approve globally (~/.pi/agent/uma.json)",
+        description: `${h.paramAutoApproveOn}${h.paramGlobalSuffix}`,
       },
       {
         value: "auto-approve off",
         label: !currentAuto ? "off ✓" : "off",
-        description: !currentAuto ? "Show review modal · ● ACTIVE" : "Show review modal",
+        description: `${h.paramAutoApproveOff}${!currentAuto ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "auto-approve off --global",
         label: "off --global",
-        description: "Show review modal globally (~/.pi/agent/uma.json)",
+        description: `${h.paramAutoApproveOff}${h.paramGlobalSuffix}`,
       },
     ];
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
@@ -81,26 +83,22 @@ export function getParameterCompletions(
       {
         value: "recall on",
         label: currentGate ? "on ✓" : "on",
-        description: currentGate
-          ? "Recall gate injects memory on trigger · ● ACTIVE"
-          : "Recall gate on for this project (.pi/uma.json)",
+        description: `${h.paramRecallOn}${currentGate ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "recall on --global",
         label: "on --global",
-        description: "Recall gate ON globally (~/.pi/agent/uma.json)",
+        description: `${h.paramRecallOn}${h.paramGlobalSuffix}`,
       },
       {
         value: "recall off",
         label: !currentGate ? "off ✓" : "off",
-        description: !currentGate
-          ? "Recall stays explicit (S3 paused) · ● ACTIVE"
-          : "Recall stays explicit (project)",
+        description: `${h.paramRecallOff}${!currentGate ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "recall off --global",
         label: "off --global",
-        description: "Recall stays explicit globally (~/.pi/agent/uma.json)",
+        description: `${h.paramRecallOff}${h.paramGlobalSuffix}`,
       },
     ];
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
@@ -112,15 +110,23 @@ export function getParameterCompletions(
       {
         value: "append on",
         label: currentAppend ? "on ✓" : "on",
-        description: currentAppend ? "System prompt append ON · ● ACTIVE" : "System prompt append ON (project)",
+        description: `${h.paramAppendOn}${currentAppend ? " · ● AKTIVNÍ" : ""}`,
       },
-      { value: "append on --global", label: "on --global", description: "System prompt append ON globally (~/.pi/agent/uma.json)" },
+      {
+        value: "append on --global",
+        label: "on --global",
+        description: `${h.paramAppendOn}${h.paramGlobalSuffix}`,
+      },
       {
         value: "append off",
         label: !currentAppend ? "off ✓" : "off",
-        description: !currentAppend ? "System prompt append OFF · ● ACTIVE" : "System prompt append OFF (project)",
+        description: `${h.paramAppendOff}${!currentAppend ? " · ● AKTIVNÍ" : ""}`,
       },
-      { value: "append off --global", label: "off --global", description: "System prompt append OFF globally (~/.pi/agent/uma.json)" },
+      {
+        value: "append off --global",
+        label: "off --global",
+        description: `${h.paramAppendOff}${h.paramGlobalSuffix}`,
+      },
     ];
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
   }
@@ -130,28 +136,22 @@ export function getParameterCompletions(
       {
         value: "judge jev",
         label: currentJudge === "jev" ? "jev ✓" : "jev",
-        description:
-          currentJudge === "jev"
-            ? "Jev via OpenRouter (semantic) · ● ACTIVE"
-            : "Jev via OpenRouter (semantic)",
+        description: `${h.paramJudgeJev}${currentJudge === "jev" ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "judge jev --global",
         label: "jev --global",
-        description: "Jev judge globally (~/.pi/agent/uma.json)",
+        description: `${h.paramJudgeJev}${h.paramGlobalSuffix}`,
       },
       {
         value: "judge off",
         label: currentJudge === "off" ? "off ✓" : "off",
-        description:
-          currentJudge === "off"
-            ? "Offline markers (deterministic) · ● ACTIVE"
-            : "Offline markers (deterministic)",
+        description: `${h.paramJudgeOff}${currentJudge === "off" ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "judge off --global",
         label: "off --global",
-        description: "Offline markers globally (~/.pi/agent/uma.json)",
+        description: `${h.paramJudgeOff}${h.paramGlobalSuffix}`,
       },
     ];
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
@@ -160,23 +160,23 @@ export function getParameterCompletions(
   if (sub === "immune") {
     const current = state.config.immuneMode;
     const descriptions: Record<string, string> = {
-      off: "Interceptor disabled",
-      warn: "Warnings only, never disturbs",
-      ask: "Confirm dialog per warning; decline blocks",
-      auto: "Block contract violations / ask heuristics",
-      block: "Strict block mode for AST contracts",
+      off: h.paramImmuneOff,
+      warn: h.paramImmuneWarn,
+      ask: h.paramImmuneAsk,
+      auto: h.paramImmuneAuto,
+      block: h.paramImmuneBlock,
     };
     const options: AutocompleteItem[] = [];
     for (const m of valid_immune) {
       options.push({
         value: `immune ${m}`,
         label: current === m ? `${m} ✓` : m,
-        description: current === m ? `${descriptions[m]} · ● ACTIVE` : descriptions[m],
+        description: current === m ? `${descriptions[m]} · ● AKTIVNÍ` : descriptions[m],
       });
       options.push({
         value: `immune ${m} --global`,
         label: `${m} --global`,
-        description: `${descriptions[m]} globally (~/.pi/agent/uma.json)`,
+        description: `${descriptions[m]}${h.paramGlobalSuffix}`,
       });
     }
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
@@ -187,26 +187,22 @@ export function getParameterCompletions(
       {
         value: "hud on",
         label: currentHud ? "on ✓" : "on",
-        description: currentHud
-          ? "Live detector HUD enabled · ● ACTIVE"
-          : "Enable live detector HUD above status line",
+        description: `${h.paramHudOn}${currentHud ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "hud on --global",
         label: "on --global",
-        description: "Enable detector HUD globally (~/.pi/agent/uma.json)",
+        description: `${h.paramHudOn}${h.paramGlobalSuffix}`,
       },
       {
         value: "hud off",
         label: !currentHud ? "off ✓" : "off",
-        description: !currentHud
-          ? "Live detector HUD disabled · ● ACTIVE"
-          : "Disable live detector HUD",
+        description: `${h.paramHudOff}${!currentHud ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "hud off --global",
         label: "off --global",
-        description: "Disable detector HUD globally (~/.pi/agent/uma.json)",
+        description: `${h.paramHudOff}${h.paramGlobalSuffix}`,
       },
     ];
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));
@@ -280,26 +276,22 @@ export function getParameterCompletions(
       {
         value: "humility on",
         label: current ? "on ✓" : "on",
-        description: current
-          ? "Humility gate armed · ● ACTIVE"
-          : "Ask before mutating flagged unfamiliar subsystems",
+        description: `${h.paramHumilityOn}${current ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "humility on --global",
         label: "on --global",
-        description: "Arm the humility gate globally (~/.pi/agent/uma.json)",
+        description: `${h.paramHumilityOn}${h.paramGlobalSuffix}`,
       },
       {
         value: "humility off",
         label: !current ? "off ✓" : "off",
-        description: !current
-          ? "Humility gate disabled · ● ACTIVE"
-          : "Disable the humility confirm gate",
+        description: `${h.paramHumilityOff}${!current ? " · ● AKTIVNÍ" : ""}`,
       },
       {
         value: "humility off --global",
         label: "off --global",
-        description: "Disable the humility gate globally (~/.pi/agent/uma.json)",
+        description: `${h.paramHumilityOff}${h.paramGlobalSuffix}`,
       },
     ];
     return options.filter((o) => o.value.toLowerCase().startsWith(normalizedPrefix));

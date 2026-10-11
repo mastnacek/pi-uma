@@ -1,5 +1,6 @@
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import type { ExtensionState } from "../../shared/types.js";
+import { commandHelpFor } from "../../shared/command_help.ts";
 import { getParameterCompletions } from "./complete_params.ts";
 
 const NON_TERMINAL = new Set([
@@ -49,116 +50,118 @@ export function getUmaCompletions(
   }
 
   // Level 1: Top-level subcommands
+  const h = commandHelpFor(state.config.lang);
+
   const subcommands: AutocompleteItem[] = [
     {
       value: "help",
       label: "❓ help",
-      description: "Detailed configuration guide and documentation",
+      description: h.cmdHelp,
     },
     {
       value: "search ",
       label: "🔍 search",
-      description: "Search memory facts (BM25 keyword search)",
+      description: h.cmdSearch,
     },
     {
       value: "list",
       label: "📋 list",
-      description: "List project memories",
+      description: h.cmdList,
     },
     {
       value: "list global",
       label: "🌐 list global",
-      description: "List global user memories",
+      description: h.cmdListGlobal,
     },
     {
       value: "read ",
       label: "📖 read",
-      description: "Read memory fact details by ID",
+      description: h.cmdRead,
     },
     {
       value: "reindex",
       label: "♻️ reindex",
-      description: "Rebuild centralized SQLite index from markdown files",
+      description: h.cmdReindex,
     },
     {
       value: "timeline",
       label: "🕰️ timeline",
-      description: "Show how facts evolved (supersession chains)",
+      description: h.cmdTimeline,
     },
     {
       value: "export ",
       label: "📦 export",
-      description: "Write memory as a portable OKF bundle",
+      description: h.cmdExport,
     },
     {
       value: "doctor",
       label: "🩺 doctor",
-      description: "Read-only health report on the store and index",
+      description: h.cmdDoctor,
     },
     {
       value: "lang ",
       label: `🌐 lang (${currentLang})`,
-      description: `Switch UI language (current: ${currentLang})`,
+      description: h.cmdLang(currentLang),
     },
     {
       value: "auto-approve ",
       label: `✅ auto-approve (${currentAuto ? "on" : "off"})`,
-      description: `Toggle review modal (current: ${currentAuto ? "on" : "off"})`,
+      description: h.cmdAutoApprove(currentAuto),
     },
     {
       value: "recall ",
       label: `🧠 recall (${currentGate ? "on" : "off"})`,
-      description: `Toggle the fastbrain recall gate (current: ${currentGate ? "on" : "off"})`,
+      description: h.cmdRecall(currentGate),
     },
     {
       value: "append ",
       label: `📝 append (${state.config.appendPrompt ? "on" : "off"})`,
-      description: `Toggle system prompt memory rules append (current: ${state.config.appendPrompt ? "on" : "off"})`,
+      description: h.cmdAppend(Boolean(state.config.appendPrompt)),
     },
     {
       value: "judge ",
       label: `⚖️ judge (${currentJudge})`,
-      description: `Recall judge transport (current: ${currentJudge})`,
+      description: h.cmdJudge(currentJudge),
     },
     {
       value: "immune ",
       label: `🛡️ immune (${state.config.immuneMode})`,
-      description: `Immune interceptor mode (off | warn | ask | auto | block; current: ${state.config.immuneMode})`,
+      description: h.cmdImmune(state.config.immuneMode),
     },
     {
       value: "hud ",
       label: `📟 hud (${currentHud ? "on" : "off"})`,
-      description: `Toggle status detector HUD widget (current: ${currentHud ? "on" : "off"})`,
+      description: h.cmdHud(currentHud),
     },
     {
       value: "review",
       label: "✦ review",
-      description: "Launch interactive review modal for staged drafts",
+      description: h.cmdReview,
     },
     {
       value: "staging ",
       label: "📥 staging",
-      description: "Manage staged drafts (review | list | approve | discard)",
+      description: h.cmdStaging,
     },
     {
       value: "debt ",
       label: "📋 debt",
-      description: "Prospective Debt Ledger (list | settle <id> | clear)",
+      description: h.cmdDebt,
     },
     {
       value: "humility ",
       label: "🧭 humility",
-      description: "Epistemic-humility gate (on | off [--global])",
+      description: h.cmdHumility,
     },
     {
       value: "muscle ",
       label: "💪 muscle",
-      description: "Procedural routines (list | run <name> [--confirm])",
+      description: h.cmdMuscle,
     },
     {
       value: "skeptic ",
       label: "😈 skeptic",
-      description: "Adversarial critique of a risky intent (<intent> [--files a,b] [--off])",
+      description: h.cmdSkeptic,
     },
   ];
 
