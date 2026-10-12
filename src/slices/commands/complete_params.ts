@@ -31,7 +31,7 @@ export function getParameterCompletions(
       {
         value: "lang cs",
         label: currentLang === "cs" ? "cs ✓" : "cs",
-        description: currentLang === "cs" ? "Čeština · ● AKTIVNÍ" : "Čeština",
+        description: currentLang === "cs" ? `Čeština${h.selectedMarker}` : "Čeština",
       },
       {
         value: "lang cs --global",
@@ -57,7 +57,7 @@ export function getParameterCompletions(
       {
         value: "auto-approve on",
         label: currentAuto ? "on ✓" : "on",
-        description: `${h.paramAutoApproveOn}${currentAuto ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramAutoApproveOn}${currentAuto ? h.selectedMarker : ""}`,
       },
       {
         value: "auto-approve on --global",
@@ -67,7 +67,7 @@ export function getParameterCompletions(
       {
         value: "auto-approve off",
         label: !currentAuto ? "off ✓" : "off",
-        description: `${h.paramAutoApproveOff}${!currentAuto ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramAutoApproveOff}${!currentAuto ? h.selectedMarker : ""}`,
       },
       {
         value: "auto-approve off --global",
@@ -83,7 +83,7 @@ export function getParameterCompletions(
       {
         value: "recall on",
         label: currentGate ? "on ✓" : "on",
-        description: `${h.paramRecallOn}${currentGate ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramRecallOn}${currentGate ? h.selectedMarker : ""}`,
       },
       {
         value: "recall on --global",
@@ -93,7 +93,7 @@ export function getParameterCompletions(
       {
         value: "recall off",
         label: !currentGate ? "off ✓" : "off",
-        description: `${h.paramRecallOff}${!currentGate ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramRecallOff}${!currentGate ? h.selectedMarker : ""}`,
       },
       {
         value: "recall off --global",
@@ -110,7 +110,7 @@ export function getParameterCompletions(
       {
         value: "append on",
         label: currentAppend ? "on ✓" : "on",
-        description: `${h.paramAppendOn}${currentAppend ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramAppendOn}${currentAppend ? h.selectedMarker : ""}`,
       },
       {
         value: "append on --global",
@@ -120,7 +120,7 @@ export function getParameterCompletions(
       {
         value: "append off",
         label: !currentAppend ? "off ✓" : "off",
-        description: `${h.paramAppendOff}${!currentAppend ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramAppendOff}${!currentAppend ? h.selectedMarker : ""}`,
       },
       {
         value: "append off --global",
@@ -136,7 +136,7 @@ export function getParameterCompletions(
       {
         value: "judge jev",
         label: currentJudge === "jev" ? "jev ✓" : "jev",
-        description: `${h.paramJudgeJev}${currentJudge === "jev" ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramJudgeJev}${currentJudge === "jev" ? h.selectedMarker : ""}`,
       },
       {
         value: "judge jev --global",
@@ -146,7 +146,7 @@ export function getParameterCompletions(
       {
         value: "judge off",
         label: currentJudge === "off" ? "off ✓" : "off",
-        description: `${h.paramJudgeOff}${currentJudge === "off" ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramJudgeOff}${currentJudge === "off" ? h.selectedMarker : ""}`,
       },
       {
         value: "judge off --global",
@@ -171,7 +171,7 @@ export function getParameterCompletions(
       options.push({
         value: `immune ${m}`,
         label: current === m ? `${m} ✓` : m,
-        description: current === m ? `${descriptions[m]} · ● AKTIVNÍ` : descriptions[m],
+        description: current === m ? `${descriptions[m]}${h.selectedMarker}` : descriptions[m],
       });
       options.push({
         value: `immune ${m} --global`,
@@ -187,7 +187,7 @@ export function getParameterCompletions(
       {
         value: "hud on",
         label: currentHud ? "on ✓" : "on",
-        description: `${h.paramHudOn}${currentHud ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramHudOn}${currentHud ? h.selectedMarker : ""}`,
       },
       {
         value: "hud on --global",
@@ -197,7 +197,7 @@ export function getParameterCompletions(
       {
         value: "hud off",
         label: !currentHud ? "off ✓" : "off",
-        description: `${h.paramHudOff}${!currentHud ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramHudOff}${!currentHud ? h.selectedMarker : ""}`,
       },
       {
         value: "hud off --global",
@@ -276,7 +276,7 @@ export function getParameterCompletions(
       {
         value: "humility on",
         label: current ? "on ✓" : "on",
-        description: `${h.paramHumilityOn}${current ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramHumilityOn}${current ? h.selectedMarker : ""}`,
       },
       {
         value: "humility on --global",
@@ -286,7 +286,7 @@ export function getParameterCompletions(
       {
         value: "humility off",
         label: !current ? "off ✓" : "off",
-        description: `${h.paramHumilityOff}${!current ? " · ● AKTIVNÍ" : ""}`,
+        description: `${h.paramHumilityOff}${!current ? h.selectedMarker : ""}`,
       },
       {
         value: "humility off --global",

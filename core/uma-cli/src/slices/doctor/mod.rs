@@ -134,11 +134,15 @@ pub fn run(args: DoctorArgs) -> Result<()> {
     // executes the archive. Deprecation, never deletion: a pruned zombie
     // stays on disk and in `timeline`, it just leaves the active set.
     let mut archived = 0usize;
+    let mut zombie_payload: Vec<serde_json::Value> = Vec::new();
     if args.zombies && !zombie_candidates.is_empty() {
-        archived = prune_zombies(&all_roots, now, args.confirm, args.json)?;
+        let (count, payload) = prune_zombies(&all_roots, now, args.confirm, args.json)?;
+        archived = count;
+        zombie_payload = payload;
     }
 
     // Retrieval practice (Proposal 05, Pillar IV): test facts nearing decay.
+    let mut dream_results: Vec<dream::DreamResult> = Vec::new();
     if args.dream {
         let judge = match args.judge.as_str() {
             "jev" => uma_core::fastbrain::Judge::Jev,
@@ -146,7 +150,8 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         };
         let root_refs: Vec<Option<&std::path::Path>> =
             all_roots.iter().map(|p| Some(p.as_path())).collect();
-        dream::dream_over_roots(&root_refs, now, judge, args.dream_max, args.json)?;
+        dream_results =
+            dream::dream_over_roots(&root_refs, now, judge, args.dream_max, args.json)?;
     }
 
     let db_path = Store::central_db_path()?;
@@ -165,7 +170,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         ));
     }
 
-    report(&findings, &args, archived)?;
+    report(&findings, &args, archived, &zombie_payload, &dream_results)?;
 
     let failed = findings.iter().filter(|f| f.level == Level::Fail).count();
     if args.strict && failed > 0 {
@@ -185,8 +190,8 @@ fn prune_zombies(
     roots: &[std::path::PathBuf],
     now: chrono::DateTime<Utc>,
     confirm: bool,
-    json: bool,
-) -> Result<usize> {
+    quiet: bool,
+) -> Result<(usize, Vec<serde_json::Value>)> {
     // Collect (store, fact) pairs so the confirm path can write each fact
     // back to the store it came from.
     let mut located: Vec<(Store, uma_core::domain::Fact)> = Vec::new();
@@ -204,25 +209,26 @@ fn prune_zombies(
         }
     }
 
+    // The per-fact payload is always built and returned; the caller folds it
+    // into its single JSON document (this function must never print JSON).
+    let payload: Vec<serde_json::Value> = located
+        .iter()
+        .map(|(_, fact)| {
+            json!({
+                "id": fact.id.to_string(),
+                "title": fact.title,
+                "scope": fact.scope.to_string(),
+                "effective_weight": fact.effective_weight(now),
+                "action": if confirm { "archived" } else { "would_archive" },
+            })
+        })
+        .collect();
+
     if located.is_empty() {
-        return Ok(0);
+        return Ok((0, payload));
     }
 
-    if json {
-        let payload: Vec<_> = located
-            .iter()
-            .map(|(_, fact)| {
-                json!({
-                    "id": fact.id.to_string(),
-                    "title": fact.title,
-                    "scope": fact.scope.to_string(),
-                    "effective_weight": fact.effective_weight(now),
-                    "action": if confirm { "archived" } else { "would_archive" },
-                })
-            })
-            .collect();
-        println!("{}", serde_json::to_string_pretty(&payload)?);
-    } else {
+    if !quiet {
         println!(
             "\nZombie rules (synaptic fitness < 0.25){}:",
             if confirm { " — archiving" } else { " — proposal" }
@@ -242,7 +248,7 @@ fn prune_zombies(
     }
 
     if !confirm {
-        return Ok(0);
+        return Ok((0, payload));
     }
 
     let mut archived = 0usize;
@@ -252,22 +258,34 @@ fn prune_zombies(
         store.write(&fact)?;
         archived += 1;
     }
-    if !json {
+    if !quiet {
         println!("Archived {archived} zombie fact(s) (deprecated, never deleted).");
     }
-    Ok(archived)
+    Ok((archived, payload))
 }
 
-fn report(findings: &[Finding], args: &DoctorArgs, archived: usize) -> Result<()> {
+fn report(
+    findings: &[Finding],
+    args: &DoctorArgs,
+    archived: usize,
+    zombies: &[serde_json::Value],
+    dream: &[dream::DreamResult],
+) -> Result<()> {
     let failed = findings.iter().filter(|f| f.level == Level::Fail).count();
     let warned = findings.iter().filter(|f| f.level == Level::Warn).count();
 
     if args.json {
+        // ONE document for the whole run: the prune and dream sub-reports are
+        // folded in as fields instead of being printed separately, which is
+        // what previously produced concatenated, unparseable JSON.
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
                 "failed": failed,
                 "warnings": warned,
+                "archived": archived,
+                "zombies": zombies,
+                "dream": dream,
                 "findings": findings.iter().map(|f| json!({
                     "level": f.level.label(),
                     "check": f.label,

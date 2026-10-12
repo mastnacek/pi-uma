@@ -129,6 +129,11 @@ pub fn run(args: MigrateArgs) -> Result<()> {
         println!("Reindexed {} fact(s) into centralized index.", count);
     }
 
+    // A migration that skipped files must not report success: a script or CI
+    // checking only the exit code would otherwise treat data loss as fine.
+    if failed > 0 {
+        anyhow::bail!("migration completed with {failed} failure(s)");
+    }
     Ok(())
 }
 

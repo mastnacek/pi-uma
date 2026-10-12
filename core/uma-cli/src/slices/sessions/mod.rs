@@ -101,7 +101,14 @@ fn list_sessions(args: ListArgs) -> Result<()> {
     }
 
     if args.json {
-        let payload: Vec<_> = records.iter().map(json_record).collect();
+        // `--limit` applies to JSON too: a machine reader must not receive more
+        // rows than it asked for (the flag used to be ignored in JSON mode).
+        let take_n = if args.limit == 0 {
+            records.len()
+        } else {
+            args.limit
+        };
+        let payload: Vec<_> = records.iter().take(take_n).map(json_record).collect();
         println!("{}", serde_json::to_string_pretty(&payload)?);
         return Ok(());
     }

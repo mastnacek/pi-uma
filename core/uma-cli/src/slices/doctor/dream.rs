@@ -68,7 +68,7 @@ pub fn run_dream(
     candidates: &[Fact],
     now: DateTime<Utc>,
     judge: Judge,
-    json: bool,
+    emit: bool,
 ) -> anyhow::Result<Vec<DreamResult>> {
     let mut results = Vec::new();
 
@@ -135,8 +135,10 @@ pub fn run_dream(
         });
     }
 
-    if json {
-        println!("{}", serde_json::to_string_pretty(&results)?);
+    // JSON is owned by the caller (`doctor` folds this into its single
+    // document). `emit` controls the human report only — a second JSON document
+    // here is what made `doctor --json` unparseable.
+    if !emit {
         return Ok(results);
     }
 
@@ -189,8 +191,8 @@ pub fn dream_over_roots(
     now: DateTime<Utc>,
     judge: Judge,
     dream_max: usize,
-    json: bool,
-) -> anyhow::Result<()> {
+    quiet: bool,
+) -> anyhow::Result<Vec<DreamResult>> {
     let mut all = Vec::new();
     for root in roots.iter().flatten() {
         if root.exists() {
@@ -201,6 +203,7 @@ pub fn dream_over_roots(
         }
     }
     let candidates = dream_candidates(&all, now, dream_max);
-    run_dream(&candidates, now, judge, json)?;
-    Ok(())
+    // Return the results so the caller can fold them into its own JSON
+    // document; `quiet` suppresses the human report.
+    run_dream(&candidates, now, judge, !quiet)
 }

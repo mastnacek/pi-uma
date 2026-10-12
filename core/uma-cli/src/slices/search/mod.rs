@@ -42,25 +42,45 @@ pub struct SearchArgs {
     /// Vectorize all facts missing embedding vectors via OpenRouter
     #[arg(long = "vectorize")]
     pub vectorize: bool,
+
+    /// Emit the results as a single JSON document (never prose)
+    #[arg(long = "json")]
+    pub json: bool,
 }
 
 /// Executes the Search vertical slice: BM25, Semantic Vector, or Hybrid RRF search.
 pub fn run(args: SearchArgs) -> Result<()> {
+    // In JSON mode stdout must be exactly one parseable document, so status
+    // chatter goes to stderr instead of interleaving with the payload.
     if args.reindex {
         let count = Store::reindex_all()?;
-        println!("Reindexed {} fact(s) into centralized index.", count);
+        if args.json {
+            eprintln!("Reindexed {count} fact(s) into centralized index.");
+        } else {
+            println!("Reindexed {count} fact(s) into centralized index.");
+        }
     }
 
     if args.vectorize {
-        println!("Vectorizing facts via OpenRouter embeddings...");
+        if !args.json {
+            println!("Vectorizing facts via OpenRouter embeddings...");
+        }
         match Store::vectorize_all() {
-            Ok(count) => println!("Vectorized {} fact(s).", count),
+            Ok(count) => {
+                if args.json {
+                    eprintln!("Vectorized {count} fact(s).");
+                } else {
+                    println!("Vectorized {count} fact(s).");
+                }
+            }
             Err(e) => eprintln!("Vectorization warning: {}", e),
         }
     }
 
     if args.query.trim().is_empty() {
-        if !args.reindex && !args.vectorize {
+        if args.json {
+            println!("{}", serde_json::json!({ "hits": [], "note": "empty query" }));
+        } else if !args.reindex && !args.vectorize {
             println!("Please provide a search query: uma search <query>");
         }
         return Ok(());
@@ -99,6 +119,35 @@ pub fn run(args: SearchArgs) -> Result<()> {
     // ranked by BM25 while the caller asked for hybrid are misleading if the
     // difference is buried after a page of output.
     let note = outcome.note();
+
+    if args.json {
+        let payload: Vec<_> = hits
+            .iter()
+            .map(|h| {
+                serde_json::json!({
+                    "id": h.id.to_string(),
+                    "title": h.title,
+                    "scope": h.scope.to_string(),
+                    "fact_type": h.fact_type.to_string(),
+                    "status": h.status.to_string(),
+                    "score": h.score,
+                    "snippet": h.snippet,
+                    "tags": h.tags,
+                    "supersedes": h.supersedes.map(|s| s.to_string()),
+                    "file_path": h.file_path.as_ref().map(|p| p.to_string_lossy().to_string()),
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "degraded": outcome.is_degraded(),
+                "note": note,
+                "hits": payload,
+            }))?
+        );
+        return Ok(());
+    }
 
     if hits.is_empty() {
         println!(

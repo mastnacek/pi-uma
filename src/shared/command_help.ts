@@ -46,6 +46,9 @@ export interface CommandHelpStrings {
   paramGlobalSuffix: string;
   activeMarker: (active: boolean) => string;
   enumMarker: (val: string) => string;
+  /// Locale-aware "currently selected" marker appended to a completion
+  /// description. Kept as data so the completion code never hardcodes Czech.
+  selectedMarker: string;
 }
 
 const csHelp: CommandHelpStrings = {
@@ -98,6 +101,7 @@ const csHelp: CommandHelpStrings = {
   paramGlobalSuffix: " (globálně pro všechny projekty v ~/.pi/agent/uma.json)",
   activeMarker: (active) => (active ? " · ● ZAPNUTO" : " · ○ VYPNUTO"),
   enumMarker: (val) => (val ? ` · ● AKTIVNÍ: ${val.toUpperCase()}` : ""),
+  selectedMarker: " · ● AKTIVNÍ",
 };
 
 const enHelp: CommandHelpStrings = {
@@ -150,6 +154,7 @@ const enHelp: CommandHelpStrings = {
   paramGlobalSuffix: " (globally across all projects in ~/.pi/agent/uma.json)",
   activeMarker: (active) => (active ? " · ● ACTIVE" : " · ○ INACTIVE"),
   enumMarker: (val) => (val ? ` · ● ACTIVE: ${val.toUpperCase()}` : ""),
+  selectedMarker: " · ● ACTIVE",
 };
 
 export function commandHelpFor(locale: Locale): CommandHelpStrings {

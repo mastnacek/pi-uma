@@ -9,6 +9,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../../shared/types.js";
 import { findUmaBinary, runUma } from "../../shared/client.js";
+import { isCommandFailure } from "./policy.ts";
 
 interface CommandFailure {
   command: string;
@@ -18,6 +19,10 @@ interface CommandFailure {
 
 let lastCommandFailure: CommandFailure | null = null;
 const FAILURE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/** The last correction text already distilled, so an identical repeat does not
+ *  fire another judge call and stage a duplicate draft. */
+let lastCorrectionText: string | null = null;
 
 function isTestOrBuildCommand(cmd: string): boolean {
   const lower = cmd.toLowerCase().trim();
@@ -146,11 +151,7 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
       if (!isTestOrBuildCommand(cmd)) return;
 
       const output = extractCommandOutput(event.content);
-      const isError =
-        event.isError ||
-        output.toLowerCase().includes("failed") ||
-        output.toLowerCase().includes("error[e") ||
-        output.toLowerCase().includes("err!");
+      const isError = isCommandFailure(output, Boolean(event.isError));
 
       const now = Date.now();
 
@@ -215,8 +216,15 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
               .join(" ")
           : "";
 
-    if (userText && detectUserCorrection(userText) && userText.length < 300) {
-      void distillTelemetry(ctx.cwd, "user_correction", userText.trim(), judge()).then((created) => {
+    const trimmed = userText.trim();
+    if (
+      trimmed &&
+      detectUserCorrection(trimmed) &&
+      trimmed.length < 300 &&
+      trimmed !== lastCorrectionText
+    ) {
+      lastCorrectionText = trimmed;
+      void distillTelemetry(ctx.cwd, "user_correction", trimmed, judge()).then((created) => {
         if (created) {
           void state.refreshDetector?.(ctx, true);
         }

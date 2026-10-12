@@ -91,9 +91,17 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
     theme.fg("border", "│ ") + content + " ".repeat(Math.max(0, inner - 2 - visibleWidth(content))) + theme.fg("border", " │");
 
   // ── Metadata: type badge + scope pill on one line, tags below ─────────
+  // Show the ACTUAL scope: an explicit foreign project must never be relabelled
+  // with the current repository's name (the modal used to display the current
+  // project for any non-global scope, masking where the fact really lands).
+  const scopeIsCurrent =
+    !proposal.scope ||
+    proposal.scope.toLowerCase() === "project" ||
+    proposal.scope === projectName;
+  const scopeName = scopeIsCurrent ? projectName : proposal.scope;
   const scopeDisplay = isGlobal
     ? theme.fg("success", theme.bold("🌐 " + s.scopeGlobal))
-    : theme.fg("accent", `📁 ${s.scopeProject} (${projectName})`);
+    : theme.fg("accent", `📁 ${s.scopeProject} (${scopeName})`);
   lines.push(row(`  ${formatTypeBadge(proposal.type, theme)}   ${scopeDisplay}`));
 
   const tagsDisplay =

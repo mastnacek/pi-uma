@@ -72,11 +72,9 @@ fn list(args: ListArgs) -> Result<()> {
     let now = chrono::Utc::now();
     let active: Vec<&Fact> = facts.iter().filter(|f| f.is_active_at(now)).collect();
 
-    if active.is_empty() {
-        println!("No skills found in {}.", scope);
-        return Ok(());
-    }
-
+    // JSON mode first: an empty list is still a valid, parseable document
+    // (`[]`), never the human sentence — a machine reader must not have to
+    // special-case prose.
     if args.json {
         let items: Vec<_> = active
             .iter()
@@ -91,6 +89,11 @@ fn list(args: ListArgs) -> Result<()> {
             })
             .collect();
         println!("{}", serde_json::to_string_pretty(&items)?);
+        return Ok(());
+    }
+
+    if active.is_empty() {
+        println!("No skills found in {}.", scope);
         return Ok(());
     }
 

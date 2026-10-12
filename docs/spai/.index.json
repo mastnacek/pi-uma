@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-12 13:17:41",
+  "lastUpdated": "2026-10-12 19:24:45",
   "records": [
     {
       "id": "SPAI-001",
@@ -465,8 +465,8 @@
       "id": "SPAI-027",
       "title": "Verify CLI JSON contracts, shadow worker false positives, and modal display desync",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-12 10:12:29",
       "tags": [
         "cli",
