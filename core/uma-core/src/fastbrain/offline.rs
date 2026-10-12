@@ -45,16 +45,23 @@ const RECALL_MARKERS: &[&str] = &[
     "per our",
     "jak minule",
     "jako posledne",
+    "jako posledně",
     "jak jsme se",
     "vzdycky",
+    "vždycky",
     "opet",
+    "opět",
     "znovu",
     "pamatujes",
+    "pamatuješ",
     "jako vzdy",
+    "jako vždy",
     "minule",
     "naposled",
+    "naposledy",
     "domluvili",
     "resili jsme",
+    "řešili jsme",
     "minule jsme",
 ];
 
@@ -159,32 +166,40 @@ pub fn dream_answer(question: &str, fact: &Fact) -> (String, bool) {
 }
 
 /// Deterministic distillation of telemetry when offline.
-pub fn distill_telemetry(trigger: &str, raw_context: &str) -> Result<Judgment<DistilledDraft>, String> {
-    let first_line = raw_context
-        .lines()
-        .next()
-        .unwrap_or("")
-        .trim();
+pub fn distill_telemetry(
+    trigger: &str,
+    raw_context: &str,
+) -> Result<Judgment<DistilledDraft>, String> {
+    let first_line = raw_context.lines().next().unwrap_or("").trim();
 
     let (is_durable, fact_type, title, rule, tags) = match trigger {
         "compiler_recovery" => (
             true,
             "correction".to_string(),
-            format!("Compiler recovery: {}", first_line.chars().take(60).collect::<String>()),
+            format!(
+                "Compiler recovery: {}",
+                first_line.chars().take(60).collect::<String>()
+            ),
             "Preserve verified resolution pattern.".to_string(),
             vec!["compiler".to_string(), "recovery".to_string()],
         ),
         "user_correction" => (
             true,
             "preference".to_string(),
-            format!("User guidance: {}", first_line.chars().take(60).collect::<String>()),
+            format!(
+                "User guidance: {}",
+                first_line.chars().take(60).collect::<String>()
+            ),
             "Respect user directional guidance.".to_string(),
             vec!["preference".to_string(), "guidance".to_string()],
         ),
         "dependency_change" => (
             true,
             "decision".to_string(),
-            format!("Dependency update: {}", first_line.chars().take(60).collect::<String>()),
+            format!(
+                "Dependency update: {}",
+                first_line.chars().take(60).collect::<String>()
+            ),
             "Document dependency choice and version constraint.".to_string(),
             vec!["dependency".to_string(), "architecture".to_string()],
         ),

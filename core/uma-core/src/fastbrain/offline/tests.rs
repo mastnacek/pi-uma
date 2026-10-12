@@ -59,7 +59,10 @@ fn test_recall_type_hints() {
 fn test_recall_natural_past_tense_phrasings_trigger() {
     // Regression (SPAI-014): real-world phrasings that slipped through.
     let judgment = recall_need("How did we solve the WAL locking issue last time?").unwrap();
-    assert!(judgment.answer.search, "bare 'last time' must trigger recall");
+    assert!(
+        judgment.answer.search,
+        "bare 'last time' must trigger recall"
+    );
     assert!(judgment.answer.fact_types.contains(&"decision".to_string()));
 
     let judgment = recall_need("What did we agree on for the sync transport?").unwrap();

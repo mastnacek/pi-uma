@@ -10,7 +10,7 @@ use serde_json::json;
 
 use crate::domain::Fact;
 
-use super::jev::{complete, truncate, DEFAULT_MODEL};
+use super::jev::{complete, model_name, truncate};
 use super::{Backend, Judgment};
 
 /// The dreaming pass's graded answer.
@@ -79,6 +79,6 @@ pub fn dream_answer(question: &str, fact: &Fact) -> Result<Judgment<DreamAnswer>
         },
         confidence: 0.85,
         judged_by: Backend::Jev,
-        notes: Some(DEFAULT_MODEL.to_string()),
+        notes: Some(model_name()),
     })
 }

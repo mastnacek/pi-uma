@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-10 22:25:12",
+  "lastUpdated": "2026-10-12 10:49:27",
   "records": [
     {
       "id": "SPAI-001",
@@ -318,6 +318,185 @@
       "project": "pi-uma",
       "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-10-SPAI-018-faze-b-dokoncena-plugin-pi-orchestrator-vygenerova.md"
+    },
+    {
+      "id": "SPAI-019",
+      "title": "Verify and fix UTF-8 byte slicing and truncation panics on Czech diacritics",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-12 10:12:02",
+      "tags": [
+        "utf8",
+        "crash",
+        "search",
+        "serialization"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-019-verify-and-fix-utf-8-byte-slicing-and-truncation-p.md"
+    },
+    {
+      "id": "SPAI-020",
+      "title": "Verify and fix negation detection heuristic and Czech diacritic keyword matching",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-10-12 10:12:07",
+      "tags": [
+        "heuristics",
+        "negation",
+        "czech"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-020-verify-and-fix-negation-detection-heuristic-and-cz.md"
+    },
+    {
+      "id": "SPAI-021",
+      "title": "Verify TS write tool scope resolution bug and staging modal edit drops",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:11",
+      "tags": [
+        "write",
+        "modal",
+        "staging",
+        "scope"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-021-verify-ts-write-tool-scope-resolution-bug-and-stag.md"
+    },
+    {
+      "id": "SPAI-022",
+      "title": "Verify indexer schema bump foreign roots loss, atomic writes, and temporal as_of queries",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:14",
+      "tags": [
+        "indexer",
+        "sqlite",
+        "temporal",
+        "atomicity"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-022-verify-indexer-schema-bump-foreign-roots-loss-atom.md"
+    },
+    {
+      "id": "SPAI-023",
+      "title": "Verify binary execution lookup order from CWD and project config override allowlist",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:18",
+      "tags": [
+        "security",
+        "binary",
+        "config"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-023-verify-binary-execution-lookup-order-from-cwd-and-.md"
+    },
+    {
+      "id": "SPAI-024",
+      "title": "Verify approval gate regex bypasses, path traversal via type, and secret scanner gaps",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:21",
+      "tags": [
+        "security",
+        "approval",
+        "traversal",
+        "secrets"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-024-verify-approval-gate-regex-bypasses-path-traversal.md"
+    },
+    {
+      "id": "SPAI-025",
+      "title": "Verify muscle command runner execution safety, contract code injection, and immune ReDoS",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:23",
+      "tags": [
+        "muscle",
+        "contracts",
+        "immune",
+        "safety"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-025-verify-muscle-command-runner-execution-safety-cont.md"
+    },
+    {
+      "id": "SPAI-026",
+      "title": "Audit cognitive subsystem heuristics, dead code, divergence, and provenance stamping",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:26",
+      "tags": [
+        "cognitive",
+        "heuristics",
+        "provenance",
+        "dead-code"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-026-audit-cognitive-subsystem-heuristics-dead-code-div.md"
+    },
+    {
+      "id": "SPAI-027",
+      "title": "Verify CLI JSON contracts, shadow worker false positives, and modal display desync",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:29",
+      "tags": [
+        "cli",
+        "json",
+        "shadow-worker",
+        "i18n"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-027-verify-cli-json-contracts-shadow-worker-false-posi.md"
+    },
+    {
+      "id": "SPAI-028",
+      "title": "Verify repository hygiene, ESM __dirname compatibility, and unit test coverage",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-12 10:12:35",
+      "tags": [
+        "repo",
+        "hygiene",
+        "tests",
+        "esm",
+        "ci"
+      ],
+      "priority": "low",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-028-verify-repository-hygiene-esm-dirname-compatibilit.md"
     }
   ]
 }

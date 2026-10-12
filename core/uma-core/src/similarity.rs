@@ -87,19 +87,55 @@ pub fn jaccard(a: &[String], b: &[String]) -> f64 {
     intersection / union
 }
 
+/// Common English words starting with "ne" that must never be mistaken for Czech "ne-" negation prefixes.
+const ENGLISH_NE_WORDS: &[&str] = &[
+    "network",
+    "networks",
+    "networking",
+    "need",
+    "needs",
+    "needed",
+    "needing",
+    "nested",
+    "nest",
+    "nesting",
+    "nests",
+    "neural",
+    "next",
+    "new",
+    "newer",
+    "newest",
+    "newly",
+    "negative",
+    "negatives",
+    "neutral",
+    "negotiate",
+    "negotiates",
+    "negotiating",
+    "negotiation",
+    "neighbor",
+    "neighbour",
+    "neighbors",
+    "neighbours",
+    "necessary",
+    "necessarily",
+    "needle",
+    "neon",
+    "nerve",
+    "nerves",
+];
+
 /// True when the text carries an explicit negation marker.
 pub fn has_negation(text: &str) -> bool {
     let lower = text.to_lowercase();
     if NEGATION_MARKERS.iter().any(|marker| lower.contains(marker)) {
         return true;
     }
-    // Czech "ne-" prefix on any word: "nepoužívat" negates just as "do not
-    // use" does. Requires a 3+ character remainder so words like "nebo" (but)
-    // or "není" contractions don't trip it spuriously... "nebo" is 4 — but it
-    // is a stopword-sized connector, not a negated verb, hence the length bar.
+    // Czech "ne-" prefix on verbs ("nepoužívat", "neukládat").
+    // Exclude English words starting with "ne" like "network", "needs", "nested".
     lower
         .split(|c: char| !c.is_alphanumeric())
-        .any(|word| word.len() >= 5 && word.starts_with("ne"))
+        .any(|word| word.len() >= 5 && word.starts_with("ne") && !ENGLISH_NE_WORDS.contains(&word))
 }
 
 #[cfg(test)]
@@ -133,6 +169,11 @@ mod tests {
         assert!(has_negation("Do not use pnpm for dependency installs"));
         assert!(has_negation("Never install dependencies with npm"));
         assert!(has_negation("Avoid global installs"));
+        assert!(!has_negation("Configure network routing for proxy"));
+        assert!(!has_negation("Service needs persistent storage"));
+        assert!(!has_negation("Use nested component routers"));
+        assert!(!has_negation("Neural network weights are cached"));
+        assert!(!has_negation("Prepare for next release"));
     }
 
     #[test]

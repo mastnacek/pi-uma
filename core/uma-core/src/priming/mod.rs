@@ -151,7 +151,7 @@ fn connect(graph: &mut AssociationGraph, a: &str, b: &str, _weight: f64) {
 /// weakest (but most useful during coding) signal.
 fn association_strength(a: &Fact, b: &Fact) -> Option<f64> {
     // Explicit link is the strongest association.
-    if a.links.iter().any(|l| *l == b.id) || b.links.iter().any(|l| *l == a.id) {
+    if a.links.contains(&b.id) || b.links.contains(&a.id) {
         return Some(1.0);
     }
 

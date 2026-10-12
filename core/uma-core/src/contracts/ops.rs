@@ -31,7 +31,7 @@ pub fn rule_to_yaml(fact_id: &FactId, title: &str, contract: &Contract) -> Strin
     out.push_str("rule:\n");
     out.push_str(&format!("  pattern: \"{}\"\n", contract.rule.pattern.replace('"', "\\\"")));
     if let Some(ref inside) = contract.rule.inside {
-        out.push_str(&format!("  inside:\n    stopBy: end\n    pattern: \"$$$\"\n"));
+        out.push_str("  inside:\n    stopBy: end\n    pattern: \"$$$\"\n");
         out.push_str(&format!("files:\n  - \"{}\"\n", inside));
     }
     out

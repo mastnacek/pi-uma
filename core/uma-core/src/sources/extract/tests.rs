@@ -142,3 +142,13 @@ fn test_cross_session_repeats_are_deduplicated() {
         "the same instruction across sessions is one candidate"
     );
 }
+
+#[test]
+fn test_suggest_title_with_czech_diacritics_over_80_chars() {
+    let long_czech =
+        "Příliš žluťoučký kůň úpěl ďábelské ódy na bílém koni pod starým vrchem v temném hvozdu.";
+    let title = suggest_title(long_czech);
+    assert!(title.ends_with("..."));
+    assert_eq!(title.chars().count(), 83); // 80 chars + "..."
+    assert!(title.starts_with("Příliš"));
+}

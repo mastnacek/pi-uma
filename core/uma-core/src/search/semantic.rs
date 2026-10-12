@@ -117,13 +117,7 @@ pub fn search_semantic(
                     Some(PathBuf::from(file_path_str))
                 };
 
-                let snippet = if let Some(ref d) = description {
-                    d.clone()
-                } else if body.len() > 140 {
-                    format!("{}...", &body[..140].replace('\n', " "))
-                } else {
-                    body.replace('\n', " ")
-                };
+                let snippet = format_snippet(description.as_deref(), &body);
 
                 let supersedes = supersedes_str.and_then(|s| FactId::from_str(&s).ok());
 
@@ -152,4 +146,38 @@ pub fn search_semantic(
     });
     hits.truncate(opts.limit);
     Ok(hits)
+}
+
+pub(crate) fn format_snippet(description: Option<&str>, body: &str) -> String {
+    if let Some(d) = description {
+        d.to_string()
+    } else {
+        let cleaned = body.replace('\n', " ");
+        if cleaned.chars().count() > 140 {
+            let head: String = cleaned.chars().take(140).collect();
+            format!("{head}...")
+        } else {
+            cleaned
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_snippet_with_czech_diacritics_over_140_chars() {
+        let body = "Příliš žluťoučký kůň úpěl ďábelské ódy na bílém koni pod starým vrchem v temném hvozdu. Znovu a znovu se ozýval temný hlas z hlubin lesa a volal poutníky dál do houštin.";
+        let snippet = format_snippet(None, body);
+        assert!(snippet.ends_with("..."));
+        assert_eq!(snippet.chars().count(), 143);
+        assert!(snippet.starts_with("Příliš"));
+    }
+
+    #[test]
+    fn test_format_snippet_prefers_description() {
+        let snippet = format_snippet(Some("Custom description"), "Long body text");
+        assert_eq!(snippet, "Custom description");
+    }
 }

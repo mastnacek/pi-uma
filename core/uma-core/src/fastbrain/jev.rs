@@ -14,12 +14,33 @@ use serde_json::json;
 
 use super::{Backend, DistilledDraft, Judgment, RecallNeed, Relationship};
 
-/// The router model OpenRouter currently serves.
-pub const DEFAULT_MODEL: &str = "typesafe/jev-router";
+/// The default fast triage router model on OpenRouter.
+pub const DEFAULT_ROUTER_MODEL: &str = "typesafe/jev-router";
+
+/// The default semantic judge model on OpenRouter (low temperature, minimal reasoning).
+pub const DEFAULT_JUDGE_MODEL: &str = "google/gemini-3.5-flash-lite";
+
+/// Resolves the configured router model: UMA_ROUTER_MODEL or DEFAULT_ROUTER_MODEL.
+pub fn router_model() -> String {
+    std::env::var("UMA_ROUTER_MODEL").unwrap_or_else(|_| DEFAULT_ROUTER_MODEL.to_string())
+}
+
+/// Resolves the configured judge model: UMA_JUDGE_MODEL, UMA_FASTBRAIN_MODEL, or DEFAULT_JUDGE_MODEL.
+pub fn judge_model() -> String {
+    std::env::var("UMA_JUDGE_MODEL")
+        .or_else(|_| std::env::var("UMA_FASTBRAIN_MODEL"))
+        .unwrap_or_else(|_| DEFAULT_JUDGE_MODEL.to_string())
+}
+
+pub const DEFAULT_MODEL: &str = DEFAULT_JUDGE_MODEL;
+
+pub fn model_name() -> String {
+    judge_model()
+}
 
 /// Chat-completion timeout: a triage call that outlives this is worse than no
 /// triage at all — the caller degrades to offline.
-const TIMEOUT_SECS: u64 = 10;
+const TIMEOUT_SECS: u64 = 30;
 
 #[derive(Deserialize)]
 struct ChatResponse {
@@ -42,16 +63,23 @@ pub(crate) fn api_key() -> Result<String> {
         .context("No OpenRouter API key found (env OPENROUTER_API_KEY or ~/.pi/agent/auth.json)")
 }
 
-/// One chat completion with a JSON-schema response format.
-pub(crate) fn complete(schema_name: &str, schema: serde_json::Value, user_payload: String) -> Result<String> {
+/// Raw chat completion supporting model selection, temperature, and reasoning effort.
+pub(crate) fn complete_raw(
+    model: &str,
+    schema_name: &str,
+    schema: serde_json::Value,
+    user_payload: String,
+    temperature: Option<f64>,
+    reasoning_effort: Option<&str>,
+) -> Result<String> {
     let key = api_key()?;
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(TIMEOUT_SECS))
         .build()
         .context("Failed to build HTTP client")?;
 
-    let body = json!({
-        "model": DEFAULT_MODEL,
+    let mut body = json!({
+        "model": model,
         "messages": [
             {
                 "role": "system",
@@ -69,6 +97,14 @@ pub(crate) fn complete(schema_name: &str, schema: serde_json::Value, user_payloa
             },
         },
     });
+
+    if let Some(t) = temperature {
+        body["temperature"] = json!(t);
+    }
+    if let Some(effort) = reasoning_effort {
+        body["reasoning"] = json!({ "effort": effort });
+        body["reasoning_effort"] = json!(effort);
+    }
 
     let response = client
         .post("https://openrouter.ai/api/v1/chat/completions")
@@ -92,6 +128,47 @@ pub(crate) fn complete(schema_name: &str, schema: serde_json::Value, user_payloa
         .next()
         .map(|choice| choice.message.content)
         .context("OpenRouter returned no choices")
+}
+
+/// Router completion for fast triage (e.g. recall gate).
+pub(crate) fn complete_router(
+    schema_name: &str,
+    schema: serde_json::Value,
+    user_payload: String,
+) -> Result<String> {
+    complete_raw(
+        &router_model(),
+        schema_name,
+        schema,
+        user_payload,
+        None,
+        None,
+    )
+}
+
+/// Semantic judge completion with low temperature and minimal reasoning.
+pub(crate) fn complete_judge(
+    schema_name: &str,
+    schema: serde_json::Value,
+    user_payload: String,
+) -> Result<String> {
+    complete_raw(
+        &judge_model(),
+        schema_name,
+        schema,
+        user_payload,
+        Some(0.0),
+        Some("minimal"),
+    )
+}
+
+/// Default completion helper routed to the semantic judge.
+pub(crate) fn complete(
+    schema_name: &str,
+    schema: serde_json::Value,
+    user_payload: String,
+) -> Result<String> {
+    complete_judge(schema_name, schema, user_payload)
 }
 
 pub(crate) fn truncate(text: &str, width: usize) -> String {
@@ -161,13 +238,13 @@ pub fn relationship(text_a: &str, text_b: &str) -> Result<Judgment<Relationship>
         // 0.8 must never be confused with the offline verdict's numbers.
         confidence: 0.8,
         judged_by: Backend::Jev,
-        notes: Some(DEFAULT_MODEL.to_string()),
+        notes: Some(model_name()),
     })
 }
 
 /// Decides whether a user message needs memory recall, semantically.
 pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>> {
-    let content = complete(
+    let content = complete_router(
         "recall_need",
         json!({
             "type": "object",
@@ -199,7 +276,7 @@ pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>> {
         answer: parse_recall(&content)?,
         confidence: 0.8,
         judged_by: Backend::Jev,
-        notes: Some(DEFAULT_MODEL.to_string()),
+        notes: Some(router_model()),
     })
 }
 
@@ -255,7 +332,7 @@ pub fn distill_telemetry(trigger: &str, raw_context: &str) -> Result<Judgment<Di
         },
         confidence: 0.85,
         judged_by: Backend::Jev,
-        notes: Some(DEFAULT_MODEL.to_string()),
+        notes: Some(model_name()),
     })
 }
 
@@ -300,9 +377,13 @@ mod tests {
         assert!(!greeting.answer.search, "greeting must not trigger recall");
 
         // recall_need: a project-convention question must trigger it.
-        let project_q = recall_need("why did we adopt vertical slice architecture for this repository?")
-            .expect("live recall call");
-        assert!(project_q.answer.search, "convention question must trigger recall");
+        let project_q =
+            recall_need("why did we adopt vertical slice architecture for this repository?")
+                .expect("live recall call");
+        assert!(
+            project_q.answer.search,
+            "convention question must trigger recall"
+        );
 
         // relationship: two opposing statements are a contradiction.
         let rel = relationship(
@@ -322,7 +403,10 @@ mod tests {
             "cargo test failed: SQLite 'database is locked' when two writers opened the index concurrently. Fix: enable WAL mode with 'PRAGMA journal_mode=WAL' and set busy_timeout=5000. After the fix all tests passed.",
         )
         .expect("live distill call");
-        assert!(draft.answer.is_durable, "evidenced recovery must be durable knowledge");
+        assert!(
+            draft.answer.is_durable,
+            "evidenced recovery must be durable knowledge"
+        );
         assert!(!draft.answer.title.is_empty());
         assert!(!draft.answer.rule.is_empty());
     }

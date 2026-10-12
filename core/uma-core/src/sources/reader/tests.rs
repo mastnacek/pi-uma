@@ -143,3 +143,32 @@ fn test_tool_results_are_counted_in_detail() {
     let detail = read_detail(&file, SessionSource::PiAgent).unwrap();
     assert_eq!(detail.tool_results, 2);
 }
+
+#[test]
+fn test_detail_truncates_long_user_message_with_diacritics_without_panicking() {
+    let dir = tempdir().unwrap();
+    let czech_sentence =
+        "Příliš žluťoučký kůň úpěl ďábelské ódy na bílém koni pod starým vrchem v temném hvozdu. ";
+    let repeated = czech_sentence.repeat(8);
+    let user_line = serde_json::json!({
+        "type": "message",
+        "message": {
+            "role": "user",
+            "content": repeated
+        }
+    })
+    .to_string();
+
+    let file = write_session(
+        dir.path(),
+        "p",
+        "2026-05-18T12-32-46-313Z_s.jsonl",
+        &[PI_HEADER, &user_line],
+    );
+
+    let detail = read_detail(&file, SessionSource::PiAgent).unwrap();
+    assert_eq!(detail.user_messages.len(), 1);
+    let msg = &detail.user_messages[0];
+    assert!(msg.ends_with("..."));
+    assert_eq!(msg.chars().count(), 503); // 500 chars + "..."
+}

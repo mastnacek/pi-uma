@@ -88,24 +88,31 @@ const META_COMMAND: &[&str] = &[
 const PREFERENCE_MARKERS: &[&str] = &[
     "always ",
     "vzdy ",
+    "vždy ",
     "never ",
     "nikdy ",
     "prefer ",
     "preferuji",
     "preferuju",
     "chci vzdy",
+    "chci vždy",
     "do not use ",
     "nepouzivej",
+    "nepoužívej",
     "from now on",
     "od ted",
+    "od teď",
     "pamatuj si ze",
+    "pamatuj si že",
 ];
 
 /// Language that marks a correction: a mistaken path, assumption, or approach.
 const CORRECTION_MARKERS: &[&str] = &[
     "that's wrong",
     "to je spatne",
+    "to je špatně",
     "spatne,",
+    "špatně,",
     "not there",
     "tam ne",
     "ne tam",
@@ -113,29 +120,40 @@ const CORRECTION_MARKERS: &[&str] = &[
     "chyba",
     "instead of",
     "misto toho",
+    "místo toho",
     "neni to",
+    "není to",
     "nefunguje",
     "nefunguje to",
     "proc to",
+    "proč to",
     "why does not",
     "why doesn't",
     "proc nefunguje",
+    "proč nefunguje",
 ];
 
 /// Language that marks an architectural or procedural decision.
 const DECISION_MARKERS: &[&str] = &[
     "should ",
     "musime",
+    "musíme",
     "musis",
+    "musíš",
     "use ",
     "pouzij",
+    "použij",
     "pouzivej",
+    "používej",
     "implement",
     "implementuj",
     "refactor",
     "pridat",
+    "přidat",
     "vytvor",
+    "vytvoř",
     "udelej",
+    "udělej",
     "architekt",
     "slice",
     "we will",
@@ -170,12 +188,13 @@ fn suggest_title(text: &str) -> String {
         .split(['.', '?', '!', '\n'])
         .find(|s| !s.trim().is_empty())
         .unwrap_or(text);
-    let mut title = first.trim().to_string();
-    if title.len() > 80 {
-        title.truncate(80);
-        title.push_str("...");
+    let trimmed = first.trim();
+    if trimmed.chars().count() > 80 {
+        let head: String = trimmed.chars().take(80).collect();
+        format!("{head}...")
+    } else {
+        trimmed.to_string()
     }
-    title
 }
 
 /// Jaccard threshold above which two titles are the same instruction said

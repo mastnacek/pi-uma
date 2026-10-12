@@ -4,10 +4,10 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::fastbrain::jev::{complete, truncate, DEFAULT_MODEL};
+use crate::fastbrain::jev::{complete, model_name, truncate};
 use crate::fastbrain::Backend;
 
-use super::{complexity_signals, Familiarity, HumilityInput, HumilityVerdict};
+use super::{complexity_signals, offline_familiarity, Familiarity, HumilityInput, HumilityVerdict};
 
 /// Consults Jev for a semantic familiarity judgment over the target subsystem.
 pub fn familiarity(input: &HumilityInput) -> Result<HumilityVerdict> {
@@ -33,11 +33,19 @@ pub fn familiarity(input: &HumilityInput) -> Result<HumilityVerdict> {
          Rate LOW when coverage is absent and the constructs are intricate — the agent \
          must explore (read files, form a hypothesis) before mutating.",
         intent = input.intent,
-        files = if input.files.is_empty() { "(none)".to_string() } else { input.files.join(", ") },
+        files = if input.files.is_empty() {
+            "(none)".to_string()
+        } else {
+            input.files.join(", ")
+        },
         coverage = input.fact_coverage,
         signals = {
             let s = complexity_signals(&input.intent, &input.files);
-            if s.is_empty() { "(none)".to_string() } else { s.join(", ") }
+            if s.is_empty() {
+                "(none)".to_string()
+            } else {
+                s.join(", ")
+            }
         },
     );
 
@@ -58,14 +66,20 @@ pub fn familiarity(input: &HumilityInput) -> Result<HumilityVerdict> {
         _ => Familiarity::Low,
     };
 
+    let advice = if parsed.advice.trim().is_empty() {
+        offline_familiarity(input).advice
+    } else {
+        parsed.advice
+    };
+
     Ok(HumilityVerdict {
         familiarity,
         fact_coverage: input.fact_coverage,
         complexity_signals: complexity_signals(&input.intent, &input.files),
         exploration_required: familiarity != Familiarity::High,
         hypothesis_required: familiarity != Familiarity::High,
-        advice: parsed.advice,
+        advice,
         judged_by: Backend::Jev,
-        notes: Some(DEFAULT_MODEL.to_string()),
+        notes: Some(model_name()),
     })
 }

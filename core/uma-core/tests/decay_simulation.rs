@@ -14,7 +14,7 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use tempfile::tempdir;
-use uma_core::domain::{Fact, FactStatus, FactType, Plasticity, Scope};
+use uma_core::domain::{Fact, FactType, Plasticity, Scope};
 use uma_core::indexer::Indexer;
 use uma_core::search::{search_keyword, SearchOptions};
 use uma_core::store::Store;
@@ -125,7 +125,10 @@ fn stale_after_hides_the_fact_from_as_of_search() -> Result<()> {
         indexer.connection(),
         &search_options("workaround", Some(day31)),
     )?;
-    assert!(hits.is_empty(), "stale fact leaked into as-of search: {hits:?}");
+    assert!(
+        hits.is_empty(),
+        "stale fact leaked into as-of search: {hits:?}"
+    );
 
     Ok(())
 }

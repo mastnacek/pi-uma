@@ -212,12 +212,14 @@ pub fn read_detail(path: &Path, source: SessionSource) -> Result<SessionDetail> 
         if !is_substantive(&text) {
             continue;
         }
-        let mut text = text.trim().to_string();
-        if text.len() > 500 {
-            text.truncate(500);
-            text.push_str("...");
-        }
-        user_messages.push(text);
+        let trimmed = text.trim();
+        let message = if trimmed.chars().count() > 500 {
+            let head: String = trimmed.chars().take(500).collect();
+            format!("{head}...")
+        } else {
+            trimmed.to_string()
+        };
+        user_messages.push(message);
     }
 
     Ok(SessionDetail {

@@ -164,12 +164,13 @@ fn split_frontmatter(content: &str) -> Option<(&str, &str)> {
     let first_line_end = trimmed.find('\n')?;
     let rest = &trimmed[first_line_end + 1..];
 
+    let bytes = rest.as_bytes();
     let mut search_idx = 0;
     while let Some(pos) = rest[search_idx..].find("---") {
         let abs_pos = search_idx + pos;
         let is_line_start = abs_pos == 0
-            || rest.as_bytes()[abs_pos - 1] == b'\n'
-            || (abs_pos >= 2 && &rest[abs_pos - 2..abs_pos] == "\r\n");
+            || bytes.get(abs_pos.saturating_sub(1)) == Some(&b'\n')
+            || bytes.get(abs_pos.saturating_sub(1)) == Some(&b'\r');
 
         if is_line_start {
             let frontmatter = &rest[..abs_pos].trim_end_matches(['\r', '\n']);
@@ -193,5 +194,27 @@ fn parse_scope(s: &str) -> Result<Scope> {
         Ok(Scope::Project(name.to_string()))
     } else {
         anyhow::bail!("Invalid scope format: {}", s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_frontmatter_with_multibyte_before_dashes() {
+        // 3-byte character (€: 0xE2, 0x82, 0xAC) immediately before '---' inside frontmatter line
+        let doc = "---\nid: 01M40000000000000000000000\nscope: global\ntype: note\ntitle: Cena je 100€---\n---\nPříliš žluťoučký kůň úpěl ďábelské ódy.";
+        let (fm, body) = split_frontmatter(doc).expect("Should parse frontmatter");
+        assert!(fm.contains("Cena je 100€---"));
+        assert_eq!(body, "Příliš žluťoučký kůň úpěl ďábelské ódy.");
+    }
+
+    #[test]
+    fn test_split_frontmatter_windows_crlf() {
+        let doc = "---\r\nid: 01M40000000000000000000000\r\nscope: global\ntype: note\r\ntitle: Test\r\n---\r\nWindows line endings.";
+        let (fm, body) = split_frontmatter(doc).expect("Should parse frontmatter");
+        assert!(fm.contains("title: Test"));
+        assert_eq!(body, "Windows line endings.");
     }
 }

@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::fastbrain::jev::{complete, truncate, DEFAULT_MODEL};
+use crate::fastbrain::jev::{complete, model_name, truncate};
 use crate::fastbrain::Backend;
 
 use super::{FailureMode, RiskLevel, SkepticCritique, SkepticInput};
@@ -88,6 +88,6 @@ pub fn skeptic(input: &SkepticInput) -> Result<SkepticCritique> {
         risk_level,
         advice: parsed.advice,
         judged_by: Backend::Jev,
-        notes: Some(DEFAULT_MODEL.to_string()),
+        notes: Some(model_name()),
     })
 }
