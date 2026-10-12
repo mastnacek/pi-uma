@@ -10,8 +10,8 @@
 //!    contract checks against the codebase or a specific path.
 //! 3. Structured violation reporting for CI, pre-commit, and the Cognitive Immune Interceptor.
 
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 use crate::domain::{Contract, ContractSeverity};
 
@@ -80,7 +80,11 @@ fn find_in_path(binary: &str) -> Option<PathBuf> {
 /// only trusted when it carries its unambiguous name, or via the known npm
 /// package layout below.
 pub fn find_ast_grep() -> Option<PathBuf> {
-    let binary_name = if cfg!(windows) { "ast-grep.exe" } else { "ast-grep" };
+    let binary_name = if cfg!(windows) {
+        "ast-grep.exe"
+    } else {
+        "ast-grep"
+    };
 
     if let Some(path) = find_in_path(binary_name) {
         return Some(path);
@@ -95,14 +99,34 @@ pub fn find_ast_grep() -> Option<PathBuf> {
     }
 
     if let Some(home) = directories::BaseDirs::new().map(|d| d.home_dir().to_path_buf()) {
-        let pi_npm = home.join(".pi").join("agent").join("npm").join("node_modules");
+        let pi_npm = home
+            .join(".pi")
+            .join("agent")
+            .join("npm")
+            .join("node_modules");
 
         let candidates = [
-            pi_npm.join("@ast-grep").join("cli-win32-x64-msvc").join("ast-grep.exe"),
-            pi_npm.join("@ast-grep").join("cli-linux-x64-gnu").join("ast-grep"),
-            pi_npm.join("@ast-grep").join("cli-darwin-x64").join("ast-grep"),
-            pi_npm.join("@ast-grep").join("cli-darwin-arm64").join("ast-grep"),
-            pi_npm.join(".bin").join(if cfg!(windows) { "ast-grep.cmd" } else { "ast-grep" }),
+            pi_npm
+                .join("@ast-grep")
+                .join("cli-win32-x64-msvc")
+                .join("ast-grep.exe"),
+            pi_npm
+                .join("@ast-grep")
+                .join("cli-linux-x64-gnu")
+                .join("ast-grep"),
+            pi_npm
+                .join("@ast-grep")
+                .join("cli-darwin-x64")
+                .join("ast-grep"),
+            pi_npm
+                .join("@ast-grep")
+                .join("cli-darwin-arm64")
+                .join("ast-grep"),
+            pi_npm.join(".bin").join(if cfg!(windows) {
+                "ast-grep.cmd"
+            } else {
+                "ast-grep"
+            }),
         ];
 
         for candidate in candidates {

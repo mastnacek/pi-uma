@@ -1,11 +1,11 @@
-id: uma-01m4d7s5yart7agwn7rdsrnrm1
+id: uma-01m4qw0bw1wwjrgpe7fztpbbmn
 message: "Inviolable VSA Rule: Slices must NEVER import each other directly! Use uma-core or src/shared."
 severity: error
 language: rust
 metadata:
-  fact_id: "01M4D7S5YART7AGWN7RDSRNRM1"
+  fact_id: "01M4QW0BW1WWJRGPE7FZTPBBMN"
   title: "Adopt Vertical Slice Architecture (VSA) for UMA"
 rule:
-  pattern: "use crate::slices::$$$REST;"
+  pattern: "crate::slices::$$$REST"
 files:
-  - "src/slices/**"
+  - "core/uma-cli/src/slices/**"

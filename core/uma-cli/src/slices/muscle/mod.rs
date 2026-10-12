@@ -124,9 +124,7 @@ fn list_routines() -> Result<Vec<MuscleRoutine>> {
             continue;
         }
         for entry in walkdir::WalkDir::new(&skill_dir).into_iter().flatten() {
-            if !entry.file_type().is_file()
-                || entry.path().extension().is_none_or(|e| e != "md")
-            {
+            if !entry.file_type().is_file() || entry.path().extension().is_none_or(|e| e != "md") {
                 continue;
             }
             let Ok(content) = std::fs::read_to_string(entry.path()) else {
@@ -152,7 +150,11 @@ fn list_routines() -> Result<Vec<MuscleRoutine>> {
             let Some(ref template) = fact.template else {
                 continue;
             };
-            let name = fact.title.strip_prefix("muscle:").unwrap_or(&fact.title).to_string();
+            let name = fact
+                .title
+                .strip_prefix("muscle:")
+                .unwrap_or(&fact.title)
+                .to_string();
             if seen_names.contains(&name) {
                 continue;
             }
@@ -220,7 +222,10 @@ fn new_routine_cmd(args: NewArgs) -> Result<()> {
     // Same secrets gate as the write slice: a routine carrying a credential
     // must never reach the store.
     let literals: Vec<String> = secrets::env_secret_literals(&std::env::vars().collect::<Vec<_>>());
-    let findings = secrets::scan(&format!("{}\n{}", fact.title, fact.template.as_deref().unwrap_or("")), &literals);
+    let findings = secrets::scan(
+        &format!("{}\n{}", fact.title, fact.template.as_deref().unwrap_or("")),
+        &literals,
+    );
     if secrets::is_blocked(&findings) {
         anyhow::bail!("Refusing to curate: the routine contains what looks like a credential.");
     }
@@ -230,7 +235,9 @@ fn new_routine_cmd(args: NewArgs) -> Result<()> {
     println!(
         "Curated muscle routine: {} ({} step(s)) — run it with `uma muscle run {} --confirm`",
         fact.id,
-        uma_core::muscle::parse_routine(&args.name, &template)?.steps.len(),
+        uma_core::muscle::parse_routine(&args.name, &template)?
+            .steps
+            .len(),
         args.name
     );
     Ok(())
@@ -249,7 +256,8 @@ mod tests {
 
     #[test]
     fn test_muscle_run_args_parsing() {
-        let cli = TestCli::try_parse_from(["test", "run", "verify_slice", "--confirm", "--json"]).unwrap();
+        let cli = TestCli::try_parse_from(["test", "run", "verify_slice", "--confirm", "--json"])
+            .unwrap();
         let MuscleCommand::Run(args) = cli.command else {
             panic!("Expected Run");
         };

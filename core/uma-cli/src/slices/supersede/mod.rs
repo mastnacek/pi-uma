@@ -111,10 +111,18 @@ fn resolve_contract(old: &Fact, args: &SupersedeArgs) -> Result<Option<Contract>
         contract.rule.pattern = p.clone();
     }
     if let Some(i) = &args.contract_inside {
-        contract.rule.inside = if i.trim().is_empty() { None } else { Some(i.clone()) };
+        contract.rule.inside = if i.trim().is_empty() {
+            None
+        } else {
+            Some(i.clone())
+        };
     }
     if let Some(l) = &args.contract_language {
-        contract.rule.language = if l.trim().is_empty() { None } else { Some(l.clone()) };
+        contract.rule.language = if l.trim().is_empty() {
+            None
+        } else {
+            Some(l.clone())
+        };
     }
     if let Some(m) = &args.contract_message {
         contract.rule.message = m.clone();

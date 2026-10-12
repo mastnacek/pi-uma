@@ -3,20 +3,20 @@ id: 01M4D7S5YART7AGWN7RDSRNRM1
 scope: "project:pi-uma"
 type: decision
 title: Adopt Vertical Slice Architecture (VSA) for UMA
+contract:
+  engine: ast-grep
+  severity: deny
+  rule:
+    pattern: "use crate::slices::$$$REST;"
+    inside: src/slices/**
+    message: "Inviolable VSA Rule: Slices must NEVER import each other directly! Use uma-core or src/shared."
+    language: rust
 tags:
   - vsa
   - architecture
   - rust
   - design
-contract:
-  engine: "ast-grep"
-  severity: "deny"
-  rule:
-    pattern: "use crate::slices::$$$REST;"
-    inside: "src/slices/**"
-    message: "Inviolable VSA Rule: Slices must NEVER import each other directly! Use uma-core or src/shared."
-    language: "rust"
-status: stable
+status: deprecated
 generated:
   by: pi-agent/1.1
   at: "2026-10-08T07:48:55.370316300+00:00"
@@ -24,6 +24,7 @@ verified:
   - by: "human:operator"
     at: "2026-10-08T07:48:55.370316300+00:00"
 since: "2026-10-08T07:48:55.370316300+00:00"
+until: "2026-10-12T10:54:47.195736+00:00"
 ---
 ### Context
 UMA (Unified Memory Architecture) is designed as a standalone, multi-client memory engine for AI coding agents. To ensure high cohesion, low coupling, and easy extensibility across progressive slices (S0 to S9), we need a modular architecture.

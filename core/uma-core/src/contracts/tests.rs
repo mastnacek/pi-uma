@@ -41,7 +41,10 @@ fn test_rule_to_yaml_generation() {
     // an `inside` matcher, which ast-grep rejects as invalid — silently
     // disabling every contract because the whole rule failed to parse.
     assert!(!yaml.contains("$$$"), "no standalone multi-meta matcher");
-    assert!(!yaml.contains("inside:\n"), "inside is a file glob, not a matcher");
+    assert!(
+        !yaml.contains("inside:\n"),
+        "inside is a file glob, not a matcher"
+    );
 }
 
 #[test]
@@ -86,9 +89,18 @@ fn test_infer_language() {
         },
     };
 
-    assert_eq!(infer_language(&contract, Some(Path::new("file.ts"))), "TypeScript");
-    assert_eq!(infer_language(&contract, Some(Path::new("file.rs"))), "Rust");
-    assert_eq!(infer_language(&contract, Some(Path::new("file.py"))), "Python");
+    assert_eq!(
+        infer_language(&contract, Some(Path::new("file.ts"))),
+        "TypeScript"
+    );
+    assert_eq!(
+        infer_language(&contract, Some(Path::new("file.rs"))),
+        "Rust"
+    );
+    assert_eq!(
+        infer_language(&contract, Some(Path::new("file.py"))),
+        "Python"
+    );
 
     contract.rule.language = Some("go".to_string());
     assert_eq!(infer_language(&contract, None), "Go");

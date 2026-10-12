@@ -9,7 +9,10 @@ use serde::Deserialize;
 use crate::domain::{Contract, ContractSeverity, Fact, FactId};
 use crate::store::Store;
 
-use super::{find_ast_grep, infer_language, CheckOptions, ContractCheckReport, ContractViolation, ExportReport};
+use super::{
+    find_ast_grep, infer_language, CheckOptions, ContractCheckReport, ContractViolation,
+    ExportReport,
+};
 
 /// Generates the YAML representation of a single ast-grep rule.
 pub fn rule_to_yaml(fact_id: &FactId, title: &str, contract: &Contract) -> String {
@@ -22,14 +25,20 @@ pub fn rule_to_yaml(fact_id: &FactId, title: &str, contract: &Contract) -> Strin
 
     let mut out = String::new();
     out.push_str(&format!("id: {rule_id}\n"));
-    out.push_str(&format!("message: \"{}\"\n", contract.rule.message.replace('"', "\\\"")));
+    out.push_str(&format!(
+        "message: \"{}\"\n",
+        contract.rule.message.replace('"', "\\\"")
+    ));
     out.push_str(&format!("severity: {severity}\n"));
     out.push_str(&format!("language: {language}\n"));
     out.push_str("metadata:\n");
     out.push_str(&format!("  fact_id: \"{}\"\n", fact_id));
     out.push_str(&format!("  title: \"{}\"\n", title.replace('"', "\\\"")));
     out.push_str("rule:\n");
-    out.push_str(&format!("  pattern: \"{}\"\n", contract.rule.pattern.replace('"', "\\\"")));
+    out.push_str(&format!(
+        "  pattern: \"{}\"\n",
+        contract.rule.pattern.replace('"', "\\\"")
+    ));
     // `contract.rule.inside` is the FILE GLOB, not an ast-grep `inside` matcher.
     // A top-level `pattern` already matches at any AST depth, so emitting an
     // `inside` matcher here is both redundant and — with the old hardcoded
@@ -91,7 +100,13 @@ pub fn export_contracts(store: &Store, target_dir: &Path) -> Result<ExportReport
         let safe_title = fact
             .title
             .chars()
-            .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() {
+                    c.to_ascii_lowercase()
+                } else {
+                    '_'
+                }
+            })
             .collect::<String>();
         test_cases.push((
             fact.id.to_string(),
@@ -118,7 +133,13 @@ pub fn export_contracts(store: &Store, target_dir: &Path) -> Result<ExportReport
                 // `cargo test`. Collapse every control character and newline.
                 let safe_comment: String = title
                     .chars()
-                    .map(|c| if c == '\n' || c == '\r' || c.is_control() { ' ' } else { c })
+                    .map(|c| {
+                        if c == '\n' || c == '\r' || c.is_control() {
+                            ' '
+                        } else {
+                            c
+                        }
+                    })
                     .collect();
                 code.push_str(&format!(
                     "#[test]\nfn invariant_{}_{}() {{\n",
@@ -199,7 +220,8 @@ pub fn check_contracts(store: &Store, options: &CheckOptions) -> Result<Contract
         });
     };
 
-    let git_root = Store::find_git_root().unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    let git_root =
+        Store::find_git_root().unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
     let contracts_dir = git_root.join(".uma").join("contracts");
 
     if !contracts_dir.join("sgconfig.yml").exists() {

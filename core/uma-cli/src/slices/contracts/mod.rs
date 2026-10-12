@@ -70,8 +70,11 @@ pub fn run(args: ContractsArgs) -> Result<()> {
 
 fn run_export(args: ExportArgs) -> Result<()> {
     let store = resolve_store()?;
-    let git_root = Store::find_git_root().unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
-    let target = args.out.unwrap_or_else(|| git_root.join(".uma").join("contracts"));
+    let git_root =
+        Store::find_git_root().unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+    let target = args
+        .out
+        .unwrap_or_else(|| git_root.join(".uma").join("contracts"));
 
     let report = export_contracts(&store, &target)?;
 
@@ -182,7 +185,15 @@ mod tests {
 
     #[test]
     fn test_contracts_check_args_parsing() {
-        let cli = TestCli::try_parse_from(["test", "check", "--path", "src/main.rs", "--strict", "--json"]).unwrap();
+        let cli = TestCli::try_parse_from([
+            "test",
+            "check",
+            "--path",
+            "src/main.rs",
+            "--strict",
+            "--json",
+        ])
+        .unwrap();
         match cli.command {
             ContractsCommand::Check(args) => {
                 assert_eq!(args.path, Some(PathBuf::from("src/main.rs")));
