@@ -23,7 +23,9 @@ impl Store {
             .with_context(|| format!("Failed to write temporary fact to {:?}", tmp_path))?;
         if let Err(e) = std::fs::rename(&tmp_path, &path) {
             let _ = std::fs::remove_file(&tmp_path);
-            return Err(e).with_context(|| format!("Failed to atomically rename {:?} to {:?}", tmp_path, path));
+            return Err(e).with_context(|| {
+                format!("Failed to atomically rename {:?} to {:?}", tmp_path, path)
+            });
         }
 
         if self.is_canonical() {

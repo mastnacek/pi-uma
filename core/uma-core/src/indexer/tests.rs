@@ -71,7 +71,10 @@ fn test_reindex_preserves_foreign_roots_across_schema_drop() -> Result<()> {
     // Now reindex from dirs passing only proj_a:
     // proj_b should be remembered and restored from the persistent known_roots table!
     let count = indexer.reindex_from_dirs(&[proj_a])?;
-    assert_eq!(count, 2, "Both projects should be reindexed via known_roots");
+    assert_eq!(
+        count, 2,
+        "Both projects should be reindexed via known_roots"
+    );
     assert_eq!(indexer.indexed_count()?, 2);
 
     Ok(())

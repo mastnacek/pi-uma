@@ -147,7 +147,9 @@ impl Indexer {
         for r in &roots {
             if !r.exists() {
                 let r_str = r.to_string_lossy().to_string();
-                let _ = self.conn.execute("DELETE FROM known_roots WHERE root = ?1", params![r_str]);
+                let _ = self
+                    .conn
+                    .execute("DELETE FROM known_roots WHERE root = ?1", params![r_str]);
             }
         }
 

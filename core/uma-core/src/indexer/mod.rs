@@ -109,7 +109,10 @@ impl Indexer {
                 let now_str = chrono::Utc::now().to_rfc3339();
                 if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
                     for file in rows.flatten() {
-                        if let Some(root) = std::path::PathBuf::from(&file).parent().and_then(|t| t.parent()) {
+                        if let Some(root) = std::path::PathBuf::from(&file)
+                            .parent()
+                            .and_then(|t| t.parent())
+                        {
                             let root_str = root.to_string_lossy().to_string();
                             let _ = self.conn.execute(
                                 "INSERT INTO known_roots (root, last_seen) VALUES (?1, ?2)

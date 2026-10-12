@@ -86,7 +86,9 @@ impl Store {
             {
                 if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
                     for path_str in rows.flatten() {
-                        if let Some(root) = PathBuf::from(&path_str).parent().and_then(|t| t.parent()) {
+                        if let Some(root) =
+                            PathBuf::from(&path_str).parent().and_then(|t| t.parent())
+                        {
                             let root = root.to_path_buf();
                             if root.exists() && !roots.contains(&root) {
                                 roots.push(root);

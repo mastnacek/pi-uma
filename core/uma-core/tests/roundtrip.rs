@@ -161,8 +161,14 @@ fn test_supersede_self_cycle_is_rejected() -> anyhow::Result<()> {
     let mut self_revision = fact("Revised fact", "Revised body.");
     self_revision.id = original.id;
     let err = store.supersede_within(&original.id, self_revision);
-    assert!(err.is_err(), "A fact must not be allowed to supersede itself");
-    assert!(err.unwrap_err().to_string().contains("cannot supersede itself"));
+    assert!(
+        err.is_err(),
+        "A fact must not be allowed to supersede itself"
+    );
+    assert!(err
+        .unwrap_err()
+        .to_string()
+        .contains("cannot supersede itself"));
 
     Ok(())
 }
@@ -178,7 +184,11 @@ fn test_search_excludes_future_since_facts() -> anyhow::Result<()> {
     indexer.index_fact(&future_fact, None)?;
 
     let hits = search_keyword(indexer.connection(), &search_options("Future architecture"))?;
-    assert_eq!(hits.len(), 0, "Future fact must not be active in current search");
+    assert_eq!(
+        hits.len(),
+        0,
+        "Future fact must not be active in current search"
+    );
 
     Ok(())
 }
@@ -189,9 +199,12 @@ fn test_as_of_search_returns_historical_facts_even_when_newer_facts_exist() -> a
     let db_path = dir.path().join("index.db");
     let indexer = Indexer::open(&db_path)?;
 
-    let t2023 = chrono::DateTime::parse_from_rfc3339("2023-01-01T00:00:00Z")?.with_timezone(&chrono::Utc);
-    let t2024 = chrono::DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z")?.with_timezone(&chrono::Utc);
-    let t2025 = chrono::DateTime::parse_from_rfc3339("2025-01-01T00:00:00Z")?.with_timezone(&chrono::Utc);
+    let t2023 =
+        chrono::DateTime::parse_from_rfc3339("2023-01-01T00:00:00Z")?.with_timezone(&chrono::Utc);
+    let t2024 =
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T00:00:00Z")?.with_timezone(&chrono::Utc);
+    let t2025 =
+        chrono::DateTime::parse_from_rfc3339("2025-01-01T00:00:00Z")?.with_timezone(&chrono::Utc);
 
     for i in 1..=3 {
         let mut hist_fact = fact(&format!("Database pattern {i}"), "Use SQLite indexer.");
@@ -211,7 +224,11 @@ fn test_as_of_search_returns_historical_facts_even_when_newer_facts_exist() -> a
     opts.limit = 2;
 
     let hits = search_keyword(indexer.connection(), &opts)?;
-    assert_eq!(hits.len(), 2, "Must return up to limit (2) valid historical facts");
+    assert_eq!(
+        hits.len(),
+        2,
+        "Must return up to limit (2) valid historical facts"
+    );
     for hit in &hits {
         assert!(hit.title.contains("Database pattern"));
     }
