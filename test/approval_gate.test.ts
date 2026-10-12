@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import {
   evaluateApprovalGate,
   isBypassingBashCommand,
+  isProtectedMemoryPath,
   isUmaMemoryFilePath,
   MEMORY_MUTATING_TOOLS,
 } from "../src/hooks/approval_gate.ts";
@@ -56,6 +60,69 @@ test("isUmaMemoryFilePath detects project and global UMA memory paths", () => {
   assert.equal(isUmaMemoryFilePath("C:\\Users\\user\\AppData\\Roaming\\uma\\uma\\data\\global\\fact\\01.md"), true);
   assert.equal(isUmaMemoryFilePath("src/main.rs"), false);
   assert.equal(isUmaMemoryFilePath(".pi/settings.json"), false);
+});
+
+test("isUmaMemoryFilePath covers the macOS and Linux global stores", () => {
+  // Regression: the old check only knew the Windows %APPDATA% shape, so a
+  // direct edit of the global store on mac/Linux slipped through.
+  assert.equal(
+    isUmaMemoryFilePath("/Users/x/Library/Application Support/com.uma.uma/global/decision/01.md"),
+    true,
+  );
+  assert.equal(isUmaMemoryFilePath("/home/x/.local/share/uma/global/fact/01.md"), true);
+  assert.equal(isUmaMemoryFilePath("/home/x/projects/app/src/main.rs"), false);
+});
+
+test("isBypassingBashCommand catches quoted, uma-cli and every memory-writing subcommand", () => {
+  assert.equal(isBypassingBashCommand('"/path/to/uma.exe" write --title x'), true);
+  assert.equal(isBypassingBashCommand("uma-cli supersede 01ABC --title x"), true);
+  assert.equal(isBypassingBashCommand("uma staging approve 01ABC"), true);
+  assert.equal(isBypassingBashCommand("uma skill new --name x"), true);
+  assert.equal(isBypassingBashCommand("uma muscle new r --template '[]'"), true);
+  assert.equal(isBypassingBashCommand("uma mcp serve --allow-writes"), true);
+  // Read-only invocations stay allowed.
+  assert.equal(isBypassingBashCommand("uma staging list"), false);
+  assert.equal(isBypassingBashCommand("uma mcp serve"), false);
+  assert.equal(isBypassingBashCommand("uma list --json"), false);
+});
+
+test("isBypassingBashCommand catches shell writes into a store path", () => {
+  assert.equal(isBypassingBashCommand("echo hi > .uma/decision/x.md"), true);
+  assert.equal(isBypassingBashCommand("cp /tmp/a .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("sed -i s/a/b/ .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("python -c \"open('.uma/x','w')\""), true);
+  // Reading a store file is not a write.
+  assert.equal(isBypassingBashCommand("cat .uma/decision/x.md"), false);
+  assert.equal(isBypassingBashCommand("ls .uma/"), false);
+});
+
+test("isProtectedMemoryPath resolves a symlink into .uma", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uma-symlink-"));
+  try {
+    fs.mkdirSync(path.join(dir, ".uma"), { recursive: true });
+    try {
+      fs.symlinkSync(path.join(dir, ".uma"), path.join(dir, "m"), "dir");
+    } catch {
+      return; // symlink creation needs privileges on some Windows setups
+    }
+    const literal = path.join(dir, "m", "x.md");
+    assert.equal(
+      isProtectedMemoryPath(literal, dir),
+      true,
+      "a path through a symlink into .uma must be protected",
+    );
+
+    const call = {
+      type: "tool_call",
+      toolCallId: "1",
+      toolName: "write",
+      input: { path: literal, content: "x" },
+    } as never;
+    const ctxWithCwd = { mode: "tui", hasUI: true, cwd: dir } as never;
+    assert.ok(evaluateApprovalGate(call, ctxWithCwd, state(false))?.block);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("isBypassingBashCommand detects uma write and uma supersede commands", () => {

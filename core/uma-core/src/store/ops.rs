@@ -12,8 +12,14 @@ use super::Store;
 impl Store {
     /// Writes a fact to its Markdown file and, for canonical stores, updates
     /// the shared central index.
+    ///
+    /// Every write path in the system funnels through here, so the secret gate
+    /// lives here too: CLI `write`, `supersede`, MCP `uma_write`/`uma_supersede`,
+    /// `staging approve`, `skill new` and muscle curation are all covered even
+    /// when a caller forgot its own pre-scan. Fails closed.
     pub fn write(&self, fact: &Fact) -> Result<()> {
-        let path = self.fact_path(&fact.scope, &fact.fact_type, &fact.id);
+        self.refuse_secrets(fact)?;
+        let path = self.fact_path(&fact.scope, &fact.fact_type, &fact.id)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).context("Failed to create fact directory")?;
         }
@@ -37,6 +43,37 @@ impl Store {
             }
         }
 
+        Ok(())
+    }
+
+    /// Refuses a fact whose text or tags carry a credential.
+    ///
+    /// Deterministic and offline. The tag list is included: tags are injected
+    /// into every session too and were previously never scanned.
+    fn refuse_secrets(&self, fact: &Fact) -> Result<()> {
+        let tags = fact.tags.join(" ");
+        let text = [
+            fact.title.as_str(),
+            fact.body.as_str(),
+            fact.description.as_deref().unwrap_or(""),
+            fact.template.as_deref().unwrap_or(""),
+            tags.as_str(),
+        ]
+        .join("\n");
+        let literals = crate::secrets::env_secret_literals(&std::env::vars().collect::<Vec<_>>());
+        let findings = crate::secrets::scan(&text, &literals);
+        if crate::secrets::is_blocked(&findings) {
+            let list = findings
+                .iter()
+                .map(|f| format!("{} ({})", f.label, f.preview))
+                .collect::<Vec<_>>()
+                .join(", ");
+            anyhow::bail!(
+                "Refusing to save: the fact contains what looks like {list}. Memory is re-injected \
+                 into every session and may be committed — never store credentials. Rephrase \
+                 without the secret (name the env var that holds it instead)."
+            );
+        }
         Ok(())
     }
 
@@ -78,7 +115,7 @@ impl Store {
         let saved_fact = self.store_revision(old_id, new_fact)?;
         let now = Utc::now();
         if let Err(e) = self.retire(old_id, now) {
-            let path = self.fact_path(&saved_fact.scope, &saved_fact.fact_type, &saved_fact.id);
+            let path = self.fact_path(&saved_fact.scope, &saved_fact.fact_type, &saved_fact.id)?;
             let _ = std::fs::remove_file(path);
             return Err(e).context("Failed to retire predecessor fact");
         }
@@ -103,7 +140,7 @@ impl Store {
         let saved_fact = self.store_revision(old_id, new_fact)?;
         let now = Utc::now();
         if let Err(e) = old_store.retire(old_id, now) {
-            let path = self.fact_path(&saved_fact.scope, &saved_fact.fact_type, &saved_fact.id);
+            let path = self.fact_path(&saved_fact.scope, &saved_fact.fact_type, &saved_fact.id)?;
             let _ = std::fs::remove_file(path);
             return Err(e).context("Failed to retire predecessor fact");
         }
@@ -112,7 +149,7 @@ impl Store {
 
     /// Reads a fact from its Markdown file.
     pub fn read(&self, scope: &Scope, fact_type: &FactType, id: &FactId) -> Result<Fact> {
-        let path = self.fact_path(scope, fact_type, id);
+        let path = self.fact_path(scope, fact_type, id)?;
         let content = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read fact from {:?}", path))?;
         markdown_to_fact(&content).context("Failed to parse fact")
@@ -210,7 +247,7 @@ impl Store {
 
     /// Deletes a fact from disk and, for canonical stores, from the shared index.
     pub fn delete(&self, scope: &Scope, fact_type: &FactType, id: &FactId) -> Result<()> {
-        let path = self.fact_path(scope, fact_type, id);
+        let path = self.fact_path(scope, fact_type, id)?;
         if path.exists() {
             std::fs::remove_file(path).context("Failed to delete fact file")?;
         }

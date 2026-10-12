@@ -2,19 +2,19 @@
 type: Todo
 title: "Verify approval gate regex bypasses, path traversal via type, and secret scanner gaps"
 timestamp: 2026-10-12 10:12:21
-status: todo
+status: working
 source: pi-spai
 tags: [security, approval, traversal, secrets]
 facets:
   priority: high
   project: pi-uma
-  project_path: D:\01_programovani\pi\plugins\pi-uma
-spai_symbol: '.'
+  project_path: D:/01_programovani/pi/plugins/pi-uma
+spai_symbol: '/'
 ---
 
 # SPAI-024: Verify approval gate regex bypasses, path traversal via type, and secret scanner gaps
 
-. Verify approval gate regex bypasses, path traversal via type, and secret scanner gaps @pi-uma !high :security:approval:traversal:secrets:
+/ Verify approval gate regex bypasses, path traversal via type, and secret scanner gaps @pi-uma !high :security:approval:traversal:secrets:
 
 ## Context & Details
 Review identified security gaps across the approval gate, argument validation, and secret scanning:

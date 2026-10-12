@@ -131,3 +131,38 @@ fn test_placeholder_value_rules() {
     ));
     assert!(!is_placeholder_value("0123456789abcdef"));
 }
+
+#[test]
+fn test_underscore_prefixed_assignments_block() {
+    // Regression: `\\b` fails after `_` (a word char), so these three common
+    // shapes used to slip through.
+    let cases = [
+        "DB_PASSWORD=sup3rSecretValue1234",
+        "GITHUB_TOKEN=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh",
+        "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI7K7MDENGbPxRfiCY9xQ2wZ",
+        "export MY_API_KEY=abcdefghij0123456789klmn",
+    ];
+    for text in cases {
+        let findings = scan_text(text);
+        assert!(is_blocked(&findings), "'{text}' must block: {findings:?}");
+    }
+}
+
+#[test]
+fn test_identifier_ending_in_key_does_not_block() {
+    // The keyword must start a word: `monkey=` is not a credential assignment.
+    assert!(!is_blocked(&scan_text("monkey=0123456789abcdefghij")));
+    assert!(!is_blocked(&scan_text("a_keyish_name=0123456789abcdefghij")));
+}
+
+#[test]
+fn test_every_occurrence_is_checked_not_just_the_first() {
+    // The first match is a placeholder; the real key comes later. A
+    // single-`captures` scanner would stop at the placeholder and hide it.
+    let text = "api_key = CHANGEME_EXAMPLE_VALUE\napi_key = sk-proj-abcdefghij0123456789abcdefghij3";
+    let findings = scan_text(text);
+    assert!(
+        is_blocked(&findings),
+        "a placeholder must not mask a later real key: {findings:?}"
+    );
+}

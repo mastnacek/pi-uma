@@ -22,8 +22,25 @@ import { evaluateApprovalGate } from "./src/hooks/approval_gate.js";
 import { registerImmuneInterceptor } from "./src/hooks/immune_interceptor.js";
 
 export default function umaExtension(pi: ExtensionAPI): void {
-  // 1. Guard against subagent recursion
-  if (process.env.PI_SUBAGENT === "true" || Boolean(process.env.PI_CHILD_SESSION)) return;
+  // 1. Subagent recursion guard.
+  //
+  //    A subagent must NOT load the full tool surface (duplicate tools, TUI
+  //    dialogs), but it MUST still carry the memory-integrity guard: without
+  //    it, a subagent's shell can run `uma write`/`supersede` — or write
+  //    straight into `.uma/` — completely unguarded.
+  if (process.env.PI_SUBAGENT === "true" || Boolean(process.env.PI_CHILD_SESSION)) {
+    const subInitial = loadConfig(process.cwd());
+    const subState = createExtensionState(subInitial.config, subInitial.globalFile);
+    const subUnsubscribers: Array<() => void> = [];
+    const subGuard = pi.on("tool_call", (event, ctx) =>
+      evaluateApprovalGate(event, ctx, subState)
+    );
+    if (typeof subGuard === "function") subUnsubscribers.push(subGuard as () => void);
+    pi.on("session_shutdown", () => {
+      while (subUnsubscribers.length > 0) subUnsubscribers.pop()?.();
+    });
+    return;
+  }
 
   // 2. Unsubscribers drain on session_shutdown
   const unsubscribers: Array<() => void> = [];

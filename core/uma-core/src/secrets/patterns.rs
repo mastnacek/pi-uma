@@ -67,7 +67,14 @@ pub const SECRET_PATTERNS: &[Pattern] = &[
     ),
     pattern!(
         "assigned credential",
-        r#"(?i)\b(api[_-]?key|secret|token|password|passwd)\b\s*[:=]\s*["']?([A-Za-z0-9+/_-]{16,})["']?"#,
+        // No lookbehind in the `regex` crate, so an explicit preceding
+        // non-alphanumeric class is used instead of `\b`. `\b` fails after an
+        // underscore (which Rust's regex counts as a word char), so the old
+        // form missed the most common real-world shapes: `DB_PASSWORD=`,
+        // `GITHUB_TOKEN=`, `AWS_SECRET_ACCESS_KEY=`. Here `_` is allowed as the
+        // separator, while a letter/digit immediately before the keyword
+        // (e.g. `monkey=`) still does not match.
+        r#"(?i)(?:^|[^A-Za-z0-9])(api[_-]?key|secret|token|password|passwd|key)\s*[:=]\s*["']?([A-Za-z0-9+/_-]{16,})["']?"#,
         value_group = 2
     ),
     // The shape of a pasted `curl -H` line or captured request. Anchored on

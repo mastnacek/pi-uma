@@ -231,3 +231,25 @@ fn test_push_untracks_a_cache_an_older_version_committed() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_push_refuses_to_publish_a_credential() -> Result<()> {
+    // A staging draft with raw telemetry must never reach git, let alone a
+    // remote: the pre-commit scan is the enforcement point.
+    let dir = tempdir()?;
+    let root = memory_root(dir.path(), "global");
+    let leak = root.join("correction").join("leak.md");
+    std::fs::create_dir_all(leak.parent().unwrap())?;
+    std::fs::write(
+        &leak,
+        "---\nid: leak\n---\ntoken: ghp_0123456789abcdefghijklmnopqrstuvwxyzAB\n",
+    )?;
+    git::ensure_repo(&root)?;
+
+    let err = push_at(&root, None).expect_err("a credential must block the push");
+    assert!(
+        err.to_string().contains("Refusing to sync"),
+        "unexpected error: {err}"
+    );
+    Ok(())
+}

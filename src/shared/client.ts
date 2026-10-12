@@ -53,14 +53,7 @@ export function runUma(
   // improvises (it once stored a memory rule in an unrelated gotchas
   // file). Tell it exactly what happened and what to tell the operator.
   if (!fs.existsSync(binPath)) {
-    return Promise.reject(
-      new Error(
-        `UMA engine binary not found (looked for: ${binPath} and standard locations). ` +
-        "Do NOT store this request anywhere else. " +
-        "Tell the operator to restore the engine: reinstall the plugin " +
-        "(pi update --extensions) or build it (cd core && cargo build --release).",
-      ),
-    );
+    return Promise.reject(missingBinaryError(binPath));
   }
   return new Promise((resolve, reject) => {
     execFile(binPath, args, { cwd }, (error, stdout, stderr) => {
@@ -72,6 +65,44 @@ export function runUma(
         resolve({ stdout, stderr, code: 0 });
       }
     });
+  });
+}
+
+function missingBinaryError(binPath: string): Error {
+  return new Error(
+    `UMA engine binary not found (looked for: ${binPath} and standard locations). ` +
+    "Do NOT store this request anywhere else. " +
+    "Tell the operator to restore the engine: reinstall the plugin " +
+    "(pi update --extensions) or build it (cd core && cargo build --release).",
+  );
+}
+
+/**
+ * Runs the CLI with a payload on STDIN. Used for secret scanning: passing the
+ * text as an argv element hit the Windows ~32KB command-line limit (and could
+ * be read from the process list), so the scanner reads `--stdin` instead.
+ */
+export function runUmaWithInput(
+  binPath: string,
+  args: string[],
+  cwd: string,
+  input: string,
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  if (!fs.existsSync(binPath)) {
+    return Promise.reject(missingBinaryError(binPath));
+  }
+  return new Promise((resolve, reject) => {
+    const child = execFile(binPath, args, { cwd }, (error, stdout, stderr) => {
+      if (error && "code" in error && typeof error.code === "number" && error.code !== 0) {
+        resolve({ stdout, stderr, code: error.code });
+      } else if (error) {
+        reject(error);
+      } else {
+        resolve({ stdout, stderr, code: 0 });
+      }
+    });
+    // Guard the optional stdin pipe (a spawn failure leaves it null).
+    child.stdin?.end(input);
   });
 }
 

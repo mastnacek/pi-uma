@@ -104,6 +104,18 @@ impl fmt::Display for FactType {
     }
 }
 
+/// A fact type name is usable as a single path component only when it is
+/// non-empty and free of separators, dots and drive syntax. Without this a
+/// `--type ../../x` (or a crafted frontmatter `type:`) escapes the store root
+/// when joined into `fact_path`.
+pub fn is_safe_dir_component(s: &str) -> bool {
+    !s.is_empty()
+        && s != "."
+        && s != ".."
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 impl std::str::FromStr for FactType {
     type Err = anyhow::Error;
 
@@ -118,7 +130,18 @@ impl std::str::FromStr for FactType {
             "reference" => FactType::Reference,
             "note" => FactType::Note,
             "task" => FactType::Task,
-            other => FactType::Custom(other.to_string()),
+            other => {
+                // A custom type becomes a directory name; reject anything that
+                // could traverse out of the store (path separators, `..`,
+                // drive letters, whitespace).
+                if !is_safe_dir_component(other) {
+                    anyhow::bail!(
+                        "Unsafe fact type '{}': only [a-z0-9_-]+ is allowed",
+                        other
+                    );
+                }
+                FactType::Custom(other.to_string())
+            }
         })
     }
 }

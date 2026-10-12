@@ -54,8 +54,8 @@ fn test_reindex_preserves_foreign_roots_across_schema_drop() -> Result<()> {
     store_b.write(&fact_b)?;
 
     // Index both files into the indexer with their file paths
-    let path_a = store_a.fact_path(&fact_a.scope, &fact_a.fact_type, &fact_a.id);
-    let path_b = store_b.fact_path(&fact_b.scope, &fact_b.fact_type, &fact_b.id);
+    let path_a = store_a.fact_path(&fact_a.scope, &fact_a.fact_type, &fact_a.id)?;
+    let path_b = store_b.fact_path(&fact_b.scope, &fact_b.fact_type, &fact_b.id)?;
     indexer.index_fact(&fact_a, Some(&path_a))?;
     indexer.index_fact(&fact_b, Some(&path_b))?;
 

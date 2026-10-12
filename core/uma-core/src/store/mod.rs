@@ -1,4 +1,4 @@
-use crate::domain::{FactId, FactType, Scope};
+use crate::domain::{is_safe_dir_component, FactId, FactType, Scope};
 use crate::indexer::Indexer;
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
@@ -172,9 +172,18 @@ impl Store {
     }
 
     /// Computes the storage path for a fact within this store root.
-    pub fn fact_path(&self, _scope: &Scope, fact_type: &FactType, id: &FactId) -> PathBuf {
-        self.root
-            .join(fact_type.dir_name())
-            .join(format!("{}.md", id))
+    ///
+    /// Fails closed on a fact type that is not a safe single path component:
+    /// the type name becomes a directory, so a `..`/separator there would let a
+    /// crafted `--type` escape the store root.
+    pub fn fact_path(&self, _scope: &Scope, fact_type: &FactType, id: &FactId) -> Result<PathBuf> {
+        let dir = fact_type.dir_name();
+        if !is_safe_dir_component(dir) {
+            anyhow::bail!(
+                "Refusing to build a path for unsafe fact type '{}': only [a-z0-9_-]+ is allowed",
+                dir
+            );
+        }
+        Ok(self.root.join(dir).join(format!("{}.md", id)))
     }
 }

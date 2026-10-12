@@ -8,7 +8,7 @@
  * shared/ (kernel), not in either slice.
  */
 
-import { runUma, findUmaBinary } from "./client.js";
+import { runUmaWithInput, findUmaBinary } from "./client.js";
 
 export interface SecretFinding {
   label: string;
@@ -28,13 +28,21 @@ const CLEAN: ScanOutcome = { blocked: false, findings: [] };
 /**
  * Scans the proposal's text fields. Any failure (no binary, parse error)
  * returns CLEAN: the consent modal must not depend on the scanner being
- * installed, and the CLI write gate runs later regardless.
+ * installed. Enforcement does NOT depend on this pre-scan — the central gate
+ * in `Store::write` refuses a credential on every write path. The text is sent
+ * on STDIN (`--stdin`), never as an argv element, so the Windows ~32KB
+ * command-line limit can't turn a real scan into a fail-open.
  */
 export async function scanProposal(cwd: string, text: string): Promise<ScanOutcome> {
   if (!text.trim()) return CLEAN;
   try {
     const binPath = findUmaBinary(cwd);
-    const result = await runUma(binPath, ["secrets", "scan", "--json", text], cwd);
+    const result = await runUmaWithInput(
+      binPath,
+      ["secrets", "scan", "--json", "--stdin"],
+      cwd,
+      text,
+    );
     if (result.code !== 0) return CLEAN;
     const parsed = JSON.parse(result.stdout) as { blocked: boolean; findings: SecretFinding[] };
     return { blocked: Boolean(parsed.blocked), findings: parsed.findings ?? [] };

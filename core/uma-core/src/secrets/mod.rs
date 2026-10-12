@@ -161,27 +161,28 @@ fn preview_of(raw: &str) -> String {
 pub fn scan(text: &str, env_literals: &[String]) -> Vec<Finding> {
     let mut findings = Vec::new();
     for (re, label, value_group) in &compiled().patterns {
-        let Some(m) = re.captures(text) else {
-            continue;
-        };
-        let whole = m.get(0).map(|m| m.as_str()).unwrap_or_default();
-        let value = match value_group {
-            Some(g) => m.get(*g).map(|m| m.as_str()).unwrap_or(whole),
-            None => whole,
-        };
-        if is_placeholder_value(value) {
-            continue;
-        }
         let severity = if patterns::SECRET_PATTERNS.iter().any(|p| p.label == *label) {
             Severity::Block
         } else {
             Severity::Warning
         };
-        findings.push(Finding {
-            label: (*label).to_string(),
-            severity,
-            preview: preview_of(whole),
-        });
+        // Every occurrence, not just the first: a placeholder early in the
+        // text must never hide a real key that appears later.
+        for m in re.captures_iter(text) {
+            let whole = m.get(0).map(|m| m.as_str()).unwrap_or_default();
+            let value = match value_group {
+                Some(g) => m.get(*g).map(|m| m.as_str()).unwrap_or(whole),
+                None => whole,
+            };
+            if is_placeholder_value(value) {
+                continue;
+            }
+            findings.push(Finding {
+                label: (*label).to_string(),
+                severity,
+                preview: preview_of(whole),
+            });
+        }
     }
     for literal in env_literals {
         if text.contains(literal.as_str()) {

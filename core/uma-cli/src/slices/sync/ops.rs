@@ -62,6 +62,35 @@ pub fn push_at(root: &Path, message: Option<String>) -> Result<PushReport> {
 
     let total = report.added + report.updated + report.removed;
     if total > 0 {
+        // Never publish a credential: scan every changed fact file BEFORE the
+        // commit. `git add -A .` has already staged them, but nothing leaves
+        // the machine until the commit/push below, so bailing here is
+        // fail-closed. Staging drafts with raw telemetry used to slip through.
+        let literals =
+            uma_core::secrets::env_secret_literals(&std::env::vars().collect::<Vec<_>>());
+        for path in &report.changed_paths {
+            if !path.ends_with(".md") {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(root.join(path)) else {
+                continue;
+            };
+            let findings = uma_core::secrets::scan(&content, &literals);
+            if uma_core::secrets::is_blocked(&findings) {
+                let list = findings
+                    .iter()
+                    .filter(|f| f.severity == uma_core::secrets::Severity::Block)
+                    .map(|f| format!("{} ({})", f.label, f.preview))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                anyhow::bail!(
+                    "Refusing to sync: {path} looks like it contains {list}. \
+                     Memory is published to git — remove the credential (or supersede the \
+                     fact) before pushing."
+                );
+            }
+        }
+
         let summary = format!(
             "memory sync: {} fact(s) changed ({} added, {} updated, {} removed)",
             total, report.added, report.updated, report.removed
