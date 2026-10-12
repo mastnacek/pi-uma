@@ -1,36 +1,35 @@
 import { execFile } from "node:child_process";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
-export function findUmaBinary(cwd: string): string {
+function getPackageDir(): string {
+  const currentFile = typeof __filename !== "undefined"
+    ? __filename
+    : fileURLToPath(import.meta.url);
+  return path.resolve(path.dirname(currentFile), "..", "..");
+}
+
+export function findUmaBinary(_cwd?: string): string {
   const isWindows = process.platform === "win32";
   // The canonical binary is `uma` (Cargo.toml [[bin]]); `uma-cli` is kept as a
   // fallback for stale installs built before the rename.
   const primary = isWindows ? "uma.exe" : "uma";
   const fallback = isWindows ? "uma-cli.exe" : "uma-cli";
 
+  const pkgDir = getPackageDir();
+
+  // Security invariant: never look inside arbitrary workspace cwd.
+  // Binaries are only resolved from this plugin's own package installation directory or PATH.
   const candidates = [
-    // The engine binary ships with the package (bin/), so a plain clone
-    // works without a Rust toolchain or PATH entry.
-    path.join(__dirname, "..", "bin", primary),
-    path.join(__dirname, "..", "..", "bin", primary),
-    path.join(cwd, "bin", primary),
-    // Consolidated repo layout: the Rust workspace lives in core/.
-    path.join(__dirname, "..", "..", "core", "target", "release", primary),
-    path.join(__dirname, "..", "..", "core", "target", "debug", primary),
-    path.join(__dirname, "..", "core", "target", "release", primary),
-    path.join(__dirname, "..", "core", "target", "debug", primary),
-    path.join(cwd, "core", "target", "release", primary),
-    path.join(cwd, "uma", "target", "release", primary),
-    path.join(cwd, "uma", "target", "debug", primary),
-    path.join(__dirname, "..", "..", "..", "uma", "target", "release", primary),
-    path.join(__dirname, "..", "..", "..", "uma", "target", "debug", primary),
-    path.join(__dirname, "..", "..", "target", "release", primary),
-    path.join(__dirname, "..", "..", "target", "debug", primary),
-    path.join(cwd, "uma", "target", "release", fallback),
-    path.join(cwd, "uma", "target", "debug", fallback),
-    primary,
-    fallback,
+    // 1. The engine binary ships with the package (bin/)
+    path.join(pkgDir, "bin", primary),
+    // 2. Development copy in the package's own cargo target directories (VSA layout)
+    path.join(pkgDir, "core", "target", "release", primary),
+    path.join(pkgDir, "core", "target", "debug", primary),
+    path.join(pkgDir, "target", "release", primary),
+    path.join(pkgDir, "target", "debug", primary),
+    path.join(pkgDir, "bin", fallback),
   ];
 
   for (const candidate of candidates) {
@@ -39,9 +38,7 @@ export function findUmaBinary(cwd: string): string {
     }
   }
 
-  // Nothing exists anywhere: return a path anyway (callers spawn it), but
-  // runUma turns the failure into an actionable error for the model.
-
+  // Fallback to system PATH (never workspace cwd)
   return primary;
 }
 

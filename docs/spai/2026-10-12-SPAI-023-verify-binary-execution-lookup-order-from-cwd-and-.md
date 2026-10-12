@@ -2,19 +2,19 @@
 type: Todo
 title: "Verify binary execution lookup order from CWD and project config override allowlist"
 timestamp: 2026-10-12 10:12:18
-status: todo
+status: done
 source: pi-spai
 tags: [security, binary, config]
 facets:
   priority: high
   project: pi-uma
-  project_path: D:\01_programovani\pi\plugins\pi-uma
-spai_symbol: '.'
+  project_path: D:/01_programovani/pi/plugins/pi-uma
+spai_symbol: 'x'
 ---
 
 # SPAI-023: Verify binary execution lookup order from CWD and project config override allowlist
 
-. Verify binary execution lookup order from CWD and project config override allowlist @pi-uma !high :security:binary:config:
+x Verify binary execution lookup order from CWD and project config override allowlist @pi-uma !high :security:binary:config:
 
 ## Context & Details
 Review flagged untrusted execution vectors when opening repositories:
