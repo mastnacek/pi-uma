@@ -181,7 +181,14 @@ fn offline_skeptic(input: &SkepticInput) -> Result<SkepticCritique, String> {
         "persist",
     ]) {
         FailureMode::SilentDataCorruption
-    } else if hit(&["api", "contract", "contracts", "schema", "public", "interface"]) {
+    } else if hit(&[
+        "api",
+        "contract",
+        "contracts",
+        "schema",
+        "public",
+        "interface",
+    ]) {
         FailureMode::BreakingPublicContract
     } else {
         FailureMode::NoneAcceptableRisk

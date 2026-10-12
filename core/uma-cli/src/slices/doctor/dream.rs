@@ -33,11 +33,19 @@ pub struct DreamResult {
 pub fn dream_candidates(facts: &[Fact], now: DateTime<Utc>, max: usize) -> Vec<Fact> {
     let mut decayed: Vec<(f64, &Fact)> = facts
         .iter()
-        .filter(|f| f.status == uma_core::domain::FactStatus::Stable && f.plasticity.is_some() && f.is_active_at(now))
+        .filter(|f| {
+            f.status == uma_core::domain::FactStatus::Stable
+                && f.plasticity.is_some()
+                && f.is_active_at(now)
+        })
         .filter_map(|f| {
             let w = f.effective_weight(now);
             // Only facts actually decaying (not immune, below 0.9) are worth testing.
-            let immune = f.saliency.as_ref().map(|s| s.immune_to_decay).unwrap_or(false);
+            let immune = f
+                .saliency
+                .as_ref()
+                .map(|s| s.immune_to_decay)
+                .unwrap_or(false);
             if immune || w >= 0.9 {
                 None
             } else {
@@ -46,7 +54,11 @@ pub fn dream_candidates(facts: &[Fact], now: DateTime<Utc>, max: usize) -> Vec<F
         })
         .collect();
     decayed.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-    decayed.into_iter().take(max).map(|(_, f)| f.clone()).collect()
+    decayed
+        .into_iter()
+        .take(max)
+        .map(|(_, f)| f.clone())
+        .collect()
 }
 
 /// Runs one dream pass over the given candidates. Network judge (Jev) for both
@@ -70,11 +82,19 @@ pub fn run_dream(
 
         let (answer, correct, judged_by) = match judge {
             Judge::Jev => match fastbrain::dream::dream_answer(&question, fact) {
-                Ok(judgment) => (judgment.answer.answer, judgment.answer.correct, judgment.judged_by.as_str().to_string()),
+                Ok(judgment) => (
+                    judgment.answer.answer,
+                    judgment.answer.correct,
+                    judgment.judged_by.as_str().to_string(),
+                ),
                 Err(failure) => {
                     // Degrade to offline check, visibly.
                     let off = fastbrain::offline::dream_answer(&question, fact);
-                    (off.0, off.1, format!("offline (Jev failed: {})", truncate(failure, 60)))
+                    (
+                        off.0,
+                        off.1,
+                        format!("offline (Jev failed: {})", truncate(failure, 60)),
+                    )
                 }
             },
             Judge::Offline => {
@@ -125,7 +145,10 @@ pub fn run_dream(
         return Ok(results);
     }
 
-    println!("Dream (retrieval practice) — {} fact(s) tested:\n", results.len());
+    println!(
+        "Dream (retrieval practice) — {} fact(s) tested:\n",
+        results.len()
+    );
     for (idx, r) in results.iter().enumerate() {
         println!(
             "{}. {} (weight {:.2}) [{}, {}]",

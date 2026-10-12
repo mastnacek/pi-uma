@@ -68,8 +68,12 @@ pub fn dream_answer(question: &str, fact: &Fact) -> Result<Judgment<DreamAnswer>
     struct AnswerOnly {
         answer: String,
     }
-    let candidate: AnswerOnly = serde_json::from_str(answer_content.trim())
-        .with_context(|| format!("Unparsable dream answer: {}", truncate(&answer_content, 120)))?;
+    let candidate: AnswerOnly = serde_json::from_str(answer_content.trim()).with_context(|| {
+        format!(
+            "Unparsable dream answer: {}",
+            truncate(&answer_content, 120)
+        )
+    })?;
 
     // Step 2 — a separate, strict grading call that does see the key.
     let grade_schema = json!({
