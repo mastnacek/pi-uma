@@ -98,7 +98,7 @@ fn immune_rules_never_decay() -> Result<()> {
 fn stale_after_hides_the_fact_from_as_of_search() -> Result<()> {
     let dir = tempdir()?;
     let store = Store::new(dir.path().to_path_buf());
-    let indexer = Indexer::open(&dir.path().join("index.db"))?;
+    let indexer = Indexer::open(dir.path().join("index.db"))?;
 
     let mut timeboxed = fact(
         "Temporary workaround for the indexer race",

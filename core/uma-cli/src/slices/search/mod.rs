@@ -79,7 +79,10 @@ pub fn run(args: SearchArgs) -> Result<()> {
 
     if args.query.trim().is_empty() {
         if args.json {
-            println!("{}", serde_json::json!({ "hits": [], "note": "empty query" }));
+            println!(
+                "{}",
+                serde_json::json!({ "hits": [], "note": "empty query" })
+            );
         } else if !args.reindex && !args.vectorize {
             println!("Please provide a search query: uma search <query>");
         }

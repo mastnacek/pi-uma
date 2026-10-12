@@ -81,11 +81,6 @@ pub fn is_placeholder_value(raw: &str) -> bool {
     false
 }
 
-/// Variable names that hold credentials by convention; the VALUE of such a
-/// variable is a secret whatever it looks like — an internal API key with no
-/// provider prefix passes every shape pattern, yet the exact string sits in
-/// the environment.
-
 /// A value that is a plain word is configuration, not a credential — a refusal
 /// is not lossless, so precision wins.
 fn looks_like_word(value: &str) -> bool {

@@ -235,6 +235,7 @@ mod tests {
 
     #[test]
     fn test_cosine_similarity() {
+        use std::f64::consts::FRAC_1_SQRT_2;
         let v1 = vec![1.0, 0.0, 0.0];
         let v2 = vec![1.0, 0.0, 0.0];
         assert!((cosine_similarity(&v1, &v2) - 1.0).abs() < 1e-6);
@@ -242,7 +243,7 @@ mod tests {
         let v3 = vec![0.0, 1.0, 0.0];
         assert!((cosine_similarity(&v1, &v3) - 0.0).abs() < 1e-6);
 
-        let v4 = vec![0.7071, 0.7071, 0.0];
-        assert!((cosine_similarity(&v1, &v4) - 0.7071).abs() < 1e-3);
+        let v4 = vec![FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.0];
+        assert!((cosine_similarity(&v1, &v4) - FRAC_1_SQRT_2).abs() < 1e-3);
     }
 }

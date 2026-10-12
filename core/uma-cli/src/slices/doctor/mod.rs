@@ -8,9 +8,7 @@ use clap::Args;
 use serde_json::json;
 use uma_core::store::Store;
 
-use checks::{
-    count_fact_files, count_stale_facts, find_zombie_facts, inspect_index, root_finding,
-};
+use checks::{count_fact_files, count_stale_facts, find_zombie_facts, inspect_index, root_finding};
 use findings::{fail, ok, warn, Finding, Level};
 
 #[derive(Args, Debug, Clone)]
@@ -150,8 +148,7 @@ pub fn run(args: DoctorArgs) -> Result<()> {
         };
         let root_refs: Vec<Option<&std::path::Path>> =
             all_roots.iter().map(|p| Some(p.as_path())).collect();
-        dream_results =
-            dream::dream_over_roots(&root_refs, now, judge, args.dream_max, args.json)?;
+        dream_results = dream::dream_over_roots(&root_refs, now, judge, args.dream_max, args.json)?;
     }
 
     let db_path = Store::central_db_path()?;
@@ -231,7 +228,11 @@ fn prune_zombies(
     if !quiet {
         println!(
             "\nZombie rules (synaptic fitness < 0.25){}:",
-            if confirm { " — archiving" } else { " — proposal" }
+            if confirm {
+                " — archiving"
+            } else {
+                " — proposal"
+            }
         );
         for (_, fact) in &located {
             println!(
@@ -358,14 +359,16 @@ mod tests {
 
     #[test]
     fn test_prune_zombies_args_parsing() {
-        let cli = TestCli::try_parse_from(["uma", "doctor", "--prune-zombies"]).expect("should parse");
+        let cli =
+            TestCli::try_parse_from(["uma", "doctor", "--prune-zombies"]).expect("should parse");
         match cli.command {
             Top::Doctor(args) => {
                 assert!(args.zombies);
                 assert!(!args.confirm);
             }
         }
-        let cli = TestCli::try_parse_from(["uma", "doctor", "--prune-zombies", "--confirm"]).expect("should parse");
+        let cli = TestCli::try_parse_from(["uma", "doctor", "--prune-zombies", "--confirm"])
+            .expect("should parse");
         match cli.command {
             Top::Doctor(args) => {
                 assert!(args.zombies);

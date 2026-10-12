@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-12 19:24:45",
+  "lastUpdated": "2026-10-12 19:31:40",
   "records": [
     {
       "id": "SPAI-001",
@@ -483,8 +483,8 @@
       "id": "SPAI-028",
       "title": "Verify repository hygiene, ESM __dirname compatibility, and unit test coverage",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-12 10:12:35",
       "tags": [
         "repo",

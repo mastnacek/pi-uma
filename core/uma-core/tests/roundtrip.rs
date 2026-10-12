@@ -60,7 +60,7 @@ fn write_read_list_roundtrip() -> anyhow::Result<()> {
 #[test]
 fn index_search_roundtrip_returns_only_the_matching_fact() -> anyhow::Result<()> {
     let dir = tempdir()?;
-    let indexer = Indexer::open(&dir.path().join("index.db"))?;
+    let indexer = Indexer::open(dir.path().join("index.db"))?;
 
     let indexed = fact(
         "Adopt SQLite for FTS5 Indexing",

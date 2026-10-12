@@ -253,13 +253,21 @@ mod tests {
 
     #[test]
     fn test_cycle_does_not_hang() {
-        // Hand-edited frontmatter could describe a cycle; the walk must stop.
+        // Hand-edited frontmatter could describe a cycle; the walk must
+        // terminate. A pure cycle has NO root (every fact has a predecessor
+        // that is present in the set), so the correct, non-vacuous outcome is
+        // zero chains — the old `chains.iter().all(..)` over an empty vec was
+        // vacuously true and proved nothing.
         let mut a = fact("a");
         let mut b = fact("b");
         a.supersedes = Some(b.id);
         b.supersedes = Some(a.id);
 
         let chains = build_chains(&[a, b], true);
-        assert!(chains.iter().all(|chain| chain.steps.len() <= 2));
+        assert!(
+            chains.is_empty(),
+            "a rootless cycle must terminate with no chains, got {} chain(s)",
+            chains.len()
+        );
     }
 }

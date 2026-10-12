@@ -1,3 +1,6 @@
 node_modules/
 core/target/
 *.log
+
+# Shadow-worker staging drafts are local, unapproved, and machine-specific.
+.uma/.staging/

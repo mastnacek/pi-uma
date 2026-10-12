@@ -201,6 +201,18 @@ fn orphan_finding(orphans: usize) -> Finding {
     }
 }
 
+fn stale_finding(stale: usize) -> Finding {
+    if stale == 0 {
+        ok("stale index rows", "none")
+    } else {
+        warn(
+            "stale index rows",
+            format!("{stale} row(s) point at files that no longer exist"),
+            "Reconcile with `uma search \"\" --reindex`.",
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,17 +272,5 @@ mod tests {
         let zombies = find_zombie_facts(&facts, Utc::now(), 0.25);
         assert_eq!(zombies.len(), 1);
         assert_eq!(zombies[0].base_weight, 0.2);
-    }
-}
-
-fn stale_finding(stale: usize) -> Finding {
-    if stale == 0 {
-        ok("stale index rows", "none")
-    } else {
-        warn(
-            "stale index rows",
-            format!("{stale} row(s) point at files that no longer exist"),
-            "Reconcile with `uma search \"\" --reindex`.",
-        )
     }
 }
