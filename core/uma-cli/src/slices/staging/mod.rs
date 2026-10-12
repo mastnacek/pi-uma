@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use std::str::FromStr;
-use uma_core::domain::{Fact, FactType, Scope};
+use uma_core::domain::{ActorEvent, Fact, FactType, Scope};
 use uma_core::staging::{
     delete_draft, list_drafts, load_draft, save_draft, StagedDraft, StagedProvenance,
 };
@@ -175,6 +175,9 @@ pub fn run(args: StagingArgs) -> Result<()> {
         }
         StagingCommand::Approve(app) => {
             let mut draft = load_draft(&store, &app.id)?;
+            // Approval is the human review step: stamp it explicitly instead of
+            // relying on the (previously fabricated) default.
+            draft.fact.verified = vec![ActorEvent::new("human:operator")];
             if let Some(ref t) = app.title {
                 if !t.trim().is_empty() {
                     draft.fact.title = t.trim().to_string();

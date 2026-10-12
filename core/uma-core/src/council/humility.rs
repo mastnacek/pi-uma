@@ -76,11 +76,14 @@ pub const COMPLEXITY_MARKERS: &[&str] = &[
 ];
 
 /// Detects complexity markers in the intent and file paths.
+///
+/// Whole-token matching (not substring): "ffi" must not fire on "efficient",
+/// "mod" must not fire on "model". `risk` already matched whole tokens.
 pub fn complexity_signals(intent: &str, files: &[String]) -> Vec<String> {
-    let haystack = format!("{} {}", intent, files.join(" ")).to_lowercase();
+    let haystack = format!("{} {}", intent, files.join(" "));
     COMPLEXITY_MARKERS
         .iter()
-        .filter(|m| haystack.contains(*m))
+        .filter(|m| crate::similarity::contains_word(&haystack, m))
         .map(|m| (*m).to_string())
         .collect()
 }

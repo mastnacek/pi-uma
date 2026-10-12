@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Args;
 use std::io::{self, Read};
 use std::str::FromStr;
-use uma_core::domain::{Fact, FactType};
+use uma_core::domain::{ActorEvent, Fact, FactType};
 use uma_core::secrets;
 
 use crate::shared::{parse::parse_datetime_or_date, scope::resolve_scope, store_helper::get_store};
@@ -63,6 +63,9 @@ pub fn run(args: WriteArgs) -> Result<()> {
 
     let scope = resolve_scope(args.scope)?;
     let mut fact = Fact::new(scope, fact_type, args.title, body);
+    // The CLI write path is operator-driven (the plugin's approval modal, or the
+    // operator's own terminal), so record human verification honestly.
+    fact.verified = vec![ActorEvent::new("human:operator")];
     fact.description = args.description;
     fact.tags = args.tags;
     fact.template = args.template;

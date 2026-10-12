@@ -44,38 +44,58 @@ pub fn dream_question(fact: &Fact) -> Result<String> {
     Ok(parsed.question)
 }
 
-/// Answers a dream question and grades it against the fact's body.
+/// Answers a dream question, then grades it against the fact's body.
+///
+/// Two separate calls on purpose. The answering model must NOT see the
+/// reference rule: when the grading key sits in the same prompt the model is
+/// grading itself with the answer in hand, which makes the "retrieval practice"
+/// verdict meaningless (a model that has just read the rule can always restate
+/// it). Answer from recall first, grade afterwards.
 pub fn dream_answer(question: &str, fact: &Fact) -> Result<Judgment<DreamAnswer>> {
-    let schema = json!({
+    // Step 1 — answer from recall, no reference rule in the prompt.
+    let answer_schema = json!({
         "type": "object",
-        "properties": {
-            "answer": { "type": "string" },
-            "correct": { "type": "boolean" }
-        },
-        "required": ["answer", "correct"],
+        "properties": { "answer": { "type": "string" } },
+        "required": ["answer"],
         "additionalProperties": false,
     });
-    let prompt = format!(
+    let answer_prompt = format!(
         "Answer the question from your OWN recall, as an engineer would in a standup \
-         (2 sentences max). Then grade yourself STRICTLY against the reference rule: \
-         correct=true only if your answer captures its substance.\n\nQuestion: {question}\n\n\
-         Reference rule (grading key): {}\n{}",
-        fact.title, fact.body
+         (2 sentences max). Do not ask for clarification.\n\nQuestion: {question}"
     );
-    let content = complete("dream_answer", schema, prompt)?;
-
+    let answer_content = complete("dream_answer", answer_schema, answer_prompt)?;
     #[derive(Deserialize)]
-    struct Answer {
+    struct AnswerOnly {
         answer: String,
+    }
+    let candidate: AnswerOnly = serde_json::from_str(answer_content.trim())
+        .with_context(|| format!("Unparsable dream answer: {}", truncate(&answer_content, 120)))?;
+
+    // Step 2 — a separate, strict grading call that does see the key.
+    let grade_schema = json!({
+        "type": "object",
+        "properties": { "correct": { "type": "boolean" } },
+        "required": ["correct"],
+        "additionalProperties": false,
+    });
+    let grade_prompt = format!(
+        "You are a strict grader. Decide whether the candidate answer captures the \
+         substance of the reference rule. correct=true only if it does.\n\n\
+         Reference rule: {}\n{}\n\nCandidate answer: {}\n\nQuestion: {question}",
+        fact.title, fact.body, candidate.answer
+    );
+    let grade_content = complete("dream_grade", grade_schema, grade_prompt)?;
+    #[derive(Deserialize)]
+    struct Grade {
         correct: bool,
     }
-    let parsed: Answer = serde_json::from_str(content.trim())
-        .with_context(|| format!("Unparsable dream answer: {}", truncate(&content, 120)))?;
+    let grade: Grade = serde_json::from_str(grade_content.trim())
+        .with_context(|| format!("Unparsable dream grade: {}", truncate(&grade_content, 120)))?;
 
     Ok(Judgment {
         answer: DreamAnswer {
-            answer: parsed.answer,
-            correct: parsed.correct,
+            answer: candidate.answer,
+            correct: grade.correct,
         },
         confidence: 0.85,
         judged_by: Backend::Jev,

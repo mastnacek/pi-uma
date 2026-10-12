@@ -47,7 +47,12 @@ impl Fact {
             status: FactStatus::Stable,
             supersedes: None,
             generated: Some(ActorEvent::new("pi-agent/1.1")),
-            verified: vec![ActorEvent::new("human:operator")],
+            // Provenance is NOT fabricated here. A plain `Fact::new` is created
+            // by an agent/MCP/distillation path, which is not human review; the
+            // operator-approved slices (CLI write/supersede, staging approve)
+            // record `human:operator` explicitly. The review flagged the old
+            // blanket `verified: [human:operator]` as forged provenance.
+            verified: Vec::new(),
             validity: Validity::default(),
             tags: Vec::new(),
             links: Vec::new(),
@@ -72,8 +77,11 @@ impl Fact {
         self.status == FactStatus::Stable
     }
 
-    /// Computes the effective synaptic weight at the given timestamp.
-    pub fn effective_weight(&self, now: DateTime<Utc>) -> f64 {
+    /// Computes the decay-only synaptic weight at the given timestamp.
+    ///
+    /// Plasticity decay (and saliency's decay immunity) only — no retrieval
+    /// boost. This is the honest signal for zombie detection.
+    pub fn decayed_weight(&self, now: DateTime<Utc>) -> f64 {
         let immune = self
             .saliency
             .as_ref()
@@ -85,8 +93,25 @@ impl Fact {
             .unwrap_or(1.0)
     }
 
-    /// True if the fact is a rotting zombie rule (weight dropped below threshold).
+    /// Computes the effective retrieval-priority weight at the given timestamp.
+    ///
+    /// Decayed fitness boosted by the saliency multiplier, so a fact tagged
+    /// as a painful regression ranks higher without becoming decay-immune.
+    /// Bounded to [0.0, 1.0].
+    pub fn effective_weight(&self, now: DateTime<Utc>) -> f64 {
+        let multiplier = self
+            .saliency
+            .as_ref()
+            .map(|s| s.effective_multiplier())
+            .unwrap_or(1.0);
+        (self.decayed_weight(now) * multiplier).clamp(0.0, 1.0)
+    }
+
+    /// True if the fact is a rotting zombie rule (decayed weight below threshold).
+    ///
+    /// Uses the decay-only weight: a saliency boost must not hide a rule that
+    /// has genuinely decayed out of use.
     pub fn is_zombie(&self, now: DateTime<Utc>, threshold: f64) -> bool {
-        self.status == FactStatus::Stable && self.effective_weight(now) < threshold
+        self.status == FactStatus::Stable && self.decayed_weight(now) < threshold
     }
 }

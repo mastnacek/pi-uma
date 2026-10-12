@@ -254,7 +254,25 @@ fn prime_neighbors(
         return facts;
     }
 
-    let graph = uma_core::priming::AssociationGraph::build(&hit_facts);
+    // The graph MUST span the whole memory, not just the hits: an edge that
+    // exists only between the hits is already known, so spreading from them
+    // could never surface a new neighbor — which is exactly why this step used
+    // to be a no-op. Load every known root's facts (cheap for a personal store).
+    let mut graph_facts: Vec<uma_core::domain::Fact> = Vec::new();
+    if let Ok(roots) = uma_core::store::Store::all_known_roots() {
+        for root in roots {
+            if let Ok(all) = uma_core::store::Store::new(root).list_all() {
+                graph_facts.extend(all);
+            }
+        }
+    }
+    for fact in &hit_facts {
+        if !graph_facts.iter().any(|f| f.id == fact.id) {
+            graph_facts.push(fact.clone());
+        }
+    }
+
+    let graph = uma_core::priming::AssociationGraph::build(&graph_facts);
     let mut seen: Vec<String> = hits.clone();
 
     for hit_id in &hits {

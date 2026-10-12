@@ -92,25 +92,24 @@ pub fn route_task(
 ///
 /// Score = (keyword hits + name bonus) / (keyword count + 1), where a hit is
 /// a candidate marker appearing in the prompt and the name bonus rewards
-/// mentioning the pane outright. Token overlap (`tokenize`) would punish
-/// long prompts; substring hits keep a 200-word brief routable when it names
-/// its target once.
+/// mentioning the pane outright. Matching is on **whole tokens** (not raw
+/// substrings), so a scope named `human-…` no longer captures `uma` and
+/// `api` no longer fires inside `capital`; a long brief still routes when it
+/// names its target once.
 fn route_offline(prompt: &str, candidates: &[Specialist]) -> Judgment<RouteVerdict> {
-    let lower = prompt.to_lowercase();
     let prompt_tokens = tokenize(prompt);
 
     let mut scores: Vec<(String, f64)> = candidates
         .iter()
         .map(|candidate| {
             let name_hit = usize::from(
-                candidate.name.len() >= 3 && lower.contains(&candidate.name.to_lowercase()),
+                candidate.name.len() >= 3
+                    && crate::similarity::contains_word(prompt, &candidate.name),
             );
             let keyword_hits = candidate
                 .keywords
                 .iter()
-                .filter(|kw| {
-                    lower.contains(kw.as_str()) || prompt_tokens.iter().any(|token| token == *kw)
-                })
+                .filter(|kw| prompt_tokens.iter().any(|token| token == *kw))
                 .count();
             let score = (keyword_hits + name_hit) as f64 / (candidate.keywords.len() + 1) as f64;
             (candidate.name.clone(), score)

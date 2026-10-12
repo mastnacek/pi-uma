@@ -83,7 +83,15 @@ pub fn run_dream(
             }
         };
 
-        let proposal = if correct {
+        // Offline dreaming cannot answer, so a `correct=false` there is NOT a
+        // "wrong answer" verdict — reporting it as BLURRED was dishonest.
+        let graded = !judged_by.starts_with("offline");
+        let proposal = if !graded {
+            format!(
+                "UNGRADED: offline dreaming cannot answer, so nothing was graded. Review {} \"{}\" at weight {:.2} manually, or re-run with --judge jev.",
+                fact.id, fact.title, weight
+            )
+        } else if correct {
             format!(
                 "REINFORCE: reset plasticity of {} toward 1.0 (retrieval succeeded at weight {:.2}). Propose via modal: uma supersede with fresh stale_after.",
                 fact.id, weight
@@ -125,7 +133,13 @@ pub fn run_dream(
             r.title,
             r.effective_weight,
             r.judged_by,
-            if r.correct { "✓ correct" } else { "✗ blurred" }
+            if r.judged_by.starts_with("offline") {
+                "◌ ungraded"
+            } else if r.correct {
+                "✓ correct"
+            } else {
+                "✗ blurred"
+            }
         );
         println!("   Q: {}", r.question);
         println!("   A: {}", truncate(&r.answer, 120));

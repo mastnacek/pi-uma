@@ -144,31 +144,44 @@ fn offline_skeptic(input: &SkepticInput) -> Result<SkepticCritique, String> {
 
     // Keyword heuristics over the intent for the failure mode (file paths are
     // excluded: a file named `indexer/` must not classify the intent as data
-    // corruption on its own).
-    let lower = input.intent.to_lowercase();
-    let failure_mode = if lower.contains("lock")
-        || lower.contains("concurren")
-        || lower.contains("thread")
-        || lower.contains("async")
-    {
+    // corruption on its own). Whole-token matching, aligned with `risk`, so
+    // "api" does not fire on "capital" or "lock" on "block".
+    let intent = input.intent.as_str();
+    let hit = |markers: &[&str]| {
+        markers
+            .iter()
+            .any(|m| crate::similarity::contains_word(intent, m))
+    };
+    let failure_mode = if hit(&[
+        "lock",
+        "locked",
+        "locking",
+        "locks",
+        "concurrency",
+        "concurrent",
+        "thread",
+        "threads",
+        "async",
+        "deadlock",
+    ]) {
         FailureMode::ConcurrencyDeadlock
-    } else if lower.contains("unwrap")
-        || lower.contains("null")
-        || lower.contains("none")
-        || lower.contains("option")
-    {
+    } else if hit(&["unwrap", "null", "none", "nil", "option", "optional"]) {
         FailureMode::UnhandledNullEdgeCase
-    } else if lower.contains("index")
-        || lower.contains("write")
-        || lower.contains("store")
-        || lower.contains("migrat")
-    {
+    } else if hit(&[
+        "index",
+        "indexer",
+        "indexing",
+        "write",
+        "writes",
+        "writing",
+        "store",
+        "storage",
+        "migration",
+        "migrate",
+        "persist",
+    ]) {
         FailureMode::SilentDataCorruption
-    } else if lower.contains("api")
-        || lower.contains("contract")
-        || lower.contains("schema")
-        || lower.contains("public")
-    {
+    } else if hit(&["api", "contract", "contracts", "schema", "public", "interface"]) {
         FailureMode::BreakingPublicContract
     } else {
         FailureMode::NoneAcceptableRisk

@@ -87,16 +87,28 @@ impl Plasticity {
         (self.weight * decay).clamp(0.0, 1.0)
     }
 
-    /// Reinforces the fact on successful use (LTP): min(1.0, W + 0.05).
+    /// Reinforces the fact on successful use (LTP).
+    ///
+    /// The accumulated decay is baked in first, so "+0.05" is a real gain on
+    /// top of the current (decayed) fitness rather than a reset of the decay
+    /// clock that silently restores the original weight.
     pub fn reinforce(&mut self, now: DateTime<Utc>) {
-        self.weight = (self.weight + 0.05).min(1.0);
+        let current = self.effective_weight(now, false);
+        self.weight = (current + 0.05).min(1.0);
         self.reinforcements += 1;
         self.last_activated = Some(now);
     }
 
-    /// Penalizes the fact on error or rejection (LTD): max(0.0, W - 0.25).
+    /// Penalizes the fact on error or rejection (LTD): the decayed weight
+    /// minus 0.25, floored at 0.0.
+    ///
+    /// Decay is baked in BEFORE the penalty. The previous version reset
+    /// `last_activated` to `now` and only then subtracted — which erased all
+    /// accumulated decay, so frustrating an idle fact *raised* its effective
+    /// weight (e.g. 0.125 → 0.25). Frustration must never increase fitness.
     pub fn frustrate(&mut self, now: DateTime<Utc>) {
-        self.weight = (self.weight - 0.25).max(0.0);
+        let current = self.effective_weight(now, false);
+        self.weight = (current - 0.25).max(0.0);
         self.frustrations += 1;
         self.last_activated = Some(now);
     }
@@ -119,5 +131,24 @@ impl Default for Saliency {
             multiplier: 1.0,
             immune_to_decay: false,
         }
+    }
+}
+
+impl Saliency {
+    /// The retrieval multiplier actually in effect.
+    ///
+    /// Both saliency fields are now read: an explicit `multiplier` (when it
+    /// differs from the default 1.0) wins; otherwise the value derives from
+    /// `shock_level`, so a fact tagged as a painful regression is ranked up
+    /// without the author having to set two fields consistently. Bounded to
+    /// [0.0, 2.0] so saliency can boost but never dominate completely.
+    pub fn effective_multiplier(&self) -> f64 {
+        let base = if (self.multiplier - 1.0).abs() > f64::EPSILON {
+            self.multiplier
+        } else {
+            // shock 1 → 1.0, shock 5 → 1.8
+            1.0 + 0.2 * (self.shock_level.saturating_sub(1) as f64).min(4.0)
+        };
+        base.clamp(0.0, 2.0)
     }
 }

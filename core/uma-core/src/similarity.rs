@@ -138,6 +138,40 @@ pub fn has_negation(text: &str) -> bool {
         .any(|word| word.len() >= 5 && word.starts_with("ne") && !ENGLISH_NE_WORDS.contains(&word))
 }
 
+/// True when `needle` occurs in `haystack` as a whole token (surrounded by
+/// non-alphanumeric characters or the string edges).
+///
+/// The heuristic classifiers (skeptic, humility, route) previously used
+/// `str::contains`, so a marker matched inside an unrelated word: `api` in
+/// `capital`, `uma` in `human`, `ffi` in `efficient`. `risk` already matched
+/// whole tokens; this helper makes the others agree with it.
+///
+/// Markers that are not plain identifiers (spaces, punctuation) fall back to a
+/// lowercased substring test.
+pub fn contains_word(haystack: &str, needle: &str) -> bool {
+    let h = haystack.to_lowercase();
+    let n = needle.to_lowercase();
+    if n.is_empty() {
+        return false;
+    }
+    if !n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return h.contains(&n);
+    }
+    let bytes = h.as_bytes();
+    let mut from = 0;
+    while let Some(pos) = h[from..].find(&n) {
+        let abs = from + pos;
+        let before_ok = abs == 0 || !bytes[abs - 1].is_ascii_alphanumeric();
+        let end = abs + n.len();
+        let after_ok = end >= bytes.len() || !bytes[end].is_ascii_alphanumeric();
+        if before_ok && after_ok {
+            return true;
+        }
+        from = abs + 1;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,5 +231,27 @@ mod tests {
             jaccard(&a, &b) < 0.55,
             "unrelated Czech rules must not merge"
         );
+    }
+
+    #[test]
+    fn test_contains_word_rejects_substring_false_positives() {
+        // The exact false positives the review named.
+        assert!(!contains_word("ask a human about it", "uma"));
+        assert!(!contains_word("make it more efficient", "ffi"));
+        assert!(!contains_word("capital gains", "api"));
+        assert!(!contains_word("the model router", "mod"));
+        assert!(!contains_word("block the thread", "lock"));
+        assert!(!contains_word("restore the backup", "store"));
+    }
+
+    #[test]
+    fn test_contains_word_accepts_whole_tokens() {
+        assert!(contains_word("route this to uma please", "uma"));
+        assert!(contains_word("touch the FFI layer", "ffi"));
+        assert!(contains_word("change the public api schema", "api"));
+        assert!(contains_word("sqlite locking rewrite", "locking"));
+        assert!(contains_word("run the migration", "migration"));
+        // Non-identifier markers fall back to a substring test.
+        assert!(contains_word("use macro_rules here", "macro_rules"));
     }
 }

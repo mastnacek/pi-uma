@@ -4,7 +4,7 @@ use std::io::{self, Read};
 use std::str::FromStr;
 use uma_core::secrets;
 use uma_core::{
-    domain::{Contract, ContractRule, ContractSeverity, Fact, FactId, FactType},
+    domain::{ActorEvent, Contract, ContractRule, ContractSeverity, Fact, FactId, FactType},
     store::Store,
 };
 
@@ -172,6 +172,10 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
     };
 
     let mut new_fact = Fact::new(scope.clone(), fact_type, args.title, body);
+    // Supersession runs through the approval gate, so the revision is
+    // operator-reviewed: record it rather than inheriting the predecessor's
+    // verification blindly.
+    new_fact.verified = vec![ActorEvent::new("human:operator")];
     new_fact.description = args.description;
     new_fact.tags = tags;
     // Inherit like type/scope/tags: a revision must never silently drop the
