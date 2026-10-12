@@ -72,6 +72,14 @@ pub struct ShowDraftArgs {
 pub struct ApproveDraftArgs {
     /// Fact ID of the draft to promote
     pub id: String,
+
+    /// Optional title override (e.g. from review modal)
+    #[arg(short = 'T', long = "title")]
+    pub title: Option<String>,
+
+    /// Optional body override (e.g. from review modal)
+    #[arg(short = 'b', long = "body")]
+    pub body: Option<String>,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -164,8 +172,20 @@ pub fn run(args: StagingArgs) -> Result<()> {
             println!("\nBody:\n{}\n", draft.fact.body);
         }
         StagingCommand::Approve(app) => {
-            let fact = approve_draft(&store, &app.id)?;
-            println!("Approved and promoted draft {} to {}", app.id, fact.id);
+            let mut draft = load_draft(&store, &app.id)?;
+            if let Some(ref t) = app.title {
+                if !t.trim().is_empty() {
+                    draft.fact.title = t.trim().to_string();
+                }
+            }
+            if let Some(ref b) = app.body {
+                if !b.trim().is_empty() {
+                    draft.fact.body = b.trim().to_string();
+                }
+            }
+            store.write(&draft.fact)?;
+            let _ = delete_draft(&store, &app.id);
+            println!("Approved and promoted draft {} to {}", app.id, draft.fact.id);
         }
         StagingCommand::Discard(disc) => {
             delete_draft(&store, &disc.id)?;

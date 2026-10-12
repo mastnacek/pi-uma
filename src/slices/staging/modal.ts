@@ -55,6 +55,7 @@ export async function showStagingReviewModal(
   const translations = new Map<string, DisplayTranslation>();
 
   await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+    let inFlight = false;
     const editorTheme: EditorTheme = {
       borderColor: (str: string) => theme.fg("accent", str),
       selectList: {
@@ -262,17 +263,36 @@ export async function showStagingReviewModal(
 
         // Approve (always promotes original draft fact, never the display translation)
         if (matchesKey(data, "enter") || data.toLowerCase() === "a") {
+          if (inFlight) return true;
+          inFlight = true;
           void (async () => {
-            await runUma(binPath, ["staging", "approve", draft.id], ctx.cwd);
-            approvedCount++;
-            onDraftAction?.();
-            activeDrafts.splice(currentIndex, 1);
-            scrollOffset = 0;
-            if (activeDrafts.length === 0) {
-              done();
-            } else {
-              currentIndex = Math.min(currentIndex, activeDrafts.length - 1);
-              refresh();
+            try {
+              const args = ["staging", "approve", draft.id];
+              if (draft.fact.title) {
+                args.push("--title", draft.fact.title);
+              }
+              if (draft.fact.body) {
+                args.push("--body", draft.fact.body);
+              }
+              const result = await runUma(binPath, args, ctx.cwd);
+              if (result && result.code === 0) {
+                approvedCount++;
+                onDraftAction?.();
+                activeDrafts.splice(currentIndex, 1);
+                scrollOffset = 0;
+                if (activeDrafts.length === 0) {
+                  done();
+                } else {
+                  currentIndex = Math.min(currentIndex, activeDrafts.length - 1);
+                  refresh();
+                }
+              } else {
+                const err = result?.stderr || result?.stdout || "Failed to approve draft";
+                ctx.ui?.notify?.(err.trim(), "error");
+                refresh();
+              }
+            } finally {
+              inFlight = false;
             }
           })();
           return true;
@@ -280,17 +300,29 @@ export async function showStagingReviewModal(
 
         // Discard
         if (data.toLowerCase() === "d" || matchesKey(data, "delete") || matchesKey(data, "backspace")) {
+          if (inFlight) return true;
+          inFlight = true;
           void (async () => {
-            await runUma(binPath, ["staging", "discard", draft.id], ctx.cwd);
-            discardedCount++;
-            onDraftAction?.();
-            activeDrafts.splice(currentIndex, 1);
-            scrollOffset = 0;
-            if (activeDrafts.length === 0) {
-              done();
-            } else {
-              currentIndex = Math.min(currentIndex, activeDrafts.length - 1);
-              refresh();
+            try {
+              const result = await runUma(binPath, ["staging", "discard", draft.id], ctx.cwd);
+              if (result && result.code === 0) {
+                discardedCount++;
+                onDraftAction?.();
+                activeDrafts.splice(currentIndex, 1);
+                scrollOffset = 0;
+                if (activeDrafts.length === 0) {
+                  done();
+                } else {
+                  currentIndex = Math.min(currentIndex, activeDrafts.length - 1);
+                  refresh();
+                }
+              } else {
+                const err = result?.stderr || result?.stdout || "Failed to discard draft";
+                ctx.ui?.notify?.(err.trim(), "error");
+                refresh();
+              }
+            } finally {
+              inFlight = false;
             }
           })();
           return true;

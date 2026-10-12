@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { ExtensionState, MemoryProposal } from "../../shared/types.js";
-import { executeUma, readFactJson } from "../../shared/client.js";
+import { executeUma, readFactJson, scopeArgForCli } from "../../shared/client.js";
 import { showProposalModal } from "../../shared/modal.js";
 import { scanProposal, refusalText } from "../../shared/secrets_client.js";
 
@@ -101,7 +101,8 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
       if (approved.stale_after) args.push("--stale-after", approved.stale_after);
       if (approved.since) args.push("--since", approved.since);
       if (approved.type) args.push("--type", approved.type);
-      if (approved.scope) args.push("--scope", approved.scope);
+      const scopeArg = scopeArgForCli(approved.scope);
+      if (scopeArg) args.push("--scope", scopeArg);
       if (approved.tags.length > 0) args.push("--tags", approved.tags.join(","));
       return executeUma(ctx.cwd, args);
     },

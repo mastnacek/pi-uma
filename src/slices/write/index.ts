@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { ExtensionState, MemoryProposal } from "../../shared/types.js";
-import { executeUma } from "../../shared/client.js";
+import { executeUma, scopeArgForCli } from "../../shared/client.js";
 import { showProposalModal } from "../../shared/modal.js";
 import { scanProposal, refusalText } from "../../shared/secrets_client.js";
 
@@ -89,8 +89,9 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
       if (approvedProposal.type) {
         args.push("--type", approvedProposal.type);
       }
-      if (approvedProposal.scope) {
-        args.push("--scope", approvedProposal.scope);
+      const scopeArg = scopeArgForCli(approvedProposal.scope);
+      if (scopeArg) {
+        args.push("--scope", scopeArg);
       }
       if (approvedProposal.tags.length > 0) {
         args.push("--tags", approvedProposal.tags.join(","));

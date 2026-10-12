@@ -2,19 +2,19 @@
 type: Todo
 title: "Verify TS write tool scope resolution bug and staging modal edit drops"
 timestamp: 2026-10-12 10:12:11
-status: todo
+status: done
 source: pi-spai
 tags: [write, modal, staging, scope]
 facets:
   priority: high
   project: pi-uma
-  project_path: D:\01_programovani\pi\plugins\pi-uma
-spai_symbol: '.'
+  project_path: D:/01_programovani/pi/plugins/pi-uma
+spai_symbol: 'x'
 ---
 
 # SPAI-021: Verify TS write tool scope resolution bug and staging modal edit drops
 
-. Verify TS write tool scope resolution bug and staging modal edit drops @pi-uma !high :write:modal:staging:scope:
+x Verify TS write tool scope resolution bug and staging modal edit drops @pi-uma !high :write:modal:staging:scope:
 
 ## Context & Details
 Review flagged two client-side bugs in proposal creation and staging review:
