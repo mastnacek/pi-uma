@@ -62,7 +62,12 @@ impl AssociationGraph {
         for i in 0..active.len() {
             for j in (i + 1)..active.len() {
                 if let Some(weight) = association_strength(active[i], active[j]) {
-                    connect(&mut graph, &active[i].id.to_string(), &active[j].id.to_string(), weight);
+                    connect(
+                        &mut graph,
+                        &active[i].id.to_string(),
+                        &active[j].id.to_string(),
+                        weight,
+                    );
                 }
             }
         }
@@ -75,12 +80,7 @@ impl AssociationGraph {
     /// `decay` multiplies energy at each hop (0.5 = halve per hop, like the
     /// synaptic half-life). The source starts at 1.0; a node keeps its strongest
     /// arriving energy. `max_hops` bounds the walk.
-    pub fn spread(
-        &self,
-        source: &str,
-        decay: f64,
-        max_hops: usize,
-    ) -> Vec<ActivatedFact> {
+    pub fn spread(&self, source: &str, decay: f64, max_hops: usize) -> Vec<ActivatedFact> {
         let Some(start_pos) = self.index.get(source) else {
             return Vec::new();
         };
@@ -99,7 +99,9 @@ impl AssociationGraph {
                 continue; // below activation threshold: not worth spreading
             }
             for neighbor in self.adjacency.get(node).into_iter().flatten() {
-                let entry = energy.entry(neighbor.as_str()).or_insert((0.0, String::new()));
+                let entry = energy
+                    .entry(neighbor.as_str())
+                    .or_insert((0.0, String::new()));
                 if next_energy > entry.0 {
                     entry.0 = next_energy;
                     entry.1 = format!("via {node}");
@@ -117,7 +119,11 @@ impl AssociationGraph {
                 path,
             })
             .collect();
-        out.sort_by(|a, b| b.activation.partial_cmp(&a.activation).unwrap_or(std::cmp::Ordering::Equal));
+        out.sort_by(|a, b| {
+            b.activation
+                .partial_cmp(&a.activation)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         out
     }
 
@@ -163,7 +169,10 @@ fn association_strength(a: &Fact, b: &Fact) -> Option<f64> {
     }
 
     // File co-mention: same path stem in title or body.
-    if file_stems(a).iter().any(|stem| file_stems(b).contains(stem)) {
+    if file_stems(a)
+        .iter()
+        .any(|stem| file_stems(b).contains(stem))
+    {
         return Some(0.5);
     }
 
@@ -175,8 +184,14 @@ fn file_stems(fact: &Fact) -> Vec<String> {
     let text = format!("{} {}", fact.title, fact.body);
     let mut stems = Vec::new();
     for token in text.split(|c: char| !c.is_alphanumeric() && c != '/' && c != '.' && c != '_') {
-        if token.contains('/') && token.ends_with(".rs") || token.ends_with(".ts") || token.ends_with(".py") {
-            if let Some(stem) = std::path::Path::new(token).file_stem().and_then(|s| s.to_str()) {
+        if token.contains('/') && token.ends_with(".rs")
+            || token.ends_with(".ts")
+            || token.ends_with(".py")
+        {
+            if let Some(stem) = std::path::Path::new(token)
+                .file_stem()
+                .and_then(|s| s.to_str())
+            {
                 if !stem.is_empty() {
                     stems.push(stem.to_string());
                 }

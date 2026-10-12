@@ -135,10 +135,7 @@ impl std::str::FromStr for FactType {
                 // could traverse out of the store (path separators, `..`,
                 // drive letters, whitespace).
                 if !is_safe_dir_component(other) {
-                    anyhow::bail!(
-                        "Unsafe fact type '{}': only [a-z0-9_-]+ is allowed",
-                        other
-                    );
+                    anyhow::bail!("Unsafe fact type '{}': only [a-z0-9_-]+ is allowed", other);
                 }
                 FactType::Custom(other.to_string())
             }

@@ -152,14 +152,17 @@ fn test_underscore_prefixed_assignments_block() {
 fn test_identifier_ending_in_key_does_not_block() {
     // The keyword must start a word: `monkey=` is not a credential assignment.
     assert!(!is_blocked(&scan_text("monkey=0123456789abcdefghij")));
-    assert!(!is_blocked(&scan_text("a_keyish_name=0123456789abcdefghij")));
+    assert!(!is_blocked(&scan_text(
+        "a_keyish_name=0123456789abcdefghij"
+    )));
 }
 
 #[test]
 fn test_every_occurrence_is_checked_not_just_the_first() {
     // The first match is a placeholder; the real key comes later. A
     // single-`captures` scanner would stop at the placeholder and hide it.
-    let text = "api_key = CHANGEME_EXAMPLE_VALUE\napi_key = sk-proj-abcdefghij0123456789abcdefghij3";
+    let text =
+        "api_key = CHANGEME_EXAMPLE_VALUE\napi_key = sk-proj-abcdefghij0123456789abcdefghij3";
     let findings = scan_text(text);
     assert!(
         is_blocked(&findings),

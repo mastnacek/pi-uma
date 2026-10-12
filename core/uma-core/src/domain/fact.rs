@@ -74,7 +74,11 @@ impl Fact {
 
     /// Computes the effective synaptic weight at the given timestamp.
     pub fn effective_weight(&self, now: DateTime<Utc>) -> f64 {
-        let immune = self.saliency.as_ref().map(|s| s.immune_to_decay).unwrap_or(false);
+        let immune = self
+            .saliency
+            .as_ref()
+            .map(|s| s.immune_to_decay)
+            .unwrap_or(false);
         self.plasticity
             .as_ref()
             .map(|p| p.effective_weight(now, immune))

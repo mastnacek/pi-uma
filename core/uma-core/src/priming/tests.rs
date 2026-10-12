@@ -69,7 +69,11 @@ fn test_deprecated_facts_stay_cold() {
 
     let graph = AssociationGraph::build(&[a, b.clone()]);
     let spread = graph.spread(&b.id.to_string(), 0.9, 3);
-    assert_eq!(spread.len(), 1, "deprecated nodes are excluded from the graph");
+    assert_eq!(
+        spread.len(),
+        1,
+        "deprecated nodes are excluded from the graph"
+    );
 }
 
 #[test]

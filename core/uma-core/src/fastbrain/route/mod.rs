@@ -109,12 +109,10 @@ fn route_offline(prompt: &str, candidates: &[Specialist]) -> Judgment<RouteVerdi
                 .keywords
                 .iter()
                 .filter(|kw| {
-                    lower.contains(kw.as_str())
-                        || prompt_tokens.iter().any(|token| token == *kw)
+                    lower.contains(kw.as_str()) || prompt_tokens.iter().any(|token| token == *kw)
                 })
                 .count();
-            let score =
-                (keyword_hits + name_hit) as f64 / (candidate.keywords.len() + 1) as f64;
+            let score = (keyword_hits + name_hit) as f64 / (candidate.keywords.len() + 1) as f64;
             (candidate.name.clone(), score)
         })
         .collect();
@@ -132,9 +130,7 @@ fn route_offline(prompt: &str, candidates: &[Specialist]) -> Judgment<RouteVerdi
     let runner_score = runner_up.map(|(_, s)| *s).unwrap_or(0.0);
     let margin = winning_score - runner_score;
 
-    let confident = winner.is_some()
-        && winning_score >= MIN_WINNING_SCORE
-        && margin >= MIN_MARGIN;
+    let confident = winner.is_some() && winning_score >= MIN_WINNING_SCORE && margin >= MIN_MARGIN;
 
     let verdict = RouteVerdict {
         specialist: if confident {

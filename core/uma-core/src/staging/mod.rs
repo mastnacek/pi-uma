@@ -55,8 +55,8 @@ pub fn save_draft(store: &Store, draft: &StagedDraft) -> Result<PathBuf> {
         .with_context(|| format!("Failed to create staging directory {:?}", dir))?;
 
     let file_path = dir.join(format!("{}.json", draft.id.to_string().to_lowercase()));
-    let json = serde_json::to_string_pretty(draft)
-        .context("Failed to serialize staged draft to JSON")?;
+    let json =
+        serde_json::to_string_pretty(draft).context("Failed to serialize staged draft to JSON")?;
 
     std::fs::write(&file_path, json)
         .with_context(|| format!("Failed to write draft to {:?}", file_path))?;
@@ -93,7 +93,12 @@ pub fn load_draft(store: &Store, id_str: &str) -> Result<StagedDraft> {
 
     for entry in walkdir::WalkDir::new(&dir).into_iter().flatten() {
         if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
-            let stem = entry.path().file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_lowercase();
+            let stem = entry
+                .path()
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
             if stem == needle || stem.starts_with(&needle) {
                 let content = std::fs::read_to_string(entry.path())?;
                 let draft: StagedDraft = serde_json::from_str(&content)?;
@@ -112,7 +117,12 @@ pub fn delete_draft(store: &Store, id_str: &str) -> Result<()> {
 
     for entry in walkdir::WalkDir::new(&dir).into_iter().flatten() {
         if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
-            let stem = entry.path().file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_lowercase();
+            let stem = entry
+                .path()
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
             if stem == needle || stem.starts_with(&needle) {
                 std::fs::remove_file(entry.path())
                     .with_context(|| format!("Failed to delete draft {:?}", entry.path()))?;

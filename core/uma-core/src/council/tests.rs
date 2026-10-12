@@ -38,7 +38,10 @@ fn test_offline_skeptic_medium_band_is_questionable() {
 #[test]
 fn test_offline_skeptic_failure_mode_keywords() {
     let unwrap_intent = offline_skeptic(&input("unwrap the option value directly", 0, 0)).unwrap();
-    assert_eq!(unwrap_intent.failure_mode, FailureMode::UnhandledNullEdgeCase);
+    assert_eq!(
+        unwrap_intent.failure_mode,
+        FailureMode::UnhandledNullEdgeCase
+    );
 
     let api_intent = offline_skeptic(&input("change the public api schema", 0, 0)).unwrap();
     assert_eq!(api_intent.failure_mode, FailureMode::BreakingPublicContract);
@@ -64,7 +67,10 @@ fn test_live_jev_skeptic_critique() {
         &SkepticInput {
             intent: "Rewrite the shared SQLite indexer to allow concurrent writes without WAL mode"
                 .to_string(),
-            files: vec!["src/indexer/mod.rs".to_string(), "src/store/ops.rs".to_string()],
+            files: vec![
+                "src/indexer/mod.rs".to_string(),
+                "src/store/ops.rs".to_string(),
+            ],
             correction_mentions: 3,
             reverts: 2,
         },
@@ -75,6 +81,9 @@ fn test_live_jev_skeptic_critique() {
     assert_eq!(critique.judged_by, crate::fastbrain::Backend::Jev);
     assert!((0.0..=1.0).contains(&critique.devil_objection));
     // A no-WAL concurrent-write rewrite on a painful file must raise a flag.
-    assert!(critique.warrants_warning(), "expected the devil to object: {critique:?}");
+    assert!(
+        critique.warrants_warning(),
+        "expected the devil to object: {critique:?}"
+    );
     assert!(!critique.advice.is_empty());
 }

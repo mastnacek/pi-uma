@@ -110,10 +110,7 @@ pub struct SkepticInput {
 ///
 /// Jev is the semantic devil's advocate; offline is the deterministic floor
 /// built from the pain proxies the caller supplies.
-pub fn consult_skeptic(
-    input: &SkepticInput,
-    judge: Judge,
-) -> Result<SkepticCritique, String> {
+pub fn consult_skeptic(input: &SkepticInput, judge: Judge) -> Result<SkepticCritique, String> {
     match judge {
         Judge::Offline => offline_skeptic(input),
         Judge::Jev => match jev_transport::skeptic(input) {
@@ -149,13 +146,29 @@ fn offline_skeptic(input: &SkepticInput) -> Result<SkepticCritique, String> {
     // excluded: a file named `indexer/` must not classify the intent as data
     // corruption on its own).
     let lower = input.intent.to_lowercase();
-    let failure_mode = if lower.contains("lock") || lower.contains("concurren") || lower.contains("thread") || lower.contains("async") {
+    let failure_mode = if lower.contains("lock")
+        || lower.contains("concurren")
+        || lower.contains("thread")
+        || lower.contains("async")
+    {
         FailureMode::ConcurrencyDeadlock
-    } else if lower.contains("unwrap") || lower.contains("null") || lower.contains("none") || lower.contains("option") {
+    } else if lower.contains("unwrap")
+        || lower.contains("null")
+        || lower.contains("none")
+        || lower.contains("option")
+    {
         FailureMode::UnhandledNullEdgeCase
-    } else if lower.contains("index") || lower.contains("write") || lower.contains("store") || lower.contains("migrat") {
+    } else if lower.contains("index")
+        || lower.contains("write")
+        || lower.contains("store")
+        || lower.contains("migrat")
+    {
         FailureMode::SilentDataCorruption
-    } else if lower.contains("api") || lower.contains("contract") || lower.contains("schema") || lower.contains("public") {
+    } else if lower.contains("api")
+        || lower.contains("contract")
+        || lower.contains("schema")
+        || lower.contains("public")
+    {
         FailureMode::BreakingPublicContract
     } else {
         FailureMode::NoneAcceptableRisk
