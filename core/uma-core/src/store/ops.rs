@@ -18,8 +18,13 @@ impl Store {
             std::fs::create_dir_all(parent).context("Failed to create fact directory")?;
         }
         let content = fact_to_markdown(fact).context("Failed to serialize fact")?;
-        std::fs::write(&path, content)
-            .with_context(|| format!("Failed to write fact to {:?}", path))?;
+        let tmp_path = path.with_extension(format!("tmp.{}", FactId::new()));
+        std::fs::write(&tmp_path, &content)
+            .with_context(|| format!("Failed to write temporary fact to {:?}", tmp_path))?;
+        if let Err(e) = std::fs::rename(&tmp_path, &path) {
+            let _ = std::fs::remove_file(&tmp_path);
+            return Err(e).with_context(|| format!("Failed to atomically rename {:?} to {:?}", tmp_path, path));
+        }
 
         if self.is_canonical() {
             if let Ok(indexer) = Self::central_indexer() {
@@ -65,9 +70,17 @@ impl Store {
     /// Unlike [`Store::supersede`] it cannot reach outside `self`, so it is safe
     /// to call against a temporary store.
     pub fn supersede_within(&self, old_id: &FactId, new_fact: Fact) -> Result<Fact> {
+        if new_fact.id == *old_id {
+            anyhow::bail!("A fact cannot supersede itself: {}", old_id);
+        }
+        let saved_fact = self.store_revision(old_id, new_fact)?;
         let now = Utc::now();
-        self.retire(old_id, now)?;
-        self.store_revision(old_id, new_fact)
+        if let Err(e) = self.retire(old_id, now) {
+            let path = self.fact_path(&saved_fact.scope, &saved_fact.fact_type, &saved_fact.id);
+            let _ = std::fs::remove_file(path);
+            return Err(e).context("Failed to retire predecessor fact");
+        }
+        Ok(saved_fact)
     }
 
     /// Supersedes a fact whose location is unknown: finds the predecessor, retires
@@ -76,15 +89,23 @@ impl Store {
     /// Because the two stores are resolved independently, a supersession may move
     /// a fact between scopes (project → global, or the reverse).
     pub fn supersede(&self, old_id: &FactId, new_fact: Fact) -> Result<Fact> {
+        if new_fact.id == *old_id {
+            anyhow::bail!("A fact cannot supersede itself: {}", old_id);
+        }
         let old_fact = Self::find_by_id(old_id)?;
         let old_store = match &old_fact.scope {
             Scope::Global => Self::global()?,
             Scope::Project(p) => Self::project(p.clone())?,
         };
 
+        let saved_fact = self.store_revision(old_id, new_fact)?;
         let now = Utc::now();
-        old_store.retire(old_id, now)?;
-        self.store_revision(old_id, new_fact)
+        if let Err(e) = old_store.retire(old_id, now) {
+            let path = self.fact_path(&saved_fact.scope, &saved_fact.fact_type, &saved_fact.id);
+            let _ = std::fs::remove_file(path);
+            return Err(e).context("Failed to retire predecessor fact");
+        }
+        Ok(saved_fact)
     }
 
     /// Reads a fact from its Markdown file.

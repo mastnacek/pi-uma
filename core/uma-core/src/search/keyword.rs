@@ -98,12 +98,18 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         params_vec.push(ft.to_string());
     }
 
+    let sql_limit = if opts.as_of.is_some() {
+        opts.limit.max(50) * 10
+    } else {
+        opts.limit
+    };
+
     let mut stmt = conn.prepare(&sql)?;
     let mut rows = stmt.query(rusqlite::params_from_iter(
         params_vec
             .iter()
             .map(|s| s as &dyn rusqlite::ToSql)
-            .chain(std::iter::once(&opts.limit as &dyn rusqlite::ToSql)),
+            .chain(std::iter::once(&sql_limit as &dyn rusqlite::ToSql)),
     ))?;
 
     let mut hits = Vec::new();
@@ -125,6 +131,15 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         let rank: f64 = row.get(14)?;
 
         let status = FactStatus::from_str(&status_str).unwrap_or(FactStatus::Stable);
+
+        let now = Utc::now();
+        if opts.as_of.is_none() {
+            if let Ok(since_dt) = DateTime::parse_from_rfc3339(&since_str) {
+                if since_dt.with_timezone(&Utc) > now {
+                    continue;
+                }
+            }
+        }
 
         if let Some(target_dt) = opts.as_of {
             if let Ok(since_dt) = DateTime::parse_from_rfc3339(&since_str) {
@@ -169,6 +184,10 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
             file_path,
             score: -rank,
         });
+
+        if hits.len() >= opts.limit {
+            break;
+        }
     }
     Ok(hits)
 }

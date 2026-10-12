@@ -58,10 +58,11 @@ impl Indexer {
         Ok(count)
     }
 
-    /// Initializes the FTS5 keyword and vector storage schemas.
+    /// Initializes the FTS5 keyword, vector storage, and persistent known_roots schemas.
     ///
     /// The FTS index is a rebuildable cache, so when the column layout changes
     /// the old table is dropped rather than failing on a stale database.
+    /// Known roots are preserved in `known_roots` so other projects are never lost.
     fn init_schema(&self) -> Result<()> {
         self.conn
             .execute(
@@ -69,6 +70,13 @@ impl Indexer {
                 [],
             )
             .context("Failed to initialize uma_meta table")?;
+
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS known_roots (root TEXT PRIMARY KEY, last_seen TEXT NOT NULL)",
+                [],
+            )
+            .context("Failed to initialize known_roots table")?;
 
         let current: i64 = self
             .conn
@@ -93,6 +101,25 @@ impl Indexer {
         };
 
         if !has_expected_columns || current != FTS_SCHEMA_VERSION {
+            // Recover any existing roots from facts_fts into known_roots before dropping
+            if let Ok(mut stmt) = self
+                .conn
+                .prepare("SELECT DISTINCT file_path FROM facts_fts WHERE file_path != ''")
+            {
+                let now_str = chrono::Utc::now().to_rfc3339();
+                if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                    for file in rows.flatten() {
+                        if let Some(root) = std::path::PathBuf::from(&file).parent().and_then(|t| t.parent()) {
+                            let root_str = root.to_string_lossy().to_string();
+                            let _ = self.conn.execute(
+                                "INSERT INTO known_roots (root, last_seen) VALUES (?1, ?2)
+                                 ON CONFLICT(root) DO UPDATE SET last_seen = excluded.last_seen",
+                                params![root_str, now_str],
+                            );
+                        }
+                    }
+                }
+            }
             let _ = self.conn.execute_batch("DROP TABLE IF EXISTS facts_fts;");
         }
 

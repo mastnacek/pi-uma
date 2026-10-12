@@ -2,19 +2,19 @@
 type: Todo
 title: "Verify indexer schema bump foreign roots loss, atomic writes, and temporal as_of queries"
 timestamp: 2026-10-12 10:12:14
-status: todo
+status: done
 source: pi-spai
 tags: [indexer, sqlite, temporal, atomicity]
 facets:
   priority: high
   project: pi-uma
-  project_path: D:\01_programovani\pi\plugins\pi-uma
-spai_symbol: '.'
+  project_path: D:/01_programovani/pi/plugins/pi-uma
+spai_symbol: 'x'
 ---
 
 # SPAI-022: Verify indexer schema bump foreign roots loss, atomic writes, and temporal as_of queries
 
-. Verify indexer schema bump foreign roots loss, atomic writes, and temporal as_of queries @pi-uma !high :indexer:sqlite:temporal:atomicity:
+x Verify indexer schema bump foreign roots loss, atomic writes, and temporal as_of queries @pi-uma !high :indexer:sqlite:temporal:atomicity:
 
 ## Context & Details
 Review identified cache/index loss risks, race conditions, and query bugs:

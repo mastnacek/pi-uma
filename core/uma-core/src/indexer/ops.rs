@@ -64,6 +64,20 @@ impl Indexer {
                 ],
             )?;
         tx.commit()?;
+
+        // Register the store root in persistent known_roots table
+        if let Some(fp) = file_path {
+            if let Some(root) = fp.parent().and_then(|t| t.parent()) {
+                let root_str = root.to_string_lossy().to_string();
+                let now_str = chrono::Utc::now().to_rfc3339();
+                let _ = self.conn.execute(
+                    "INSERT INTO known_roots (root, last_seen) VALUES (?1, ?2)
+                     ON CONFLICT(root) DO UPDATE SET last_seen = excluded.last_seen",
+                    params![root_str, now_str],
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -98,6 +112,18 @@ impl Indexer {
             }
         }
 
+        // Recover store roots from persistent known_roots table:
+        if let Ok(mut stmt) = self.conn.prepare("SELECT root FROM known_roots") {
+            if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                for r_str in rows.flatten() {
+                    let r_path = PathBuf::from(r_str);
+                    if !roots.contains(&r_path) {
+                        roots.push(r_path);
+                    }
+                }
+            }
+        }
+
         // Recover store roots from existing rows: file_path is <root>/<type>/<id>.md.
         if let Ok(mut stmt) = self
             .conn
@@ -114,6 +140,14 @@ impl Indexer {
                         roots.push(root);
                     }
                 }
+            }
+        }
+
+        // Prune deleted roots from known_roots
+        for r in &roots {
+            if !r.exists() {
+                let r_str = r.to_string_lossy().to_string();
+                let _ = self.conn.execute("DELETE FROM known_roots WHERE root = ?1", params![r_str]);
             }
         }
 

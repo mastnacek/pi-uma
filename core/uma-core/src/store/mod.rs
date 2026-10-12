@@ -169,7 +169,8 @@ impl Store {
         Indexer::open(Self::central_db_path()?)
     }
 
-    fn fact_path(&self, _scope: &Scope, fact_type: &FactType, id: &FactId) -> PathBuf {
+    /// Computes the storage path for a fact within this store root.
+    pub fn fact_path(&self, _scope: &Scope, fact_type: &FactType, id: &FactId) -> PathBuf {
         self.root
             .join(fact_type.dir_name())
             .join(format!("{}.md", id))

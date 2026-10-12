@@ -4,7 +4,9 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use std::str::FromStr;
 use uma_core::domain::{Fact, FactType, Scope};
-use uma_core::staging::{approve_draft, delete_draft, list_drafts, load_draft, save_draft, StagedDraft, StagedProvenance};
+use uma_core::staging::{
+    delete_draft, list_drafts, load_draft, save_draft, StagedDraft, StagedProvenance,
+};
 use uma_core::store::Store;
 
 #[derive(Args, Debug, Clone)]
@@ -185,7 +187,10 @@ pub fn run(args: StagingArgs) -> Result<()> {
             }
             store.write(&draft.fact)?;
             let _ = delete_draft(&store, &app.id);
-            println!("Approved and promoted draft {} to {}", app.id, draft.fact.id);
+            println!(
+                "Approved and promoted draft {} to {}",
+                app.id, draft.fact.id
+            );
         }
         StagingCommand::Discard(disc) => {
             delete_draft(&store, &disc.id)?;
@@ -194,7 +199,12 @@ pub fn run(args: StagingArgs) -> Result<()> {
         StagingCommand::Create(create) => {
             let fact_type = FactType::from_str(&create.fact_type)?;
             let project = Store::current_project_name().unwrap_or_else(|| "project".to_string());
-            let mut fact = Fact::new(Scope::Project(project), fact_type, create.title, create.body);
+            let mut fact = Fact::new(
+                Scope::Project(project),
+                fact_type,
+                create.title,
+                create.body,
+            );
             fact.tags = create.tags;
             fact.template = create.template;
 
@@ -227,7 +237,10 @@ pub fn run(args: StagingArgs) -> Result<()> {
             let answer = judgment.answer;
             if !answer.is_durable {
                 if distill.json {
-                    println!("{}", serde_json::json!({ "durable": false, "judged_by": judgment.judged_by.as_str() }));
+                    println!(
+                        "{}",
+                        serde_json::json!({ "durable": false, "judged_by": judgment.judged_by.as_str() })
+                    );
                 } else {
                     println!(
                         "Telemetry judged not durable by {} — skipping staging.",
@@ -239,7 +252,10 @@ pub fn run(args: StagingArgs) -> Result<()> {
 
             let fact_type = FactType::from_str(&answer.fact_type)?;
             let project = Store::current_project_name().unwrap_or_else(|| "project".to_string());
-            let body = format!("### Context\n{}\n\n### Rule\n{}", answer.context, answer.rule);
+            let body = format!(
+                "### Context\n{}\n\n### Rule\n{}",
+                answer.context, answer.rule
+            );
             let mut fact = Fact::new(Scope::Project(project), fact_type, answer.title, body);
             fact.tags = answer.tags;
 
@@ -259,7 +275,10 @@ pub fn run(args: StagingArgs) -> Result<()> {
             } else {
                 println!(
                     "Distilled and saved draft [{}] '{}' via {} at {:?}",
-                    draft.fact.fact_type, draft.fact.title, judgment.judged_by.as_str(), path
+                    draft.fact.fact_type,
+                    draft.fact.title,
+                    judgment.judged_by.as_str(),
+                    path
                 );
             }
         }

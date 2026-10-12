@@ -86,6 +86,15 @@ pub fn search_semantic(
 
         let status = FactStatus::from_str(&status_str).unwrap_or(FactStatus::Stable);
 
+        let now = Utc::now();
+        if opts.as_of.is_none() {
+            if let Ok(since_dt) = DateTime::parse_from_rfc3339(&since_str) {
+                if since_dt.with_timezone(&Utc) > now {
+                    continue;
+                }
+            }
+        }
+
         if let Some(target_dt) = opts.as_of {
             if let Ok(since_dt) = DateTime::parse_from_rfc3339(&since_str) {
                 if since_dt.with_timezone(&Utc) > target_dt {

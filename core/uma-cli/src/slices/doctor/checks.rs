@@ -44,7 +44,7 @@ pub fn count_fact_files(root: Option<&Path>) -> usize {
         .into_iter()
         .flatten()
         .filter(|entry| {
-            if !entry.file_type().is_file() || !entry.path().extension().is_some_and(|x| x == "md") {
+            if !entry.file_type().is_file() || entry.path().extension().is_none_or(|x| x != "md") {
                 return false;
             }
             if let Ok(content) = std::fs::read_to_string(entry.path()) {
