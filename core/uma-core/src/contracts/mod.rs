@@ -73,12 +73,25 @@ fn find_in_path(binary: &str) -> Option<PathBuf> {
 }
 
 /// Discovers an available `ast-grep` executable.
+///
+/// On Unix, the `sg` alias is deliberately rejected: `/usr/bin/sg` is
+/// shadow-utils' "execute with different group ID" tool, not ast-grep. A
+/// blind alias fallback would silently run the wrong program. ast-grep is
+/// only trusted when it carries its unambiguous name, or via the known npm
+/// package layout below.
 pub fn find_ast_grep() -> Option<PathBuf> {
     let binary_name = if cfg!(windows) { "ast-grep.exe" } else { "ast-grep" };
-    let alias_name = if cfg!(windows) { "sg.exe" } else { "sg" };
 
-    if let Some(path) = find_in_path(binary_name).or_else(|| find_in_path(alias_name)) {
+    if let Some(path) = find_in_path(binary_name) {
         return Some(path);
+    }
+
+    // Windows: the npm `@ast-grep/cli` shim ships as `sg.exe`; there is no
+    // shadow-utils collision there, so the alias is safe on that platform only.
+    if cfg!(windows) {
+        if let Some(path) = find_in_path("sg.exe") {
+            return Some(path);
+        }
     }
 
     if let Some(home) = directories::BaseDirs::new().map(|d| d.home_dir().to_path_buf()) {

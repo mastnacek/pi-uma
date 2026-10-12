@@ -119,6 +119,19 @@ fn run_check(args: CheckArgs) -> Result<()> {
         return Ok(());
     }
 
+    // An unverifiable run (engine missing / scan failed) has no violations but
+    // is NOT clean: say so instead of printing a misleading "0 violations".
+    if report.violations.is_empty() {
+        println!(
+            "✗ Contracts were NOT verified ({}): {} rule(s) unverified.",
+            report.engine, report.rules_checked
+        );
+        if args.strict {
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
     println!(
         "✗ {} contract violation(s) detected via {}:\n",
         report.violations.len(),

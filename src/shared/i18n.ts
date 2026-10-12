@@ -53,6 +53,7 @@ export interface Strings {
   humilityGateCurrent: string;
   muscleDialogTitle: string;
   muscleRunConfirm: string;
+  muscleStepsLabel: string;
   muscleProposalStaged: string;
   descUmaCommand: string;
   scopeGlobal: string;
@@ -178,6 +179,7 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
     humilityGateCurrent: "Humility gate state: ",
     muscleDialogTitle: "⚡ UMA muscle routine",
     muscleRunConfirm: "Execute muscle routine ",
+    muscleStepsLabel: "Commands to run:",
     muscleProposalStaged: "💪 Repeated command sequence detected — muscle routine proposal staged for /uma review ({name})",
     descUmaCommand: "Universal Memory Architecture (UMA) manager",
     scopeGlobal: "Global (all projects)",
@@ -294,6 +296,7 @@ Tip: Přidejte přepínač --global pro trvalé uložení do ~/.pi/agent/uma.jso
     humilityGateCurrent: "Stav brány pokory: ",
     muscleDialogTitle: "⚡ UMA svalová rutina",
     muscleRunConfirm: "Spustit svalovou rutinu ",
+    muscleStepsLabel: "Příkazy ke spuštění:",
     muscleProposalStaged: "💪 Detekována opakovaná sekvence příkazů — návrh rutiny staged pro /uma review ({name})",
     descUmaCommand: "Správa paměťového systému UMA",
     scopeGlobal: "Globální (všechny projekty)",

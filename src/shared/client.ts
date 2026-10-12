@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { ContractDefinition } from "./types.js";
 
 function getPackageDir(): string {
   const currentFile = typeof __filename !== "undefined"
@@ -80,6 +81,8 @@ export interface FactSummary {
   type: string;
   scope: string;
   tags: string[];
+  /** Executable AST contract, when the fact carries one. */
+  contract?: ContractDefinition;
 }
 
 /**
@@ -97,6 +100,7 @@ export async function readFactJson(cwd: string, id: string): Promise<FactSummary
       fact_type: unknown;
       scope: unknown;
       tags?: string[];
+      contract?: ContractDefinition;
     };
     return {
       id: raw.id,
@@ -104,6 +108,7 @@ export async function readFactJson(cwd: string, id: string): Promise<FactSummary
       type: enumValue(raw.fact_type),
       scope: scopeValue(raw.scope),
       tags: raw.tags ?? [],
+      contract: raw.contract,
     };
   } catch {
     return undefined;
@@ -171,6 +176,39 @@ export function scopeArgForCli(scope: string | undefined): string | undefined {
     return undefined;
   }
   return scope.trim();
+}
+
+/** One executable muscle step, as serialized by `uma muscle list --json`. */
+export interface MuscleStepView {
+  command: string;
+  args: string[];
+  label?: string | null;
+}
+
+interface MuscleRoutineView {
+  name: string;
+  steps: MuscleStepView[];
+}
+
+/**
+ * Fetches the concrete step list for a curated routine so a consent dialog can
+ * show exactly what would execute. Returns `undefined` when the routine is
+ * unknown or the CLI cannot enumerate it — callers must then refuse to imply
+ * an understood run rather than guessing.
+ */
+export async function fetchMuscleSteps(
+  binPath: string,
+  cwd: string,
+  name: string,
+): Promise<MuscleStepView[] | undefined> {
+  const res = await runUma(binPath, ["muscle", "list", "--json"], cwd);
+  if (res.code !== 0) return undefined;
+  try {
+    const routines = JSON.parse(res.stdout) as MuscleRoutineView[];
+    return routines.find((r) => r.name === name)?.steps ?? [];
+  } catch {
+    return undefined;
+  }
 }
 
 export interface RuleSummary {

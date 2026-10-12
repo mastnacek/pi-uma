@@ -7,6 +7,7 @@ import { getUmaCompletions } from "./complete.js";
 import { translateOutputForDisplay } from "../../shared/translate_client.js";
 import { startStagingReview } from "../../shared/staging_client.js";
 import { confirmMuscleExecution } from "../../shared/muscle_dialog.js";
+import { fetchMuscleSteps } from "../../shared/client.js";
 
 export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void {
   const s = stringsFor(state.config.lang);
@@ -225,7 +226,8 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         } else if (action === "run" && cleanParts[2]) {
           const wantsConfirm = cleanParts.includes("--confirm");
           if (wantsConfirm) {
-            const proceed = await confirmMuscleExecution(ctx, state, cleanParts[2]);
+            const steps = await fetchMuscleSteps(binPath, ctx.cwd, cleanParts[2]);
+            const proceed = await confirmMuscleExecution(ctx, state, cleanParts[2], steps);
             if (!proceed) {
               ctx.ui.notify(`Execution of '${cleanParts[2]}' declined; dry-run only.`, "warning");
               return;

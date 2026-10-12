@@ -138,7 +138,15 @@ fn list_routines() -> Result<Vec<MuscleRoutine>> {
             if !fact.is_active_at(chrono::Utc::now()) {
                 continue;
             }
-            if !fact.tags.iter().any(|t| t.eq_ignore_ascii_case("muscle")) {
+            // Curated routines are skill facts tagged `muscle`/`routine`, or
+            // titled `muscle:<name>`. Mirror `find_routine` exactly so a
+            // runnable routine is always listable (and its steps visible to
+            // the consent dialog).
+            let has_muscle_tag = fact
+                .tags
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case("muscle") || t.eq_ignore_ascii_case("routine"));
+            if !has_muscle_tag && !fact.title.starts_with("muscle:") {
                 continue;
             }
             let Some(ref template) = fact.template else {
@@ -167,6 +175,9 @@ fn run_routine_cmd(args: RunArgs) -> Result<()> {
 
     if args.json {
         println!("{}", serde_json::to_string_pretty(&report)?);
+        if !report.success && !report.dry_run {
+            std::process::exit(1);
+        }
         return Ok(());
     }
 

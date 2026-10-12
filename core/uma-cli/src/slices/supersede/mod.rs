@@ -4,7 +4,7 @@ use std::io::{self, Read};
 use std::str::FromStr;
 use uma_core::secrets;
 use uma_core::{
-    domain::{Fact, FactId, FactType},
+    domain::{Contract, ContractRule, ContractSeverity, Fact, FactId, FactType},
     store::Store,
 };
 
@@ -56,12 +56,87 @@ pub struct SupersedeArgs {
     /// `since` — a revision restates an existing claim, so its origin keeps)
     #[arg(long = "since", value_name = "WHEN")]
     pub since: Option<String>,
+
+    /// Set/replace the executable AST contract pattern (ast-grep). Any
+    /// `--contract-*` flag marks the contract as revised rather than inherited.
+    #[arg(long = "contract-pattern")]
+    pub contract_pattern: Option<String>,
+
+    /// Set/replace the contract's `inside` glob (which files the rule scans).
+    #[arg(long = "contract-inside", value_name = "GLOB")]
+    pub contract_inside: Option<String>,
+
+    /// Set/replace the contract language (e.g. Rust, TypeScript).
+    #[arg(long = "contract-language", value_name = "LANG")]
+    pub contract_language: Option<String>,
+
+    /// Set/replace the contract failure message.
+    #[arg(long = "contract-message")]
+    pub contract_message: Option<String>,
+
+    /// Set/replace the contract severity.
+    #[arg(long = "contract-severity", value_parser = ["deny", "warn"])]
+    pub contract_severity: Option<String>,
+
+    /// Remove the executable contract from the revision entirely.
+    #[arg(long = "no-contract")]
+    pub no_contract: bool,
+}
+
+/// Resolves the revision's contract: unchanged inheritance by default, an
+/// explicit override when any `--contract-*` flag is present, or removal.
+fn resolve_contract(old: &Fact, args: &SupersedeArgs) -> Result<Option<Contract>> {
+    if args.no_contract {
+        return Ok(None);
+    }
+    let touched = args.contract_pattern.is_some()
+        || args.contract_inside.is_some()
+        || args.contract_language.is_some()
+        || args.contract_message.is_some()
+        || args.contract_severity.is_some();
+    if !touched {
+        return Ok(old.contract.clone());
+    }
+    let mut contract = old.contract.clone().unwrap_or(Contract {
+        engine: "ast-grep".to_string(),
+        severity: ContractSeverity::Deny,
+        rule: ContractRule {
+            pattern: String::new(),
+            inside: None,
+            message: String::new(),
+            language: None,
+        },
+    });
+    if let Some(p) = &args.contract_pattern {
+        contract.rule.pattern = p.clone();
+    }
+    if let Some(i) = &args.contract_inside {
+        contract.rule.inside = if i.trim().is_empty() { None } else { Some(i.clone()) };
+    }
+    if let Some(l) = &args.contract_language {
+        contract.rule.language = if l.trim().is_empty() { None } else { Some(l.clone()) };
+    }
+    if let Some(m) = &args.contract_message {
+        contract.rule.message = m.clone();
+    }
+    if let Some(s) = &args.contract_severity {
+        contract.severity = ContractSeverity::from_str(s)?;
+    }
+    if contract.rule.pattern.trim().is_empty() {
+        anyhow::bail!("A contract requires a non-empty --contract-pattern");
+    }
+    Ok(Some(contract))
 }
 
 /// Executes the Supersede vertical slice: chains supersession and invalidates previous fact.
 pub fn run(args: SupersedeArgs) -> Result<()> {
     let old_id = FactId::from_str(&args.old_id)?;
     let old_fact = Store::find_by_id(&old_id)?;
+
+    // Resolve the contract before any `args` field is moved out. Inherit by
+    // default; a revision may explicitly revise it (`--contract-*`) or drop
+    // it (`--no-contract`).
+    let contract = resolve_contract(&old_fact, &args)?;
 
     let fact_type = match args.fact_type {
         Some(t) => FactType::from_str(&t)?,
@@ -94,9 +169,7 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
     // Inherit like type/scope/tags: a revision must never silently drop the
     // invocation template, or the skill would stop being invokable.
     new_fact.template = args.template.or_else(|| old_fact.template.clone());
-    // Inherit executable AST contract: a revision restates the architectural rule
-    // and must not silently strip its CI invariants or immune block-mode.
-    new_fact.contract = old_fact.contract.clone();
+    new_fact.contract = contract;
     // Inherit synaptic plasticity and emotional saliency across supersession
     new_fact.plasticity = old_fact.plasticity.clone();
     new_fact.saliency = old_fact.saliency.clone();

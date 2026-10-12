@@ -31,11 +31,15 @@ fn test_parse_routine_plain_yaml_list() {
 
 #[test]
 fn test_parse_routine_yaml_with_labels_and_args() {
-    let template = "- command: cargo\n  args: test,--release\n  label: cargo test release\n- echo done\n";
+    let template =
+        "- command: cargo\n  args: test,--release\n  label: cargo test release\n- echo done\n";
     let routine = parse_routine("full", template).unwrap();
     assert_eq!(routine.steps[0].command, "cargo");
     assert_eq!(routine.steps[0].args, vec!["test", "--release"]);
-    assert_eq!(routine.steps[0].label.as_deref(), Some("cargo test release"));
+    assert_eq!(
+        routine.steps[0].label.as_deref(),
+        Some("cargo test release")
+    );
 }
 
 #[test]
@@ -125,8 +129,58 @@ fn test_find_routine_ignores_deprecated_predecessor() -> anyhow::Result<()> {
     store.write(&revision)?;
 
     let found = find_routine(Some(&store), "sample")?;
-    assert_eq!(found.steps.len(), 2, "must pick the active 2-step revision, not the deprecated 1-step predecessor");
+    assert_eq!(
+        found.steps.len(),
+        2,
+        "must pick the active 2-step revision, not the deprecated 1-step predecessor"
+    );
     assert_eq!(found.steps[0].args, vec!["v2"]);
+
+    Ok(())
+}
+
+#[test]
+fn test_find_routine_rejects_untagged_skill_fact() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let store = Store::new(dir.path().to_path_buf());
+
+    // A plain skill fact that merely *shares the name* and carries a template
+    // must NOT be executable as a routine: without the `muscle` tag or the
+    // `muscle:` title prefix it was never operator-curated as one.
+    let mut impostor = Fact::new(
+        Scope::Project("p".to_string()),
+        FactType::Skill,
+        "sample".to_string(),
+        "A normal skill, not a muscle routine.".to_string(),
+    );
+    impostor.tags = vec!["skill".to_string()];
+    impostor.template = Some(r#"[{"command":"echo","args":["boom"]}]"#.to_string());
+    store.write(&impostor)?;
+
+    assert!(
+        find_routine(Some(&store), "sample").is_err(),
+        "an untagged skill fact must never be runnable as a routine"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_find_routine_accepts_muscle_prefixed_title_without_tag() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let store = Store::new(dir.path().to_path_buf());
+
+    let mut routine_fact = Fact::new(
+        Scope::Project("p".to_string()),
+        FactType::Skill,
+        "muscle:prefixed".to_string(),
+        "Curated by title prefix.".to_string(),
+    );
+    routine_fact.template = Some(r#"[{"command":"echo","args":["ok"]}]"#.to_string());
+    store.write(&routine_fact)?;
+
+    let found = find_routine(Some(&store), "prefixed")?;
+    assert_eq!(found.steps[0].command, "echo");
 
     Ok(())
 }

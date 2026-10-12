@@ -2,19 +2,19 @@
 type: Todo
 title: "Verify muscle command runner execution safety, contract code injection, and immune ReDoS"
 timestamp: 2026-10-12 10:12:23
-status: todo
+status: working
 source: pi-spai
 tags: [muscle, contracts, immune, safety]
 facets:
   priority: medium
   project: pi-uma
-  project_path: D:\01_programovani\pi\plugins\pi-uma
-spai_symbol: '.'
+  project_path: D:/01_programovani/pi/plugins/pi-uma
+spai_symbol: '/'
 ---
 
 # SPAI-025: Verify muscle command runner execution safety, contract code injection, and immune ReDoS
 
-. Verify muscle command runner execution safety, contract code injection, and immune ReDoS @pi-uma !medium :muscle:contracts:immune:safety:
+/ Verify muscle command runner execution safety, contract code injection, and immune ReDoS @pi-uma !medium :muscle:contracts:immune:safety:
 
 ## Context & Details
 Review flagged command execution, code generation, and regex risks:

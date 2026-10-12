@@ -119,7 +119,10 @@ fn parse_yaml_steps(trimmed: &str) -> Result<Vec<MuscleStep>> {
             if let Some(prev) = current.take() {
                 steps.push(prev);
             }
-            let raw = line.trim_start()[2..].trim().trim_matches(['"', '\'']).to_string();
+            let raw = line.trim_start()[2..]
+                .trim()
+                .trim_matches(['"', '\''])
+                .to_string();
             let mut parts = raw.split_whitespace();
             let command = parts.next().context("Empty routine step")?.to_string();
             current = Some(MuscleStep {
@@ -178,10 +181,18 @@ pub fn find_routine(store_hint: Option<&Store>, name: &str) -> Result<MuscleRout
             if !fact.is_active_at(chrono::Utc::now()) {
                 continue;
             }
+            let has_muscle_tag = fact
+                .tags
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case("muscle") || t.eq_ignore_ascii_case("routine"));
+            let is_muscle_title = fact.title.starts_with("muscle:");
+            if (!has_muscle_tag && !is_muscle_title) || fact.template.is_none() {
+                continue;
+            }
             let routine_name = fact.title.strip_prefix("muscle:").unwrap_or(&fact.title);
             let name_matches = routine_name.eq_ignore_ascii_case(name)
                 || fact.tags.iter().any(|t| t.eq_ignore_ascii_case(&wanted));
-            if !name_matches || fact.template.is_none() {
+            if !name_matches {
                 continue;
             }
             let mut routine = parse_routine(name, fact.template.as_deref().unwrap())?;
@@ -230,7 +241,11 @@ pub fn run_routine(routine: &MuscleRoutine, workdir: &Path, confirm: bool) -> Re
             steps: Vec::new(),
             summary: format!(
                 "DRY-RUN would execute:\n{}",
-                steps.iter().map(|s| format!("  $ {s}")).collect::<Vec<_>>().join("\n")
+                steps
+                    .iter()
+                    .map(|s| format!("  $ {s}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             ),
             dry_run: true,
         });
@@ -246,9 +261,24 @@ pub fn run_routine(routine: &MuscleRoutine, workdir: &Path, confirm: bool) -> Re
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let mut tail: String = format!("{stdout}{stderr}").lines().rev().take(5).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+        let mut tail: String = format!("{stdout}{stderr}")
+            .lines()
+            .rev()
+            .take(5)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join("\n");
         if tail.len() > 400 {
-            tail = tail.chars().rev().take(400).collect::<String>().chars().rev().collect();
+            tail = tail
+                .chars()
+                .rev()
+                .take(400)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect();
         }
 
         let result = StepResult {
@@ -266,16 +296,27 @@ pub fn run_routine(routine: &MuscleRoutine, workdir: &Path, confirm: bool) -> Re
     }
 
     let steps_run = results.len();
-    let success = steps_run == routine.steps.len() && results.last().map(|r| r.success).unwrap_or(false);
+    let success =
+        steps_run == routine.steps.len() && results.last().map(|r| r.success).unwrap_or(false);
     let summary = if success {
         format!(
             "✓ {} step(s) OK: {} — ready.",
             steps_run,
-            results.iter().map(|r| r.label.as_str()).collect::<Vec<_>>().join(", ")
+            results
+                .iter()
+                .map(|r| r.label.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     } else {
-        let failed = results.last().map(|r| format!("{} (exit {})", r.label, r.exit_code)).unwrap_or_default();
-        format!("✗ stopped at step {steps_run}/{}: {failed}", routine.steps.len())
+        let failed = results
+            .last()
+            .map(|r| format!("{} (exit {})", r.label, r.exit_code))
+            .unwrap_or_default();
+        format!(
+            "✗ stopped at step {steps_run}/{}: {failed}",
+            routine.steps.len()
+        )
     };
 
     Ok(MuscleReport {
@@ -290,7 +331,12 @@ pub fn run_routine(routine: &MuscleRoutine, workdir: &Path, confirm: bool) -> Re
 }
 
 /// Creates an operator-curated routine as a `skill` fact through the gated write path.
-pub fn curate_routine(name: &str, template: &str, scope: Scope, description: Option<String>) -> Result<Fact> {
+pub fn curate_routine(
+    name: &str,
+    template: &str,
+    scope: Scope,
+    description: Option<String>,
+) -> Result<Fact> {
     // Validate the template parses BEFORE storing, so a typo never becomes memory.
     parse_routine(name, template)?;
 

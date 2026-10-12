@@ -33,9 +33,15 @@ fn test_rule_to_yaml_generation() {
     assert!(yaml.contains(&format!("id: uma-{}", fact.id.to_string().to_lowercase())));
     assert!(yaml.contains("pattern: \"$EXPR.unwrap()\""));
     assert!(yaml.contains("severity: error"));
-    assert!(yaml.contains("language: Rust"));
+    // ast-grep language identifiers are lowercase, not the display name.
+    assert!(yaml.contains("language: rust"));
     assert!(yaml.contains("files:\n  - \"src/**/*.rs\""));
     assert!(yaml.contains("Raw .unwrap() is forbidden"));
+    // Regression: the old emitter wrote a standalone `pattern: "$$$"` inside
+    // an `inside` matcher, which ast-grep rejects as invalid — silently
+    // disabling every contract because the whole rule failed to parse.
+    assert!(!yaml.contains("$$$"), "no standalone multi-meta matcher");
+    assert!(!yaml.contains("inside:\n"), "inside is a file glob, not a matcher");
 }
 
 #[test]
@@ -53,7 +59,14 @@ fn test_export_contracts_writes_sgconfig_and_rules() {
     assert_eq!(report.contracts_exported, 1);
     assert!(export_dir.join("sgconfig.yml").exists());
 
-    let rule_file = export_dir.join(format!("{}.yml", fact.id.to_string().to_lowercase()));
+    // Rules must live in a dedicated subdirectory: `ruleDirs: [.]` makes
+    // ast-grep parse sgconfig.yml itself as a rule and abort the scan.
+    let sgconfig = std::fs::read_to_string(export_dir.join("sgconfig.yml")).unwrap();
+    assert!(sgconfig.contains("- rules"));
+
+    let rule_file = export_dir
+        .join("rules")
+        .join(format!("{}.yml", fact.id.to_string().to_lowercase()));
     assert!(rule_file.exists());
 
     let content = std::fs::read_to_string(rule_file).unwrap();

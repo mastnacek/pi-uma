@@ -45,11 +45,58 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
             "When the revised claim started to hold; defaults to the predecessor's since. ISO 8601 timestamp or a bare date.",
         })
       ),
+      contractPattern: Type.Optional(
+        Type.String({
+          description:
+            "Set/replace the executable AST contract pattern (ast-grep). Any contract* param revises the inherited contract instead of inheriting it unchanged.",
+        })
+      ),
+      contractInside: Type.Optional(
+        Type.String({ description: "Set/replace the contract's file glob (which files the rule scans)." })
+      ),
+      contractLanguage: Type.Optional(
+        Type.String({ description: "Set/replace the contract language (rust, typescript, ...)." })
+      ),
+      contractMessage: Type.Optional(
+        Type.String({ description: "Set/replace the contract failure message." })
+      ),
+      contractSeverity: Type.Optional(
+        Type.String({ description: "Set/replace the contract severity: 'deny' or 'warn'." })
+      ),
+      noContract: Type.Optional(
+        Type.Boolean({ description: "Remove the executable contract from the revision entirely." })
+      ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       // Resolve the predecessor so the modal shows its real type/scope/tags and
       // so omitted arguments inherit from it, matching the CLI's behaviour.
       const predecessor = await readFactJson(ctx.cwd, params.oldId);
+
+      // Contract revision: unchanged inheritance by default, an explicit merge
+      // when any contract* param is present, or removal with noContract.
+      const contractTouched =
+        params.contractPattern !== undefined ||
+        params.contractInside !== undefined ||
+        params.contractLanguage !== undefined ||
+        params.contractMessage !== undefined ||
+        params.contractSeverity !== undefined ||
+        params.noContract === true;
+      const inherited = predecessor?.contract;
+      const contract =
+        contractTouched && params.noContract !== true
+          ? {
+              engine: inherited?.engine ?? "ast-grep",
+              severity: (params.contractSeverity as "deny" | "warn" | undefined) ?? inherited?.severity ?? "deny",
+              rule: {
+                pattern: params.contractPattern ?? inherited?.rule.pattern ?? "",
+                inside: params.contractInside ?? inherited?.rule.inside,
+                message: params.contractMessage ?? inherited?.rule.message ?? "",
+                language: params.contractLanguage ?? inherited?.rule.language,
+              },
+            }
+          : params.noContract === true
+            ? undefined
+            : inherited;
 
       const proposal: MemoryProposal = {
         title: params.title,
@@ -63,6 +110,7 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
         template: params.template,
         stale_after: params.staleAfter,
         since: params.since,
+        contract,
       };
 
       // Secret gate BEFORE the modal, same as the write tool: a revision
@@ -104,6 +152,15 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
       const scopeArg = scopeArgForCli(approved.scope);
       if (scopeArg) args.push("--scope", scopeArg);
       if (approved.tags.length > 0) args.push("--tags", approved.tags.join(","));
+      // Contract revision flags are authoured values, not modal-editable ones;
+      // the modal renders the resulting contract (engine + severity) so the
+      // operator still reviews it before approving.
+      if (params.contractPattern) args.push("--contract-pattern", params.contractPattern);
+      if (params.contractInside) args.push("--contract-inside", params.contractInside);
+      if (params.contractLanguage) args.push("--contract-language", params.contractLanguage);
+      if (params.contractMessage) args.push("--contract-message", params.contractMessage);
+      if (params.contractSeverity) args.push("--contract-severity", params.contractSeverity);
+      if (params.noContract === true) args.push("--no-contract");
       return executeUma(ctx.cwd, args);
     },
   });

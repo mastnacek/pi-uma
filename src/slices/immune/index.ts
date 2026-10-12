@@ -167,7 +167,12 @@ export function pathMatchesInside(inside: string, filePath: string): boolean {
     return normPath.startsWith(prefix) || normPath.includes(`/${prefix}`) || normPath.includes(prefix);
   }
   if (normInside.includes("*")) {
-    const regexStr = "^" + normInside.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$";
+    // Escape every regex metacharacter EXCEPT the glob wildcard `*` before
+    // translating wildcards to their regex forms. Without this an
+    // attacker-controlled glob such as `(a+)+` becomes a ReDoS that runs
+    // synchronously on every write/edit hook.
+    const escaped = normInside.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+    const regexStr = "^" + escaped.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*") + "$";
     try {
       return new RegExp(regexStr).test(normPath);
     } catch {

@@ -18,7 +18,7 @@ pub fn rule_to_yaml(fact_id: &FactId, title: &str, contract: &Contract) -> Strin
         ContractSeverity::Deny => "error",
         ContractSeverity::Warn => "warning",
     };
-    let language = infer_language(contract, None);
+    let language = infer_language(contract, None).to_lowercase();
 
     let mut out = String::new();
     out.push_str(&format!("id: {rule_id}\n"));
@@ -30,8 +30,13 @@ pub fn rule_to_yaml(fact_id: &FactId, title: &str, contract: &Contract) -> Strin
     out.push_str(&format!("  title: \"{}\"\n", title.replace('"', "\\\"")));
     out.push_str("rule:\n");
     out.push_str(&format!("  pattern: \"{}\"\n", contract.rule.pattern.replace('"', "\\\"")));
+    // `contract.rule.inside` is the FILE GLOB, not an ast-grep `inside` matcher.
+    // A top-level `pattern` already matches at any AST depth, so emitting an
+    // `inside` matcher here is both redundant and — with the old hardcoded
+    // `pattern: "$$$"` — invalid YAML that made ast-grep reject the whole rule
+    // ("Standalone multi meta variable $$$ is invalid"), silently disabling the
+    // contract.
     if let Some(ref inside) = contract.rule.inside {
-        out.push_str("  inside:\n    stopBy: end\n    pattern: \"$$$\"\n");
         out.push_str(&format!("files:\n  - \"{}\"\n", inside));
     }
     out
@@ -42,9 +47,24 @@ pub fn export_contracts(store: &Store, target_dir: &Path) -> Result<ExportReport
     std::fs::create_dir_all(target_dir)
         .with_context(|| format!("Failed to create contract directory {:?}", target_dir))?;
 
+    // Rules live in a dedicated subdirectory. With `ruleDirs: [.]` ast-grep also
+    // parses `sgconfig.yml` (and any other yaml) as a rule, which aborts the
+    // entire scan — the original reason every contract silently checked nothing.
+    let rules_dir = target_dir.join("rules");
+    std::fs::create_dir_all(&rules_dir)
+        .with_context(|| format!("Failed to create rules directory {:?}", rules_dir))?;
+
+    // Clear generated rules so a retired contract cannot leave a ghost rule.
+    if let Ok(entries) = std::fs::read_dir(&rules_dir) {
+        for entry in entries.flatten() {
+            if entry.path().extension().is_some_and(|e| e == "yml") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+
     let sgconfig_path = target_dir.join("sgconfig.yml");
-    let sgconfig_content = "ruleDirs:\n  - .\n";
-    std::fs::write(&sgconfig_path, sgconfig_content)
+    std::fs::write(&sgconfig_path, "ruleDirs:\n  - rules\n")
         .with_context(|| format!("Failed to write {:?}", sgconfig_path))?;
 
     let now = chrono::Utc::now();
@@ -61,7 +81,7 @@ pub fn export_contracts(store: &Store, target_dir: &Path) -> Result<ExportReport
         };
 
         let file_name = format!("{}.yml", fact.id.to_string().to_lowercase());
-        let rule_path = target_dir.join(&file_name);
+        let rule_path = rules_dir.join(&file_name);
         let yaml = rule_to_yaml(&fact.id, &fact.title, contract);
 
         std::fs::write(&rule_path, yaml)
@@ -73,7 +93,12 @@ pub fn export_contracts(store: &Store, target_dir: &Path) -> Result<ExportReport
             .chars()
             .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
             .collect::<String>();
-        test_cases.push((fact.id.to_string(), safe_title, file_name, fact.title.clone()));
+        test_cases.push((
+            fact.id.to_string(),
+            safe_title,
+            format!("rules/{file_name}"),
+            fact.title.clone(),
+        ));
     }
 
     let mut test_harness = None;
@@ -88,21 +113,39 @@ pub fn export_contracts(store: &Store, target_dir: &Path) -> Result<ExportReport
             code.push_str("//! Invariants compiled directly from active memory decisions.\n\n");
 
             for (id, safe_title, rule_file, title) in &test_cases {
+                // Sanitize the title for a line comment: a newline would inject
+                // arbitrary Rust into the generated harness and run under
+                // `cargo test`. Collapse every control character and newline.
+                let safe_comment: String = title
+                    .chars()
+                    .map(|c| if c == '\n' || c == '\r' || c.is_control() { ' ' } else { c })
+                    .collect();
                 code.push_str(&format!(
                     "#[test]\nfn invariant_{}_{}() {{\n",
                     &id[..8].to_lowercase(),
                     safe_title
                 ));
-                code.push_str(&format!("    // Memory Decision: {}\n", title));
-                code.push_str("    let ast_grep = if cfg!(windows) { \"ast-grep.exe\" } else { \"ast-grep\" };\n");
-                code.push_str(&format!(
-                    "    let output = match std::process::Command::new(ast_grep)\n        .args([\"scan\", \"--rule\", \".uma/contracts/{}\"])\n        .output() {{\n            Ok(o) => o,\n            Err(_) => match std::process::Command::new(\"sg\")\n                .args([\"scan\", \"--rule\", \".uma/contracts/{}\"])\n                .output() {{\n                Ok(o) => o,\n                Err(_) => {{\n                    eprintln!(\"ast-grep not found — skipping architecture invariant test\");\n                    return;\n                }}\n            }},\n        }};\n\n",
-                    rule_file, rule_file
-                ));
-                code.push_str(&format!(
-                    "    assert!(output.status.success(), \"Architecture invariant [{}] violated!\\n{{}}\", String::from_utf8_lossy(&output.stdout));\n",
-                    id
-                ));
+                code.push_str(&format!("    // Memory Decision: {}\n", safe_comment));
+                let test_body = format!(
+                    r#"    let ast_grep = if cfg!(windows) {{ "ast-grep.exe" }} else {{ "ast-grep" }};
+    // Fail CLOSED: a missing engine must never let the invariant pass silently,
+    // and `sg` is deliberately NOT used as a fallback (on Unix it is
+    // shadow-utils' setgid tool, not ast-grep).
+    let output = std::process::Command::new(ast_grep)
+        .args(["scan", "--json=compact", "--rule", ".uma/contracts/{rule_file}"])
+        .output()
+        .expect("ast-grep is required to verify architecture invariants (fail-closed)");
+    let findings = String::from_utf8_lossy(&output.stdout);
+    let findings = findings.trim();
+    assert!(
+        findings.is_empty() || findings == "[]",
+        "Architecture invariant [{id}] violated!\n{{findings}}"
+    );
+"#,
+                    rule_file = rule_file,
+                    id = id,
+                );
+                code.push_str(&test_body);
                 code.push_str("}\n\n");
             }
 
@@ -139,13 +182,18 @@ pub fn check_contracts(store: &Store, options: &CheckOptions) -> Result<Contract
     }
 
     let Some(ast_grep_bin) = find_ast_grep() else {
+        // Fail CLOSED: active contracts exist but cannot be verified. Reporting
+        // `clean: true` here would let `uma contracts check --strict` and the
+        // generated CI harness pass on a machine that never actually checked
+        // anything.
         return Ok(ContractCheckReport {
             engine: "ast-grep (unavailable)".to_string(),
             rules_checked: contract_facts.len(),
             violations: Vec::new(),
-            clean: true,
+            clean: false,
             notes: Some(
-                "ast-grep executable not found. Install via 'npm install -g @ast-grep/cli' or cargo."
+                "ast-grep executable not found — contracts could NOT be verified. Install via \
+                 'npm install -g @ast-grep/cli' or cargo."
                     .to_string(),
             ),
         });
@@ -174,6 +222,24 @@ pub fn check_contracts(store: &Store, options: &CheckOptions) -> Result<Contract
 
     let output = cmd.output().context("Failed to execute ast-grep scan")?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Fail CLOSED on an unverifiable run: a non-zero exit with no JSON output
+    // means the scan itself failed (bad config, wrong binary), not that the
+    // codebase is clean. An empty parse would otherwise look like "no
+    // violations". Findings-only scans emit JSON and are handled below.
+    if !output.status.success() && stdout.trim().is_empty() {
+        return Ok(ContractCheckReport {
+            engine: "ast-grep (scan failed)".to_string(),
+            rules_checked: contract_facts.len(),
+            violations: Vec::new(),
+            clean: false,
+            notes: Some(format!(
+                "ast-grep exited {} with no findings output — contracts could NOT be verified: {}",
+                output.status.code().unwrap_or(-1),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )),
+        });
+    }
 
     #[derive(Deserialize)]
     struct AstGrepMatch {

@@ -13,7 +13,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { ExtensionState } from "../../shared/types.js";
-import { findUmaBinary, runUma } from "../../shared/client.js";
+import { findUmaBinary, runUma, fetchMuscleSteps } from "../../shared/client.js";
 import { confirmExecution } from "./dialog.ts";
 
 export function registerMuscleTool(pi: ExtensionAPI, state: ExtensionState): void {
@@ -43,7 +43,12 @@ export function registerMuscleTool(pi: ExtensionAPI, state: ExtensionState): voi
         if (res.code !== 0) {
           return { content: [{ type: "text", text: `muscle list failed: ${res.stderr}` }], details: {} };
         }
-        const routines = JSON.parse(res.stdout) as Array<{ name: string; steps: Array<{ command: string; args: string[] }> }>;
+        let routines: Array<{ name: string; steps: Array<{ command: string; args: string[] }> }>;
+        try {
+          routines = JSON.parse(res.stdout);
+        } catch {
+          return { content: [{ type: "text", text: `muscle list returned unparsable JSON: ${res.stdout}` }], details: {}, isError: true };
+        }
         if (routines.length === 0) {
           return {
             content: [
@@ -81,7 +86,8 @@ export function registerMuscleTool(pi: ExtensionAPI, state: ExtensionState): voi
               details: { executed: false, refused: "no-consent-surface" },
             };
           }
-          const proceed = await confirmExecution(ctx, state, params.name);
+          const steps = await fetchMuscleSteps(binPath, ctx.cwd, params.name);
+          const proceed = await confirmExecution(ctx, state, params.name, steps);
           if (proceed === false) {
             return {
               content: [
@@ -101,7 +107,12 @@ export function registerMuscleTool(pi: ExtensionAPI, state: ExtensionState): voi
               isError: true,
             };
           }
-          const report = JSON.parse(res.stdout) as { summary: string; steps_run: number; steps_total: number };
+          let report: { summary: string; steps_run: number; steps_total: number };
+          try {
+            report = JSON.parse(res.stdout);
+          } catch {
+            return { content: [{ type: "text", text: `Routine '${params.name}' produced unparsable JSON:\n${res.stdout}` }], details: { executed: true, success: false }, isError: true };
+          }
           return {
             content: [{ type: "text", text: `Muscle '${params.name}': ${report.summary}` }],
             details: { executed: true, success: true, steps_run: report.steps_run },
@@ -113,7 +124,12 @@ export function registerMuscleTool(pi: ExtensionAPI, state: ExtensionState): voi
         if (res.code !== 0) {
           return { content: [{ type: "text", text: `Dry-run failed: ${res.stdout || res.stderr}` }], details: {}, isError: true };
         }
-        const report = JSON.parse(res.stdout) as { summary: string };
+        let report: { summary: string };
+        try {
+          report = JSON.parse(res.stdout);
+        } catch {
+          return { content: [{ type: "text", text: `Dry-run produced unparsable JSON:\n${res.stdout}` }], details: {}, isError: true };
+        }
         return {
           content: [
             {
