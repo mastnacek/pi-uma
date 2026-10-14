@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 12:25:37",
+  "lastUpdated": "2026-10-14 12:30:42",
   "records": [
     {
       "id": "SPAI-001",
@@ -700,6 +700,40 @@
       "project": "pi-orchestrator",
       "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
       "file": "2026-10-14-SPAI-040-bug-herdr-agent-prompt-wait-reports-false-negative.md"
+    },
+    {
+      "id": "SPAI-041",
+      "title": "Document/fix the binary shadowing trap: AGENTS §4 says findUmaBinary uses core/target/release, but it actually prefers the committed bin/uma.exe. Either add a version check between plugin and engine, or make the dev loop/build script refresh bin/uma.exe automatically",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 12:30:42",
+      "tags": [
+        "build",
+        "docs",
+        "trap"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-041-documentfix-the-binary-shadowing-trap-agents-4-say.md"
+    },
+    {
+      "id": "SPAI-042",
+      "title": "SPAI ids are per-project namespaces: a fact body mentioning SPAI-012 resolved to pi-uma's SPAI-012 even though the text meant pi-herdr-sidebar/SPAI-012. Either qualify cross-project references (project/SPAI-NNN) in the spai field and resolver, or warn when a resolved id belongs to a different project than the mentioning context",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 12:30:42",
+      "tags": [
+        "spai",
+        "integration",
+        "resolver"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-042-spai-ids-are-per-project-namespaces-a-fact-body-me.md"
     }
   ]
 }
