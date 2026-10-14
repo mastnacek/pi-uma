@@ -38,8 +38,20 @@ fn status_weight_decays_finished_work() {
 #[test]
 fn search_ranks_open_above_done_and_drops_cancelled() {
     let dir = backlog("rank");
-    write_item(&dir, "2026-01-01-SPAI-001-open.md", "todo", "Contract check", "tier work");
-    write_item(&dir, "2026-01-01-SPAI-002-done.md", "done", "Contract check done", "tier work");
+    write_item(
+        &dir,
+        "2026-01-01-SPAI-001-open.md",
+        "todo",
+        "Contract check",
+        "tier work",
+    );
+    write_item(
+        &dir,
+        "2026-01-01-SPAI-002-done.md",
+        "done",
+        "Contract check done",
+        "tier work",
+    );
     write_item(
         &dir,
         "2026-01-01-SPAI-003-cancel.md",
@@ -61,11 +73,26 @@ fn search_ranks_open_above_done_and_drops_cancelled() {
 #[test]
 fn title_matches_outrank_body_only_matches() {
     let dir = backlog("title");
-    write_item(&dir, "2026-01-01-SPAI-010-a.md", "todo", "unrelated", "mentions the term once");
-    write_item(&dir, "2026-01-01-SPAI-011-b.md", "todo", "term in the title", "nothing else");
+    write_item(
+        &dir,
+        "2026-01-01-SPAI-010-a.md",
+        "todo",
+        "unrelated",
+        "mentions the term once",
+    );
+    write_item(
+        &dir,
+        "2026-01-01-SPAI-011-b.md",
+        "todo",
+        "term in the title",
+        "nothing else",
+    );
     let hits = search_backlog(&dir, "term", 10);
     assert_eq!(hits[0].id, "SPAI-011");
-    assert!(hits[0].score > hits[1].score, "title weight is 3x body weight");
+    assert!(
+        hits[0].score > hits[1].score,
+        "title weight is 3x body weight"
+    );
 
     fs::remove_dir_all(dir).ok();
 }
@@ -92,7 +119,11 @@ fn missing_dir_malformed_and_unrelated_files_are_clean_misses() {
     assert!(search_backlog(Path::new("D:/definitely/not/here"), "xx", 5).is_empty());
 
     let dir = backlog("miss");
-    fs::write(dir.join("2026-01-01-SPAI-030-broken.md"), "no frontmatter at all").ok();
+    fs::write(
+        dir.join("2026-01-01-SPAI-030-broken.md"),
+        "no frontmatter at all",
+    )
+    .ok();
     fs::write(dir.join("not-markdown.txt"), "term").ok();
     fs::write(dir.join(".hidden.md"), "term").ok();
     assert!(search_backlog(&dir, "term", 5).is_empty());

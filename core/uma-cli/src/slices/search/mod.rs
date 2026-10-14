@@ -257,7 +257,10 @@ mod tests {
         assert_eq!(cli.args.source, "spai");
 
         let rejected = TestCli::try_parse_from(["test", "tier", "--source", "nonsense"]);
-        assert!(rejected.is_err(), "unknown sources are rejected by the parser");
+        assert!(
+            rejected.is_err(),
+            "unknown sources are rejected by the parser"
+        );
         Ok(())
     }
 }

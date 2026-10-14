@@ -1,4 +1,3 @@
-
 use crate::domain::{Contract, ContractRule, ContractSeverity, Fact, FactType, Scope};
 use crate::serialization::{fact_to_markdown, markdown_to_fact};
 use crate::store::Store;

@@ -169,7 +169,11 @@ mod tests {
         // own docs/spai — the same path the CLI uses.
         let backlogs = spai_backlogs(None).expect("inside a git repository");
         assert_eq!(backlogs.len(), 1);
-        assert!(backlogs[0].1.ends_with("docs/spai"), "got {:?}", backlogs[0].1);
+        assert!(
+            backlogs[0].1.ends_with("docs/spai"),
+            "got {:?}",
+            backlogs[0].1
+        );
     }
 
     #[test]
@@ -182,7 +186,12 @@ mod tests {
 
     #[test]
     fn unknown_foreign_project_fails_closed() {
-        let result = spai_backlogs(Some(&Scope::Project("definitely-not-indexed-xyz".to_string())));
-        assert!(result.is_err(), "an unknown project must not silently match nothing");
+        let result = spai_backlogs(Some(&Scope::Project(
+            "definitely-not-indexed-xyz".to_string(),
+        )));
+        assert!(
+            result.is_err(),
+            "an unknown project must not silently match nothing"
+        );
     }
 }
