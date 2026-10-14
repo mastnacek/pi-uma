@@ -4,3 +4,6 @@ core/target/
 
 # Shadow-worker staging drafts are local, unapproved, and machine-specific.
 .uma/.staging/
+
+# Local pi runtime cache (not repository content)
+.pi/pi-model-pricing.json

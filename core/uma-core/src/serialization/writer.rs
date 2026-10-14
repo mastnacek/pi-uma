@@ -196,12 +196,7 @@ pub fn build_frontmatter_yaml(fact: &Fact) -> Yaml {
     if !fact.spai.is_empty() {
         map.insert(
             Yaml::String("spai".to_string()),
-            Yaml::Array(
-                fact.spai
-                    .iter()
-                    .map(|s| Yaml::String(s.clone()))
-                    .collect(),
-            ),
+            Yaml::Array(fact.spai.iter().map(|s| Yaml::String(s.clone())).collect()),
         );
     }
 

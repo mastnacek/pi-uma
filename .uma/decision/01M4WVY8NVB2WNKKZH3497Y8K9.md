@@ -8,7 +8,7 @@ tags:
   - architecture
   - decision
   - integration
-status: stable
+status: deprecated
 generated:
   by: pi-agent/1.1
   at: "2026-10-14T09:29:50.011628400+00:00"
@@ -16,6 +16,7 @@ verified:
   - by: "human:operator"
     at: "2026-10-14T09:29:50.011631300+00:00"
 since: "2026-10-14T09:29:50.011630200+00:00"
+until: "2026-10-14T10:06:14.335539500+00:00"
 ---
 ### Decision
 SPAI and UMA remain separate systems with no store-level integration. They are connected only by:

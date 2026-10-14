@@ -67,7 +67,11 @@ pub fn run(args: ReadArgs) -> Result<()> {
             println!(
                 "\nValidity as of {}:\n  active: {}\n  effective weight: {:.2}",
                 target.to_rfc3339(),
-                if active { "yes (stable)" } else { "no (inactive/rotted)" },
+                if active {
+                    "yes (stable)"
+                } else {
+                    "no (inactive/rotted)"
+                },
                 weight
             );
         }

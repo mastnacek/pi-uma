@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 12:10:43",
+  "lastUpdated": "2026-10-14 12:25:37",
   "records": [
     {
       "id": "SPAI-001",
@@ -624,8 +624,8 @@
       "id": "SPAI-036",
       "title": "Tier 2 read-only SPAI source adapter: register docs/spai/ as its own UMA source/collection, low recall weight, excluded from default recall and consolidation, aggressive decay for done/cancelled items; `uma search --source spai` opt-in",
       "type": "Todo",
-      "status": "working",
-      "symbol": "/",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 11:30:08",
       "tags": [
         "spai",
