@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 12:55:32",
+  "lastUpdated": "2026-10-14 12:59:31",
   "records": [
     {
       "id": "SPAI-001",
@@ -657,8 +657,8 @@
       "id": "SPAI-038",
       "title": "Bug: orch_delegate with wait=false always fails — delegate/index.ts passes timeoutMs (default 60000) to promptAgent unconditionally, so herdr CLI gets --timeout without --wait (\"--timeout requires --wait\"). Only pass timeoutMs when wait is true",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 11:57:45",
       "tags": [
         "bug",
@@ -673,8 +673,8 @@
       "id": "SPAI-039",
       "title": "Bug: orch_delegate never splits a new pane for an unknown specialist/project name — resolveTarget returns paneId=raw target, so the guard `params.target !== resolved.paneId` is always false and the split branch is skipped (\"agent_not_found\"). Detect explicit pane IDs by pattern (wX:pY) instead of string equality",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 11:57:45",
       "tags": [
         "bug",
@@ -689,8 +689,8 @@
       "id": "SPAI-040",
       "title": "Bug: herdr agent prompt --wait reports false-negative agent_prompt_stalled after 5000ms even though the prompt was pasted and the agent started Working moments later (observed on w1Z:pK). Increase the observation window or treat pasted+Enter as submitted",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 11:57:45",
       "tags": [
         "bug",
