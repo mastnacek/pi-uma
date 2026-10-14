@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 11:42:56",
+  "lastUpdated": "2026-10-14 11:57:45",
   "records": [
     {
       "id": "SPAI-001",
@@ -608,8 +608,8 @@
       "id": "SPAI-035",
       "title": "Tier 1a structural cross-references: add OKF frontmatter `spai: [SPAI-NNN]` field to fact schema (domain.rs + serialization.rs + TS types) and a `Memory: <ULID>` line convention in SPAI item files; both greppable/indexable",
       "type": "Todo",
-      "status": "working",
-      "symbol": "/",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 11:30:08",
       "tags": [
         "spai",
@@ -652,6 +652,54 @@
       "project": "pi-uma",
       "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
       "file": "2026-10-14-SPAI-037-tier-3-done-task-promotion-shadow-worker-watches-s.md"
+    },
+    {
+      "id": "SPAI-038",
+      "title": "Bug: orch_delegate with wait=false always fails — delegate/index.ts passes timeoutMs (default 60000) to promptAgent unconditionally, so herdr CLI gets --timeout without --wait (\"--timeout requires --wait\"). Only pass timeoutMs when wait is true",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 11:57:45",
+      "tags": [
+        "bug",
+        "delegate"
+      ],
+      "priority": "high",
+      "project": "pi-orchestrator",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-038-bug-orch-delegate-with-waitfalse-always-fails-dele.md"
+    },
+    {
+      "id": "SPAI-039",
+      "title": "Bug: orch_delegate never splits a new pane for an unknown specialist/project name — resolveTarget returns paneId=raw target, so the guard `params.target !== resolved.paneId` is always false and the split branch is skipped (\"agent_not_found\"). Detect explicit pane IDs by pattern (wX:pY) instead of string equality",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 11:57:45",
+      "tags": [
+        "bug",
+        "delegate"
+      ],
+      "priority": "high",
+      "project": "pi-orchestrator",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-039-bug-orch-delegate-never-splits-a-new-pane-for-an-u.md"
+    },
+    {
+      "id": "SPAI-040",
+      "title": "Bug: herdr agent prompt --wait reports false-negative agent_prompt_stalled after 5000ms even though the prompt was pasted and the agent started Working moments later (observed on w1Z:pK). Increase the observation window or treat pasted+Enter as submitted",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 11:57:45",
+      "tags": [
+        "bug",
+        "delegate"
+      ],
+      "priority": "medium",
+      "project": "pi-orchestrator",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-040-bug-herdr-agent-prompt-wait-reports-false-negative.md"
     }
   ]
 }
