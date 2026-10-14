@@ -8,7 +8,7 @@ tags:
   - architecture
   - decision
   - integration
-status: stable
+status: deprecated
 supersedes: 01M4WZCMGE9TAF6ARR87T69YZZ
 generated:
   by: pi-agent/1.1
@@ -17,6 +17,7 @@ verified:
   - by: "human:operator"
     at: "2026-10-14T10:50:04.868432700+00:00"
 since: "2026-10-14T09:29:50.011630200+00:00"
+until: "2026-10-14T16:45:08.178019800+00:00"
 spai:
   - SPAI-034
   - SPAI-035
