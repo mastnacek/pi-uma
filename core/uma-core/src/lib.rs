@@ -15,6 +15,7 @@ pub mod serialization;
 pub mod similarity;
 pub mod skill;
 pub mod sources;
+pub mod spai;
 pub mod staging;
 pub mod store;
 pub mod timeline;

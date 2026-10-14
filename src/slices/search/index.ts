@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import type { ExtensionState } from "../../shared/types.js";
 import { executeUma, scopeArgForCli } from "../../shared/client.js";
@@ -10,6 +11,12 @@ export function registerSearchTool(pi: ExtensionAPI, _state: ExtensionState): vo
     description: "Search UMA memory facts using hybrid BM25 keyword matching and semantic vector search.",
     parameters: Type.Object({
       query: Type.String({ description: "Search query keywords or semantic concept." }),
+      source: Type.Optional(
+        StringEnum(["memory", "spai"] as const, {
+          description:
+            "Source to search: 'memory' (UMA facts, default) or 'spai' (the live, read-only docs/spai backlog). SPAI results never enter fact recall.",
+        })
+      ),
       mode: Type.Optional(
         Type.String({
           description: "Search mode: 'keyword' (BM25), 'semantic' (Vector), or 'hybrid' (default).",
@@ -43,6 +50,7 @@ export function registerSearchTool(pi: ExtensionAPI, _state: ExtensionState): vo
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const args = ["search", params.query];
+      if (params.source) args.push("--source", params.source);
       if (params.mode) args.push("--mode", params.mode);
       const scopeArg = scopeArgForCli(params.scope);
       if (scopeArg) args.push("--scope", scopeArg);

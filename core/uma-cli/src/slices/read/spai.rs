@@ -1,12 +1,17 @@
 //! Live SPAI link resolution for `uma read --resolve-spai` (SPAI-034).
 //!
 //! SPAI stays the volatile work ledger, UMA the durable knowledge base
-//! (decision 01M4WVY8NVB2WNKKZH3497Y8K9): this module only READS `docs/spai`
+//! (decision 01M4WY0WX6MAY62J6VHC51HV66): this module only READS `docs/spai`
 //! item files — the live status is always read from the item itself, never
 //! from a cached index, and nothing here writes to either store.
+//!
+//! Scanning, canonicalization and metadata parsing live in the shared kernel
+//! (`uma_core::spai`, SPAI-036) so the read and search slices agree by
+//! construction on what an item ID or status is.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use uma_core::domain::{Fact, Scope};
+use uma_core::spai::{find_item, read_item_meta, scan_ids};
 use uma_core::store::Store;
 
 /// One resolved SPAI cross-reference: the normalized ID plus the live
@@ -18,41 +23,6 @@ pub struct SpaiLink {
     pub status: Option<String>,
     pub title: Option<String>,
     pub path: Option<PathBuf>,
-}
-
-/// Normalizes a SPAI numeric id to the canonical `SPAI-%03d` display form
-/// (`SPAI-35` and `SPAI-035` are the same item).
-fn canonical_id(number: u64) -> String {
-    format!("SPAI-{number:03}")
-}
-
-/// Extracts every `SPAI-<digits>` mention from free text, case-insensitive,
-/// normalized and de-duplicated in first-seen order.
-pub fn scan_ids(text: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    let bytes = text.as_bytes();
-    let mut i = 0;
-    while i + 5 <= bytes.len() {
-        if bytes[i..i + 5].eq_ignore_ascii_case(b"spai-") {
-            let start = i + 5;
-            let mut end = start;
-            while end < bytes.len() && bytes[end].is_ascii_digit() {
-                end += 1;
-            }
-            if end > start {
-                if let Ok(n) = text[start..end].parse::<u64>() {
-                    let id = canonical_id(n);
-                    if !out.contains(&id) {
-                        out.push(id);
-                    }
-                }
-                i = end;
-                continue;
-            }
-        }
-        i += 1;
-    }
-    out
 }
 
 /// IDs to resolve for a fact: the structural `spai` frontmatter field first
@@ -97,49 +67,6 @@ fn candidate_dirs(fact: &Fact) -> Vec<PathBuf> {
     dirs
 }
 
-/// Finds the item file for a numeric SPAI id inside one directory.
-/// Matches on the parsed number, not the string, so padding never matters.
-fn find_item(dir: &Path, number: u64) -> Option<PathBuf> {
-    let entries = std::fs::read_dir(dir).ok()?;
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if !name.ends_with(".md") {
-            continue;
-        }
-        for id in scan_ids(name) {
-            if id == canonical_id(number) {
-                return Some(entry.path());
-            }
-        }
-    }
-    None
-}
-
-/// Reads `status` and `title` from the item's YAML frontmatter with a
-/// minimal line parser — the pi-spai writer emits simple `key: value`
-/// lines, so a full YAML dependency is unnecessary here.
-fn parse_item(path: &Path) -> (Option<String>, Option<String>) {
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return (None, None);
-    };
-    let trimmed = content.trim_start();
-    if !trimmed.starts_with("---") {
-        return (None, None);
-    }
-    let frontmatter = trimmed.split("\n---").next().unwrap_or(trimmed);
-    let mut status = None;
-    let mut title = None;
-    for line in frontmatter.lines() {
-        if let Some(rest) = line.strip_prefix("status:") {
-            status = Some(rest.trim().trim_matches(['\'', '"']).to_string());
-        } else if let Some(rest) = line.strip_prefix("title:") {
-            title = Some(rest.trim().trim_matches(['\'', '"']).to_string());
-        }
-    }
-    (status, title)
-}
-
 /// Resolves every SPAI reference of a fact against the live backlog files.
 pub fn resolve_all(fact: &Fact) -> Vec<SpaiLink> {
     let dirs = candidate_dirs(fact);
@@ -150,7 +77,9 @@ pub fn resolve_all(fact: &Fact) -> Vec<SpaiLink> {
             let found = dirs.iter().find_map(|dir| find_item(dir, number));
             match found {
                 Some(path) => {
-                    let (status, title) = parse_item(&path);
+                    let (status, title) = read_item_meta(&path)
+                        .map(|(meta, _)| (meta.status, meta.title))
+                        .unwrap_or((None, None));
                     SpaiLink {
                         id,
                         status,
@@ -191,7 +120,10 @@ pub fn render_section(links: &[SpaiLink]) -> String {
                 out.push_str(&format!("\n  {} [{}] {}", link.id, status, title));
             }
             (None, _) => {
-                out.push_str(&format!("\n  {} [unresolved] no docs/spai item found", link.id));
+                out.push_str(&format!(
+                    "\n  {} [unresolved] no docs/spai item found",
+                    link.id
+                ));
             }
         }
     }
@@ -215,12 +147,6 @@ mod tests {
     }
 
     #[test]
-    fn scan_ids_normalizes_and_dedups() {
-        let ids = scan_ids("see SPAI-035, spai-35 and SPAI-7; not SPAI- or XSPAI-9x SPAI-035");
-        assert_eq!(ids, vec!["SPAI-035", "SPAI-007", "SPAI-009"]);
-    }
-
-    #[test]
     fn collect_ids_puts_structural_field_first() {
         let fact = fact_with("body mentions SPAI-036 and SPAI-035", &["SPAI-035"]);
         assert_eq!(collect_ids(&fact), vec!["SPAI-035", "SPAI-036"]);
@@ -233,27 +159,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_item_reads_status_and_title() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("2026-10-14-SPAI-035-demo.md");
-        std::fs::write(
-            &path,
-            "---\ntype: Todo\ntitle: \"Tier 1a: demo\"\nstatus: done\n---\n\nx body\n",
-        )
-        .expect("write item");
-        let (status, title) = parse_item(&path);
-        assert_eq!(status.as_deref(), Some("done"));
-        assert_eq!(title.as_deref(), Some("Tier 1a: demo"));
-    }
-
-    #[test]
-    fn find_item_matches_on_number_not_padding() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("2026-10-14-SPAI-035-demo.md");
-        std::fs::write(&path, "---\nstatus: todo\n---\n").expect("write item");
-        assert_eq!(find_item(dir.path(), 35), Some(path));
-        assert!(find_item(dir.path(), 36).is_none());
-        assert!(find_item(Path::new("D:/definitely/not/here"), 35).is_none());
+    fn collect_ids_canonicalizes_field_and_body() {
+        let fact = fact_with("see spai-7", &["SPAI-35"]);
+        assert_eq!(collect_ids(&fact), vec!["SPAI-035", "SPAI-007"]);
     }
 
     #[test]
@@ -264,7 +172,22 @@ mod tests {
             title: None,
             path: None,
         }];
-        let text = render_section(&links);
-        assert!(text.contains("SPAI-999 [unresolved]"));
+        assert!(render_section(&links).contains("SPAI-999 [unresolved]"));
+    }
+
+    #[test]
+    fn render_section_reports_absence_clearly() {
+        assert!(render_section(&[]).contains("none declared"));
+    }
+
+    #[test]
+    fn resolve_all_finds_items_in_a_live_directory() {
+        // A fact in the current repo resolves against this repository's own
+        // docs/spai — the same code path the CLI uses, exercised for real.
+        let fact = fact_with("", &["SPAI-034"]);
+        let links = resolve_all(&fact);
+        assert_eq!(links.len(), 1);
+        assert!(links[0].path.is_some(), "SPAI-034 item exists in this repo");
+        assert!(links[0].status.is_some());
     }
 }

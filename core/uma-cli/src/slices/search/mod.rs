@@ -5,11 +5,18 @@ use uma_core::{domain::FactType, search::SearchMode, store::Store};
 
 use crate::shared::{format::status_suffix, scope::resolve_scope};
 
+mod spai_source;
+
 #[derive(Args, Debug, Clone)]
 pub struct SearchArgs {
     /// Search query keywords or semantic concept
     #[arg(default_value = "")]
     pub query: String,
+
+    /// Source to search: 'memory' (UMA facts, default) or 'spai' (the live,
+    /// read-only docs/spai backlog of one project — never the fact index)
+    #[arg(long = "source", default_value = "memory", value_parser = ["memory", "spai"])]
+    pub source: String,
 
     /// Search mode: 'keyword' (BM25), 'semantic' (Vector), or 'hybrid' (RRF fusion)
     #[arg(short = 'm', long = "mode", default_value = "hybrid")]
@@ -50,6 +57,12 @@ pub struct SearchArgs {
 
 /// Executes the Search vertical slice: BM25, Semantic Vector, or Hybrid RRF search.
 pub fn run(args: SearchArgs) -> Result<()> {
+    // SPAI is a separate, live, read-only source: there is no index to build
+    // and no vectors to embed, and it must never be mixed into fact recall.
+    if args.source == "spai" {
+        return spai_source::run_spai_search(&args);
+    }
+
     // In JSON mode stdout must be exactly one parseable document, so status
     // chatter goes to stderr instead of interleaving with the payload.
     if args.reindex {
@@ -227,6 +240,7 @@ mod tests {
         ])?;
 
         assert_eq!(cli.args.query, "vertical slice");
+        assert_eq!(cli.args.source, "memory");
         assert_eq!(cli.args.mode, "semantic");
         assert_eq!(cli.args.scope, Some("global".to_string()));
         assert_eq!(cli.args.fact_type, Some("decision".to_string()));
@@ -234,6 +248,16 @@ mod tests {
         assert_eq!(cli.args.limit, 5);
         assert!(!cli.args.reindex);
         assert!(!cli.args.vectorize);
+        Ok(())
+    }
+
+    #[test]
+    fn test_search_args_source_switch() -> Result<(), clap::Error> {
+        let cli = TestCli::try_parse_from(["test", "tier", "--source", "spai"])?;
+        assert_eq!(cli.args.source, "spai");
+
+        let rejected = TestCli::try_parse_from(["test", "tier", "--source", "nonsense"]);
+        assert!(rejected.is_err(), "unknown sources are rejected by the parser");
         Ok(())
     }
 }
