@@ -39,6 +39,11 @@ pub struct SupersedeArgs {
     #[arg(long = "tags", value_delimiter = ',')]
     pub tags: Vec<String>,
 
+    /// SPAI backlog item IDs (comma-separated, defaults to the predecessor's
+    /// links if empty — a revision must not silently drop the task references).
+    #[arg(long = "spai", value_delimiter = ',')]
+    pub spai: Vec<String>,
+
     /// Invocation template (defaults to the predecessor's template).
     /// Without this, a revision of a `skill` fact would silently lose its
     /// template and the skill would stop being expandable.
@@ -162,6 +167,12 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
         args.tags
     };
 
+    let spai = if args.spai.is_empty() {
+        old_fact.spai.clone()
+    } else {
+        args.spai
+    };
+
     let body = match args.body {
         Some(b) => b,
         None => {
@@ -178,6 +189,7 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
     new_fact.verified = vec![ActorEvent::new("human:operator")];
     new_fact.description = args.description;
     new_fact.tags = tags;
+    new_fact.spai = spai;
     // Inherit like type/scope/tags: a revision must never silently drop the
     // invocation template, or the skill would stop being invokable.
     new_fact.template = args.template.or_else(|| old_fact.template.clone());

@@ -33,6 +33,11 @@ pub struct WriteArgs {
     #[arg(long = "tags", value_delimiter = ',')]
     pub tags: Vec<String>,
 
+    /// SPAI backlog item IDs this fact is linked to (comma-separated, e.g. SPAI-035,SPAI-036).
+    /// Cross-reference only — SPAI stays the work ledger, UMA the knowledge base.
+    #[arg(long = "spai", value_delimiter = ',')]
+    pub spai: Vec<String>,
+
     /// Invocation template for `skill` facts (placeholders like {{tag}}).
     /// Stored as data only — UMA expands it elsewhere and never executes it.
     #[arg(long = "template")]
@@ -68,6 +73,7 @@ pub fn run(args: WriteArgs) -> Result<()> {
     fact.verified = vec![ActorEvent::new("human:operator")];
     fact.description = args.description;
     fact.tags = args.tags;
+    fact.spai = args.spai;
     fact.template = args.template;
     if let Some(raw) = args.stale_after.as_deref() {
         fact.validity.stale_after = Some(parse_datetime_or_date(raw)?);
@@ -158,6 +164,20 @@ mod tests {
         );
         assert_eq!(cli.args.scope, Some("global".to_string()));
         assert_eq!(cli.args.tags, vec!["vsa", "arch", "rust"]);
+        assert!(cli.args.spai.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_spai_args_parsing() -> Result<(), clap::Error> {
+        let cli = TestCli::try_parse_from([
+            "test",
+            "--title",
+            "Linked decision",
+            "--spai",
+            "SPAI-035,SPAI-036",
+        ])?;
+        assert_eq!(cli.args.spai, vec!["SPAI-035", "SPAI-036"]);
         Ok(())
     }
 

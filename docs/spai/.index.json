@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-12 19:31:40",
+  "lastUpdated": "2026-10-14 11:42:56",
   "records": [
     {
       "id": "SPAI-001",
@@ -226,8 +226,8 @@
       "id": "SPAI-013",
       "title": "Proposal 08: Testovací matice a kognitivní benchmark (UMA-Eval Suite)",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "cancelled",
+      "symbol": "z",
       "timestamp": "2026-10-10 14:15:15",
       "tags": [
         "testing",
@@ -291,8 +291,8 @@
       "id": "SPAI-017",
       "title": "Dedikovaný orchestrátor paměti: pi instance v herdr panelu, jejíž jediná práce je řídit UMA — System 1 (fastbrain/offline→Jev) rozhoduje komu delegovat kontext a prompty, System 2 řeší jen těžké úkoly; routing core v uma-core (VSA Rust), tenké pluginy v panelech; UMA scopes jako sdílená sběrnice",
       "type": "Idea",
-      "status": "idea",
-      "symbol": "?",
+      "status": "cancelled",
+      "symbol": "z",
       "timestamp": "2026-10-10 21:09:58",
       "tags": [
         "orchestrator",
@@ -497,6 +497,161 @@
       "project": "pi-uma",
       "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
       "file": "2026-10-12-SPAI-028-verify-repository-hygiene-esm-dirname-compatibilit.md"
+    },
+    {
+      "id": "SPAI-029",
+      "title": "[L1] Concurrency stress test: 10+ thread WAL writes + cross-process store sharing",
+      "type": "Todo",
+      "status": "cancelled",
+      "symbol": "z",
+      "timestamp": "2026-10-12 19:45:28",
+      "tags": [
+        "testing",
+        "rust",
+        "core"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-029-l1-concurrency-stress-test-10-thread-wal-writes-cr.md"
+    },
+    {
+      "id": "SPAI-030",
+      "title": "[L1] Contracts test: export/check roundtrip + --as-of decay simulation",
+      "type": "Todo",
+      "status": "cancelled",
+      "symbol": "z",
+      "timestamp": "2026-10-12 19:45:33",
+      "tags": [
+        "testing",
+        "rust",
+        "core",
+        "contracts"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-030-l1-contracts-test-exportcheck-roundtrip-as-of-deca.md"
+    },
+    {
+      "id": "SPAI-031",
+      "title": "[L1] Muscle perf benchmark: ensure routines run < 10ms",
+      "type": "Todo",
+      "status": "cancelled",
+      "symbol": "z",
+      "timestamp": "2026-10-12 19:45:39",
+      "tags": [
+        "testing",
+        "rust",
+        "core",
+        "muscle",
+        "benchmark"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-031-l1-muscle-perf-benchmark-ensure-routines-run-10ms.md"
+    },
+    {
+      "id": "SPAI-032",
+      "title": "[L1] CLI --as-of flag for search/list/read (time-travel queries)",
+      "type": "Todo",
+      "status": "cancelled",
+      "symbol": "z",
+      "timestamp": "2026-10-12 19:45:41",
+      "tags": [
+        "testing",
+        "rust",
+        "cli",
+        "core"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-032-l1-cli-as-of-flag-for-searchlistread-time-travel-q.md"
+    },
+    {
+      "id": "SPAI-033",
+      "title": "[L1] CLI uma doctor --prune-zombies (read-only report + --confirm action)",
+      "type": "Todo",
+      "status": "cancelled",
+      "symbol": "z",
+      "timestamp": "2026-10-12 19:45:52",
+      "tags": [
+        "testing",
+        "rust",
+        "cli",
+        "zombie"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-12-SPAI-033-l1-cli-uma-doctor-prune-zombies-read-only-report-c.md"
+    },
+    {
+      "id": "SPAI-034",
+      "title": "Tier 1b live link resolution: `uma read --resolve-spai` (or uma_read plugin option) fetches current status of SPAI-NNN references in a fact body and displays them inline",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 11:30:08",
+      "tags": [
+        "spai",
+        "integration"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-034-tier-1b-live-link-resolution-uma-read-resolve-spai.md"
+    },
+    {
+      "id": "SPAI-035",
+      "title": "Tier 1a structural cross-references: add OKF frontmatter `spai: [SPAI-NNN]` field to fact schema (domain.rs + serialization.rs + TS types) and a `Memory: <ULID>` line convention in SPAI item files; both greppable/indexable",
+      "type": "Todo",
+      "status": "working",
+      "symbol": "/",
+      "timestamp": "2026-10-14 11:30:08",
+      "tags": [
+        "spai",
+        "integration"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-035-tier-1a-structural-cross-references-add-okf-frontm.md"
+    },
+    {
+      "id": "SPAI-036",
+      "title": "Tier 2 read-only SPAI source adapter: register docs/spai/ as its own UMA source/collection, low recall weight, excluded from default recall and consolidation, aggressive decay for done/cancelled items; `uma search --source spai` opt-in",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-14 11:30:08",
+      "tags": [
+        "spai",
+        "integration",
+        "rust-core"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-036-tier-2-read-only-spai-source-adapter-register-docs.md"
+    },
+    {
+      "id": "SPAI-037",
+      "title": "Tier 3 done-task promotion: shadow worker watches SPAI todo→done transitions and stages a fact proposal in .uma/.staging/ with the task text as draft body and SPAI-NNN as provenance; operator curates via /uma review",
+      "type": "Idea",
+      "status": "idea",
+      "symbol": "?",
+      "timestamp": "2026-10-14 11:30:08",
+      "tags": [
+        "spai",
+        "integration",
+        "shadow-worker"
+      ],
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-14-SPAI-037-tier-3-done-task-promotion-shadow-worker-watches-s.md"
     }
   ]
 }

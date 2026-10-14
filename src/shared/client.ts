@@ -112,6 +112,8 @@ export interface FactSummary {
   type: string;
   scope: string;
   tags: string[];
+  /** SPAI backlog item IDs this fact is linked to (cross-reference only). */
+  spai?: string[];
   /** Executable AST contract, when the fact carries one. */
   contract?: ContractDefinition;
 }
@@ -131,6 +133,7 @@ export async function readFactJson(cwd: string, id: string): Promise<FactSummary
       fact_type: unknown;
       scope: unknown;
       tags?: string[];
+      spai?: string[];
       contract?: ContractDefinition;
     };
     return {
@@ -139,6 +142,7 @@ export async function readFactJson(cwd: string, id: string): Promise<FactSummary
       type: enumValue(raw.fact_type),
       scope: scopeValue(raw.scope),
       tags: raw.tags ?? [],
+      spai: raw.spai,
       contract: raw.contract,
     };
   } catch {

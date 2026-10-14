@@ -66,6 +66,12 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
       noContract: Type.Optional(
         Type.Boolean({ description: "Remove the executable contract from the revision entirely." })
       ),
+      spai: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "SPAI backlog item IDs; defaults to the predecessor's links if omitted — a revision never silently drops task references.",
+        })
+      ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       // Resolve the predecessor so the modal shows its real type/scope/tags and
@@ -110,6 +116,7 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
         template: params.template,
         stale_after: params.staleAfter,
         since: params.since,
+        spai: params.spai ?? predecessor?.spai,
         contract,
       };
 
@@ -152,6 +159,7 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
       const scopeArg = scopeArgForCli(approved.scope);
       if (scopeArg) args.push("--scope", scopeArg);
       if (approved.tags.length > 0) args.push("--tags", approved.tags.join(","));
+      if (params.spai && params.spai.length > 0) args.push("--spai", params.spai.join(","));
       // Contract revision flags are authoured values, not modal-editable ones;
       // the modal renders the resulting contract (engine + severity) so the
       // operator still reviews it before approving.

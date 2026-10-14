@@ -122,6 +122,14 @@ pub fn markdown_to_fact(content: &str) -> Result<Fact> {
                 .collect()
         })
         .unwrap_or_default();
+    let spai = yaml["spai"]
+        .as_vec()
+        .map(|v| {
+            v.iter()
+                .filter_map(|y| y.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
 
     let id = FactId::from_str(id_str).context("Invalid FactId")?;
     let scope = parse_scope(scope_str).context("Invalid scope")?;
@@ -153,6 +161,7 @@ pub fn markdown_to_fact(content: &str) -> Result<Fact> {
         },
         tags,
         links,
+        spai,
     })
 }
 
@@ -216,5 +225,36 @@ mod tests {
         let (fm, body) = split_frontmatter(doc).expect("Should parse frontmatter");
         assert!(fm.contains("title: Test"));
         assert_eq!(body, "Windows line endings.");
+    }
+
+    #[test]
+    fn test_spai_roundtrip() {
+        let mut fact = Fact::new(
+            Scope::Project("pi-uma".to_string()),
+            FactType::Decision,
+            "Linked decision".to_string(),
+            "Body.".to_string(),
+        );
+        fact.spai = vec!["SPAI-035".to_string(), "SPAI-036".to_string()];
+
+        let md = fact_to_markdown(&fact).expect("serialize");
+        assert!(md.contains("SPAI-035"), "frontmatter carries spai:\n{md}");
+
+        let parsed = markdown_to_fact(&md).expect("parse");
+        assert_eq!(parsed.spai, vec!["SPAI-035", "SPAI-036"]);
+    }
+
+    #[test]
+    fn test_spai_absent_defaults_to_empty() {
+        let fact = Fact::new(
+            Scope::Global,
+            FactType::Note,
+            "Plain".to_string(),
+            "Body.".to_string(),
+        );
+        let md = fact_to_markdown(&fact).expect("serialize");
+        assert!(!md.contains("spai"), "empty spai must not be emitted");
+        let parsed = markdown_to_fact(&md).expect("parse");
+        assert!(parsed.spai.is_empty());
     }
 }

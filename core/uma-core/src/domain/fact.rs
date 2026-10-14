@@ -29,6 +29,10 @@ pub struct Fact {
     pub validity: Validity,
     pub tags: Vec<String>,
     pub links: Vec<FactId>,
+    /// SPAI backlog item IDs this fact is linked to (e.g. "SPAI-035").
+    /// Cross-reference only — SPAI stays the work ledger, UMA the knowledge base;
+    /// task state itself must never enter the fact space (decision 01M4WVY8NVB2WNKKZH3497Y8K9).
+    pub spai: Vec<String>,
 }
 
 impl Fact {
@@ -56,6 +60,7 @@ impl Fact {
             validity: Validity::default(),
             tags: Vec::new(),
             links: Vec::new(),
+            spai: Vec::new(),
         }
     }
 

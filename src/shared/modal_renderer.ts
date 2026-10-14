@@ -129,6 +129,9 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
       `${theme.fg("muted", "⚙ contract:")} ${theme.fg("warning", `${proposal.contract.engine} [${proposal.contract.severity}]`)}`,
     );
   }
+  if (proposal.spai && proposal.spai.length > 0) {
+    chain.push(`${theme.fg("muted", "⚑ SPAI:")} ${theme.fg("dim", proposal.spai.join(", "))}`);
+  }
   if (proposal.plasticity) {
     chain.push(
       `${theme.fg("muted", "⚡ fitness:")} ${theme.fg("success", `${proposal.plasticity.weight.toFixed(2)} [${proposal.plasticity.reinforcements}✓]`)}`,

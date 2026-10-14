@@ -46,6 +46,12 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
             "When the claim started to hold. ISO 8601 timestamp or a bare date. Imports use the source session's date, so an imported decision does not masquerade as being made today.",
         })
       ),
+      spai: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "SPAI backlog item IDs this fact is linked to (e.g. ['SPAI-035']). Cross-reference only — SPAI stays the work ledger, UMA the knowledge base.",
+        })
+      ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const initialProposal: MemoryProposal = {
@@ -57,6 +63,7 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
         template: params.template,
         stale_after: params.staleAfter,
         since: params.since,
+        spai: params.spai,
       };
 
       // Secret gate BEFORE the modal: a credential-carrying proposal must
@@ -104,6 +111,9 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
       }
       if (approvedProposal.since) {
         args.push("--since", approvedProposal.since);
+      }
+      if (approvedProposal.spai && approvedProposal.spai.length > 0) {
+        args.push("--spai", approvedProposal.spai.join(","));
       }
 
       return executeUma(ctx.cwd, args);

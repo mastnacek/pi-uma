@@ -45,6 +45,8 @@ export interface MemoryProposal {
   stale_after?: string;
   /** ISO 8601 date/timestamp when the claim started to hold (imports). */
   since?: string;
+  /** SPAI backlog item IDs this fact is linked to (e.g. ["SPAI-035"]). Cross-reference only. */
+  spai?: string[];
 }
 
 export interface ProposalResult {
