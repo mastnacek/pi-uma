@@ -20,6 +20,27 @@ fn write_item(dir: &Path, file: &str, status: &str, title: &str, body: &str) {
 }
 
 #[test]
+fn references_parse_bare_and_qualified() {
+    let bare = parse_reference("SPAI-012").expect("bare reference");
+    assert_eq!(bare.project, None);
+    assert_eq!(bare.id, "SPAI-012");
+
+    let qualified = parse_reference("pi-herdr-sidebar/SPAI-012").expect("qualified");
+    assert_eq!(qualified.project.as_deref(), Some("pi-herdr-sidebar"));
+    assert_eq!(qualified.id, "SPAI-012");
+
+    // The qualifier comes from the last `/`, so a Windows path keeps its shape.
+    let path = parse_reference("D:/x/pi-herdr-sidebar/SPAI-12").expect("path-qualified");
+    assert_eq!(path.project.as_deref(), Some("D:/x/pi-herdr-sidebar"));
+    assert_eq!(path.id, "SPAI-012", "canonicalized");
+
+    assert!(parse_reference("").is_none());
+    assert!(parse_reference("   ").is_none());
+    assert!(parse_reference("no id here").is_none());
+    assert!(parse_reference("pi-herdr-sidebar/").is_none(), "qualifier without an id");
+}
+
+#[test]
 fn scan_ids_canonicalizes_and_dedups() {
     assert_eq!(
         scan_ids("SPAI-035 spai-35 SPAI-7 SPAI- XSPAI-9"),

@@ -50,9 +50,11 @@ pub fn run(args: ReadArgs) -> Result<()> {
                 .map(|link| {
                     serde_json::json!({
                         "id": link.id,
+                        "project": link.project,
                         "status": link.status,
                         "title": link.title,
                         "path": link.path,
+                        "via": link.via,
                     })
                 })
                 .collect();

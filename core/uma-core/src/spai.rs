@@ -67,6 +67,46 @@ pub fn scan_ids(text: &str) -> Vec<String> {
     out
 }
 
+/// A SPAI reference as written in a fact: `SPAI-012`, or project-qualified as
+/// `project/SPAI-012` (SPAI-042).
+///
+/// Ids are unique only **per project** — `SPAI-012` in two backlogs are unrelated
+/// items — so the bare form is ambiguous by construction and a cross-project
+/// reference must say which backlog it means.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpaiRef {
+    /// Owning project when the reference names one: a project name or a
+    /// filesystem path. `None` for the bare form.
+    pub project: Option<String>,
+    pub id: String,
+}
+
+/// Parses one reference token. In the qualifying position both a project name
+/// and a path are accepted; resolution decides which one was meant, because only
+/// it can consult the available backlogs and the filesystem.
+///
+/// The qualifier is taken from the **last** `/`, so a Windows path such as
+/// `D:/x/pi-herdr-sidebar/SPAI-012` keeps its whole path as the qualifier.
+pub fn parse_reference(raw: &str) -> Option<SpaiRef> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let (project, tail) = match trimmed.rfind('/') {
+        Some(at) => {
+            let head = trimmed[..at].trim();
+            if head.is_empty() {
+                (None, trimmed)
+            } else {
+                (Some(head.to_string()), trimmed[at + 1..].trim())
+            }
+        }
+        None => (None, trimmed),
+    };
+    let id = scan_ids(tail).into_iter().next()?;
+    Some(SpaiRef { project, id })
+}
+
 /// Finds the item file for a numeric SPAI id inside one directory. Matches on
 /// the parsed number, not the string, so padding never matters.
 pub fn find_item(dir: &Path, number: u64) -> Option<PathBuf> {
