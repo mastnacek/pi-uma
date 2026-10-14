@@ -10,6 +10,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../../shared/types.js";
 import { findUmaBinary, runUma } from "../../shared/client.js";
 import { isCommandFailure } from "./policy.ts";
+import { buildStagingCreateArgs, type StagedDraftRequest } from "./staging_args.ts";
 import {
   buildPromotionDraft,
   isCanonicalSpaiId,
@@ -86,35 +87,11 @@ function detectUserCorrection(text: string): boolean {
 
 export async function createStagedDraft(
   cwd: string,
-  draft: {
-    type: string;
-    title: string;
-    body: string;
-    trigger: string;
-    confidence?: number;
-    tags?: string[];
-  },
+  draft: StagedDraftRequest,
 ): Promise<boolean> {
   try {
     const binPath = findUmaBinary(cwd);
-    const args = [
-      "staging",
-      "create",
-      "--type",
-      draft.type,
-      "--title",
-      draft.title,
-      "--body",
-      draft.body,
-      "--trigger",
-      draft.trigger,
-      "--confidence",
-      String(draft.confidence ?? 0.85),
-    ];
-    if (draft.tags && draft.tags.length > 0) {
-      args.push("--tags", draft.tags.join(","));
-    }
-    const res = await runUma(binPath, args, cwd);
+    const res = await runUma(binPath, buildStagingCreateArgs(draft), cwd);
     return res.code === 0;
   } catch {
     return false;

@@ -18,8 +18,16 @@ Two independent paths, both non-blocking and both *proposal-only*:
    call: a completed task is *never* treated as knowledge on its own, so the draft
    is staged at a deliberately low confidence and left to the operator.
 
-`src/slices/shadow/policy.ts` and `spai_promotion.ts` are pure (no pi imports) so
-`node --test` covers them; `index.ts` only wires events to those policies.
+`src/slices/shadow/policy.ts`, `spai_promotion.ts` and `staging_args.ts` are pure
+(no pi imports) so `node --test` covers them; `index.ts` only wires events to
+those policies.
+
+**Why `staging_args.ts` exists as its own module:** the promotion's provenance
+crosses a process boundary, and the first version dropped it there — the inline
+argv construction typed its parameter without `spai`, so TypeScript accepted a
+draft carrying provenance while the flag was never sent (`spai: []` in the staged
+JSON; found only by inspecting a real draft, not by the policy tests). The argv is
+now built by a tested pure function, so a silent drop at the seam cannot recur.
 
 ## Why it exists
 
