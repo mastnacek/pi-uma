@@ -11,27 +11,38 @@ function getPackageDir(): string {
   return path.resolve(path.dirname(currentFile), "..", "..");
 }
 
-export function findUmaBinary(_cwd?: string): string {
-  const isWindows = process.platform === "win32";
-  // The canonical binary is `uma` (Cargo.toml [[bin]]); `uma-cli` is kept as a
-  // fallback for stale installs built before the rename.
+/**
+ * Candidate engine-binary paths, in precedence order.
+ *
+ * A **local build wins over the shipped binary**: `bin/uma.exe` is committed,
+ * so preferring it silently ignored every `cargo build` and shipped a stale
+ * engine (SPAI-041 — the plugin and engine disagreed with no version check and
+ * no error). The shipped binary stays as the fallback for installs with no
+ * target directory. Pure so the order is covered by a test, not by a comment.
+ */
+export function umaBinaryCandidates(pkgDir: string, isWindows: boolean): string[] {
   const primary = isWindows ? "uma.exe" : "uma";
   const fallback = isWindows ? "uma-cli.exe" : "uma-cli";
-
-  const pkgDir = getPackageDir();
-
-  // Security invariant: never look inside arbitrary workspace cwd.
-  // Binaries are only resolved from this plugin's own package installation directory or PATH.
-  const candidates = [
-    // 1. The engine binary ships with the package (bin/)
-    path.join(pkgDir, "bin", primary),
-    // 2. Development copy in the package's own cargo target directories (VSA layout)
+  return [
+    // 1. A build in this package's own cargo target dirs (development).
     path.join(pkgDir, "core", "target", "release", primary),
     path.join(pkgDir, "core", "target", "debug", primary),
     path.join(pkgDir, "target", "release", primary),
     path.join(pkgDir, "target", "debug", primary),
+    // 2. The binary shipped with the package (production installs).
+    path.join(pkgDir, "bin", primary),
     path.join(pkgDir, "bin", fallback),
   ];
+}
+
+export function findUmaBinary(_cwd?: string): string {
+  const isWindows = process.platform === "win32";
+  const primary = isWindows ? "uma.exe" : "uma";
+  const pkgDir = getPackageDir();
+
+  // Security invariant: never look inside arbitrary workspace cwd.
+  // Binaries are only resolved from this plugin's own package installation directory or PATH.
+  const candidates = umaBinaryCandidates(pkgDir, isWindows);
 
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {

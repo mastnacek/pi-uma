@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 12:59:31",
+  "lastUpdated": "2026-10-14 18:35:03",
   "records": [
     {
       "id": "SPAI-001",
@@ -705,8 +705,8 @@
       "id": "SPAI-041",
       "title": "Document/fix the binary shadowing trap: AGENTS §4 says findUmaBinary uses core/target/release, but it actually prefers the committed bin/uma.exe. Either add a version check between plugin and engine, or make the dev loop/build script refresh bin/uma.exe automatically",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 12:30:42",
       "tags": [
         "build",

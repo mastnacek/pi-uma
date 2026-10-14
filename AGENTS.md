@@ -65,9 +65,20 @@ Run from the repo root after any change (see memory fact `verify-uma-changes`):
 4. If plugin code changed: `/reload` in the running pi session before live use
 5. Single repo now: one commit + push ships everything
 
-The plugin locates the engine via `findUmaBinary` (`src/shared/client.ts`):
-`core/target/release/uma.exe` relative to the package, then PATH. After moving
-or first cloning, build it: `cd core && cargo build --release`.
+The plugin locates the engine via `findUmaBinary` (`src/shared/client.ts`), in
+this order: `core/target/release/uma.exe`, `core/target/debug/uma.exe`, the
+package's own `target/`, then the **committed** `bin/uma.exe`, then PATH.
+
+Two consequences that bite silently:
+
+- A local `cargo build --release` now takes precedence over `bin/uma.exe`, so dev
+  builds are what you exercise. Before that reorder (SPAI-041) the committed
+  binary shadowed every build and the plugin and engine disagreed with no error.
+- `bin/uma.exe` is tracked, so **every engine change must refresh it in the same
+  commit** (`cp core/target/release/uma.exe bin/uma.exe`) or installs without a
+  target dir ship the previous engine.
+
+After moving or first cloning, build the engine: `cd core && cargo build --release`.
 
 ## 5. Standing Invariants (recorded in memory)
 
