@@ -5,6 +5,8 @@ use uma_core::{domain::FactId, store::Store};
 
 use crate::shared::format::print_fact;
 
+mod spai;
+
 #[derive(Args, Debug, Clone)]
 pub struct ReadArgs {
     /// Fact ID (ULID)
@@ -18,6 +20,11 @@ pub struct ReadArgs {
     /// Emit the fact as JSON instead of a human-readable summary
     #[arg(long = "json")]
     pub json: bool,
+
+    /// Resolve SPAI-NNN references (spai field + body mentions) against the
+    /// live docs/spai backlog and append their current status (read-only)
+    #[arg(long = "resolve-spai")]
+    pub resolve_spai: bool,
 }
 
 /// Executes the Read vertical slice: finds and displays a fact by its ID.
@@ -37,6 +44,20 @@ pub fn run(args: ReadArgs) -> Result<()> {
             val["is_active_as_of"] = serde_json::json!(fact.is_active_at(target));
             val["effective_weight_as_of"] = serde_json::json!(fact.effective_weight(target));
         }
+        if args.resolve_spai {
+            let links: Vec<serde_json::Value> = spai::resolve_all(&fact)
+                .into_iter()
+                .map(|link| {
+                    serde_json::json!({
+                        "id": link.id,
+                        "status": link.status,
+                        "title": link.title,
+                        "path": link.path,
+                    })
+                })
+                .collect();
+            val["spai_resolved"] = serde_json::Value::Array(links);
+        }
         println!("{}", serde_json::to_string(&val)?);
     } else {
         print_fact(&fact);
@@ -49,6 +70,9 @@ pub fn run(args: ReadArgs) -> Result<()> {
                 if active { "yes (stable)" } else { "no (inactive/rotted)" },
                 weight
             );
+        }
+        if args.resolve_spai {
+            println!("\n{}", spai::render_section(&spai::resolve_all(&fact)));
         }
     }
     Ok(())

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 11:57:45",
+  "lastUpdated": "2026-10-14 12:01:08",
   "records": [
     {
       "id": "SPAI-001",
@@ -592,8 +592,8 @@
       "id": "SPAI-034",
       "title": "Tier 1b live link resolution: `uma read --resolve-spai` (or uma_read plugin option) fetches current status of SPAI-NNN references in a fact body and displays them inline",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "working",
+      "symbol": "/",
       "timestamp": "2026-10-14 11:30:08",
       "tags": [
         "spai",
