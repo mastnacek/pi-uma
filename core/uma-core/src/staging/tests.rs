@@ -51,3 +51,46 @@ fn test_staging_draft_lifecycle() {
     let read_back = store.read_by_id(&fact.id).unwrap();
     assert_eq!(read_back.title, "Direct Store integration tests");
 }
+
+/// SPAI provenance must survive the whole curation path: a shadow-worker draft
+/// records which task produced it, and the promoted fact still points back
+/// (SPAI-037 — task → knowledge, never the other way round).
+#[test]
+fn test_staged_draft_preserves_spai_provenance_through_approval() {
+    let dir = tempdir().unwrap();
+    let store = Store::new(dir.path().join(".uma"));
+
+    let mut fact = Fact::new(
+        Scope::Project("test-proj".to_string()),
+        FactType::Note,
+        "Completed: read-only SPAI source".to_string(),
+        "Task text preserved as the draft body.".to_string(),
+    );
+    fact.spai = vec!["SPAI-036".to_string()];
+    fact.tags = vec!["spai".to_string()];
+
+    let draft = StagedDraft::new(
+        0.7,
+        StagedProvenance {
+            session_id: None,
+            trigger_type: "spai_done".to_string(),
+            context: None,
+        },
+        fact.clone(),
+    );
+    save_draft(&store, &draft).unwrap();
+
+    let loaded = load_draft(&store, &fact.id.to_string()).unwrap();
+    assert_eq!(loaded.provenance.trigger_type, "spai_done");
+    assert_eq!(loaded.fact.spai, vec!["SPAI-036"]);
+
+    let approved = approve_draft(&store, &fact.id.to_string()).unwrap();
+    assert_eq!(approved.spai, vec!["SPAI-036"]);
+
+    let read_back = store.read_by_id(&fact.id).unwrap();
+    assert_eq!(
+        read_back.spai,
+        vec!["SPAI-036"],
+        "the promoted fact must keep its task reference"
+    );
+}

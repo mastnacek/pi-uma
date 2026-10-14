@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 12:30:42",
+  "lastUpdated": "2026-10-14 12:45:26",
   "records": [
     {
       "id": "SPAI-001",
@@ -76,8 +76,8 @@
       "id": "SPAI-005",
       "title": "P02 shadow worker: telemetry capture (turn_end/tool_result: compiler recovery, reverts, dependency changes) → .uma/.staging/ drafts (JSON, no index pollution) → ctx.ui.setStatus \"✦ N drafts\" + /uma review batch approval through the modal",
       "type": "Todo",
-      "status": "done",
-      "symbol": "x",
+      "status": "cancelled",
+      "symbol": "z",
       "timestamp": "2026-10-08 23:15:12",
       "tags": [
         "roadmap",
@@ -94,8 +94,8 @@
       "id": "SPAI-006",
       "title": "Deferred: P04 skeptic on-demand + debt ledger + epistemic-humility mode; P05 muscle routines (operator-curated only, auto-synthesis proposal-only) + priming graph + doctor --dream retrieval practice. Speculative tail — revisit after P03a+P02 land",
       "type": "Todo",
-      "status": "done",
-      "symbol": "x",
+      "status": "cancelled",
+      "symbol": "z",
       "timestamp": "2026-10-08 23:15:49",
       "tags": [
         "roadmap",
@@ -640,9 +640,9 @@
     {
       "id": "SPAI-037",
       "title": "Tier 3 done-task promotion: shadow worker watches SPAI todo→done transitions and stages a fact proposal in .uma/.staging/ with the task text as draft body and SPAI-NNN as provenance; operator curates via /uma review",
-      "type": "Idea",
-      "status": "idea",
-      "symbol": "?",
+      "type": "Todo",
+      "status": "working",
+      "symbol": "/",
       "timestamp": "2026-10-14 11:30:08",
       "tags": [
         "spai",

@@ -117,6 +117,12 @@ pub struct CreateDraftArgs {
     /// stored as data only — never executed without explicit consent.
     #[arg(long = "template")]
     pub template: Option<String>,
+
+    /// SPAI backlog item IDs this draft is derived from (comma-separated).
+    /// Provenance is preserved through curation, so a promoted fact still points
+    /// back at the task that produced it (SPAI-037).
+    #[arg(long = "spai", value_delimiter = ',')]
+    pub spai: Vec<String>,
 }
 
 fn resolve_store() -> Result<Store> {
@@ -210,6 +216,7 @@ pub fn run(args: StagingArgs) -> Result<()> {
             );
             fact.tags = create.tags;
             fact.template = create.template;
+            fact.spai = create.spai;
 
             let draft = StagedDraft::new(
                 create.confidence,

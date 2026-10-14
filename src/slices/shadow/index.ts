@@ -10,6 +10,14 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../../shared/types.js";
 import { findUmaBinary, runUma } from "../../shared/client.js";
 import { isCommandFailure } from "./policy.ts";
+import {
+  buildPromotionDraft,
+  isCanonicalSpaiId,
+  isSpaiCompletion,
+  PromotionLedger,
+  spaiIdFromText,
+  type SpaiRecordLike,
+} from "./spai_promotion.ts";
 
 interface CommandFailure {
   command: string;
@@ -23,6 +31,9 @@ const FAILURE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 /** The last correction text already distilled, so an identical repeat does not
  *  fire another judge call and stage a duplicate draft. */
 let lastCorrectionText: string | null = null;
+
+/** Completed SPAI items already proposed this session (one draft per item). */
+const spaiPromotions = new PromotionLedger();
 
 function isTestOrBuildCommand(cmd: string): boolean {
   const lower = cmd.toLowerCase().trim();
@@ -193,6 +204,29 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
           });
         }
       }
+    }
+
+    // 3. SPAI item completed → staged fact proposal (SPAI-037, Tier 3).
+    // A finished task is promoted as a *candidate*, never as a fact: the draft
+    // carries the task text and its SPAI id as provenance, and the operator
+    // curates it in `/uma review` (approve, edit, or discard).
+    if (isSpaiCompletion(event.toolName, event.input as Record<string, unknown> | undefined)) {
+      const details = (event as { details?: { record?: SpaiRecordLike } }).details;
+      const recordId = isCanonicalSpaiId(details?.record?.id)
+        ? String(details?.record?.id).toUpperCase()
+        : null;
+      const id = recordId ?? spaiIdFromText(extractCommandOutput(event.content));
+      if (!id || spaiPromotions.has(id)) return;
+
+      const draft = buildPromotionDraft(details?.record, id);
+      if (!draft) return;
+      spaiPromotions.add(id);
+
+      void createStagedDraft(ctx.cwd, draft).then((created) => {
+        if (created) {
+          void state.refreshDetector?.(ctx, true);
+        }
+      });
     }
   });
 
