@@ -37,7 +37,10 @@ fn references_parse_bare_and_qualified() {
     assert!(parse_reference("").is_none());
     assert!(parse_reference("   ").is_none());
     assert!(parse_reference("no id here").is_none());
-    assert!(parse_reference("pi-herdr-sidebar/").is_none(), "qualifier without an id");
+    assert!(
+        parse_reference("pi-herdr-sidebar/").is_none(),
+        "qualifier without an id"
+    );
 }
 
 #[test]
