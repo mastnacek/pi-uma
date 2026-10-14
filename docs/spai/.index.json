@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 12:45:26",
+  "lastUpdated": "2026-10-14 12:48:50",
   "records": [
     {
       "id": "SPAI-001",
@@ -641,8 +641,8 @@
       "id": "SPAI-037",
       "title": "Tier 3 done-task promotion: shadow worker watches SPAI todo→done transitions and stages a fact proposal in .uma/.staging/ with the task text as draft body and SPAI-NNN as provenance; operator curates via /uma review",
       "type": "Todo",
-      "status": "working",
-      "symbol": "/",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-14 11:30:08",
       "tags": [
         "spai",
