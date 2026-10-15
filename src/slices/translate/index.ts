@@ -89,6 +89,77 @@ export async function translateForDisplay(
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
+/** Module-level extractor: model errors arrive as stopReason "error"
+ * messages, not exceptions — pull the text path explicitly. */
+function extractDisplayText(reply: AssistantMessage): DisplayTranslationResult {
+  if (reply.stopReason === "error") {
+    return { error: reply.errorMessage ?? "model error" };
+  }
+  const text = reply.content
+    ?.filter((c): c is { type: "text"; text: string } => c.type === "text")
+    .map((c) => c.text)
+    .join("")
+    .trim();
+  if (!text) return { error: "empty translation" };
+  return { text };
+}
+
+/**
+ * Generic single-shot completion over the shared cheap display model (the
+ * translate plugin's configured model). Generalizes the transport that
+ * translateForDisplay uses so other features (immune recommendation,
+ * SPAI-047) can ask the same model classification questions without a new
+ * configuration knob. Display-only by the same invariant: nothing here
+ * touches memory, CLI output or stored data; failures degrade to
+ * `{ error }` and the caller decides what showing-the-original means.
+ */
+export async function completeForDisplay(
+  ctx: ExtensionContext,
+  systemPrompt: string,
+  userText: string,
+): Promise<DisplayTranslationResult> {
+  try {
+    const model = await resolveTranslateModel(ctx);
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (!auth.ok) return { error: auth.error };
+
+    const context = {
+      systemPrompt,
+      messages: [{ role: "user", content: userText, timestamp: Date.now() }],
+    };
+    const opts = {
+      apiKey: auth.apiKey,
+      headers: auth.headers,
+      env: auth.env,
+      signal: ctx.signal,
+    } as never;
+
+    const registry = ctx.modelRegistry as
+      | {
+          completeSimple?: (
+            m: Model<Api>,
+            context: Context,
+            options?: unknown,
+          ) => Promise<AssistantMessage>;
+          complete?: (
+            m: Model<Api>,
+            context: Context,
+            options?: unknown,
+          ) => Promise<AssistantMessage>;
+        }
+      | undefined;
+    if (registry && typeof registry.completeSimple === "function") {
+      return extractDisplayText(await registry.completeSimple(model, context as Context, opts));
+    }
+    if (registry && typeof registry.complete === "function") {
+      return extractDisplayText(await registry.complete(model, context as Context, opts));
+    }
+    return extractDisplayText(await completeSimple(model, context as Context, opts));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 /**
  * Modal-side controller over the display translation lifecycle.
  *

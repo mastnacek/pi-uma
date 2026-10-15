@@ -8,6 +8,10 @@ import { translateOutputForDisplay } from "../../shared/translate_client.js";
 import { startStagingReview } from "../../shared/staging_client.js";
 import { confirmMuscleExecution } from "../../shared/muscle_dialog.js";
 import { fetchMuscleSteps } from "../../shared/client.js";
+import {
+  readImmuneDecisionLog,
+  summarizeImmuneDecisions,
+} from "../../shared/decision_log.js";
 
 export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void {
   const s = stringsFor(state.config.lang);
@@ -153,6 +157,23 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         }
         void state.refreshDetector?.(ctx, true);
       } else if (subcommand === "immune") {
+        // SPAI-047: the decision-log statistics — evidence for consent-mode
+        // tuning. Read-only over the local JSONL journal; never touches memory.
+        if (cleanParts[1] === "stats") {
+          const summary = summarizeImmuneDecisions(await readImmuneDecisionLog());
+          if (summary.total === 0) {
+            ctx.ui.notify(liveStrings.immuneStatsNone, "info");
+          } else {
+            const line = liveStrings.immuneStatsSummary
+              .replace("{t}", String(summary.total))
+              .replace("{y}", String(summary.yesRecommended))
+              .replace("{ya}", String(summary.yesApproved))
+              .replace("{n}", String(summary.noRecommended))
+              .replace("{nb}", String(summary.noBlocked));
+            ctx.ui.notify(`${line}\n${liveStrings.immuneStatsHint}`, "info");
+          }
+          return;
+        }
         const wantsGlobal = isGlobal || cleanParts.includes("--global");
         const target = cleanParts[1];
         const valid = ["off", "warn", "ask", "auto", "block"];

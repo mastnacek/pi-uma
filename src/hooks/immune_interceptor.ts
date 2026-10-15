@@ -13,18 +13,31 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../shared/types.js";
 import { runUma, findUmaBinary } from "../shared/client.js";
 import { stringsFor } from "../shared/i18n.js";
-import { translateOutputForDisplay } from "../shared/translate_client.js";
+import { translateOutputForDisplay, completeForDisplay } from "../shared/translate_client.js";
+import { appendImmuneDecision } from "../shared/decision_log.js";
 import {
   assessEdit,
   checkContractRules,
   decideImmuneAction,
   extractEdit,
+  matchRule,
   type PainVerdict,
   type RuleL1,
 } from "../slices/immune/index.js";
+import {
+  buildRecommendationContext,
+  formatRecommendation,
+  parseRecommendation,
+  type RuleRecommendation,
+} from "../slices/immune/recommendation.ts";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 /** Upper bound per check: a warning that costs 5 seconds is worse than none. */
 const CHECK_TIMEOUT_MS = 5_000;
+
+/** Upper bound for the semantic second opinion: the dialog is interactive,
+ * but a recommendation that arrives after 8s is worse than none at all. */
+const RECOMMENDATION_TIMEOUT_MS = 8_000;
 
 /** The L1 rules cache: decisions and patterns only, refreshed at most every 10 minutes. */
 const RULES_CACHE_TTL_MS = 10 * 60 * 1_000;
@@ -86,6 +99,28 @@ export function resetImmuneCache(): void {
   rulesCache = undefined;
 }
 
+/**
+ * The semantic second opinion (SPAI-047): ask the shared cheap display model
+ * whether the added text genuinely relates to the matched rule. Advisory
+ * only — every failure path degrades to undefined and the dialog shows
+ * without a recommendation; the operator's consent is never pre-empted.
+ */
+async function recommendForRule(
+  ctx: ExtensionContext,
+  rule: RuleL1,
+  addedText: string,
+  lang: "cs" | "en",
+): Promise<RuleRecommendation | undefined> {
+  try {
+    const { systemPrompt, userText } = buildRecommendationContext(rule, addedText, lang);
+    const result = await withTimeout(completeForDisplay(ctx, systemPrompt, userText), RECOMMENDATION_TIMEOUT_MS);
+    if (!result?.text) return undefined;
+    return parseRecommendation(result.text);
+  } catch {
+    return undefined;
+  }
+}
+
 export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionState): () => void {
   const unsubscribe = pi.on("tool_call", async (event, ctx) => {
     const mode = state.config.immuneMode;
@@ -125,12 +160,33 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
           if (action.message.length > 0) {
             const s = stringsFor(state.config.lang);
             const { text } = await translateOutputForDisplay(ctx, action.message, state.config.lang);
+            // Second opinion (SPAI-047): when the heuristic matched a rule,
+            // attach the classifier's verdict so the operator decides with
+            // information, not on faith. Advisory only — a missing verdict
+            // silently shows the dialog unchanged.
+            const matched = matchRule(rules, edit.added);
+            const rec = matched
+              ? await recommendForRule(ctx, matched, edit.added, state.config.lang)
+              : undefined;
+            const recommendation = rec ? formatRecommendation(rec, state.config.lang) : undefined;
             // pi's confirm() hardcodes "Yes"/"No" (it is select(`${title}\n${message}`)
             // internally), so the localized consent runs through select: the
             // translated body rides in the multi-line title, the buttons come
             // from the string table. The block REASON stays the English
             // original — the model reads it.
-            const choice = await ctx.ui.select(`${s.immuneDialogTitle}\n${text}`, [s.dialogProceed, s.dialogBlock]);
+            const title = recommendation
+              ? `${s.immuneDialogTitle}\n${text}\n${recommendation}`
+              : `${s.immuneDialogTitle}\n${text}`;
+            const choice = await ctx.ui.select(title, [s.dialogProceed, s.dialogBlock]);
+            // The decision log (SPAI-047): evidence for evidence-based mode
+            // tuning. Advisory — a logging failure never affects the call.
+            void appendImmuneDecision({
+              ts: new Date().toISOString(),
+              ruleId: matched?.id,
+              relation: rec?.relation,
+              confidence: rec?.confidence,
+              approved: choice === s.dialogProceed,
+            });
             if (choice !== s.dialogProceed) {
               return { block: true, reason: action.message };
             }

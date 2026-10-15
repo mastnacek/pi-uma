@@ -64,6 +64,30 @@ const MIN_SHARED_TOKENS = 4;
 const MIN_CONTAINMENT = 0.25;
 
 /**
+ * The single rule an edit most likely touches, by the same containment
+ * heuristic assessEdit warns with. Extracted so the hook can attach a
+ * semantic second opinion (recommendation.ts) to the matched rule without
+ * re-parsing warning strings. Returns the first matching rule (same
+ * first-match-wins order as the warning) or undefined.
+ */
+export function matchRule(rules: RuleL1[], addedText: string): RuleL1 | undefined {
+  const addedTokens = new Set(tokenize(addedText));
+  if (addedTokens.size < MIN_EDIT_TOKENS) return undefined;
+  for (const rule of rules) {
+    const ruleTokens = new Set(tokenize(`${rule.title} ${rule.body}`));
+    let shared = 0;
+    for (const token of addedTokens) {
+      if (ruleTokens.has(token)) shared += 1;
+    }
+    const containment = shared / addedTokens.size;
+    if (shared >= MIN_SHARED_TOKENS && containment >= MIN_CONTAINMENT) {
+      return rule; // one rule per edit: enough to look, not noise
+    }
+  }
+  return undefined;
+}
+
+/**
  * Pure decision: which warnings does this edit deserve?
  * Returns human-readable warnings; empty means "nothing to say". Never
  * produces a block — the return value is fed to a notification, nothing else.
@@ -82,22 +106,11 @@ export function assessEdit(
     warnings.push(`[UMA Risk] Pain score ${pain.score}/100 — test-first: propose the failing test before changing this file.`);
   }
 
-  const addedTokens = new Set(tokenize(addedText));
-  if (addedTokens.size >= MIN_EDIT_TOKENS) {
-    for (const rule of rules) {
-      const ruleTokens = new Set(tokenize(`${rule.title} ${rule.body}`));
-      let shared = 0;
-      for (const token of addedTokens) {
-        if (ruleTokens.has(token)) shared += 1;
-      }
-      const containment = shared / addedTokens.size;
-      if (shared >= MIN_SHARED_TOKENS && containment >= MIN_CONTAINMENT) {
-        warnings.push(
-          `[UMA Rule] This edit may touch active rule ${rule.id} "${rule.title}" — verify compliance before saving.`,
-        );
-        break; // one rule warning per edit: enough to look, not noise
-      }
-    }
+  const rule = matchRule(rules, addedText);
+  if (rule) {
+    warnings.push(
+      `[UMA Rule] This edit may touch active rule ${rule.id} "${rule.title}" — verify compliance before saving.`,
+    );
   }
 
   return warnings;

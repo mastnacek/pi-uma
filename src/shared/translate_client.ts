@@ -11,6 +11,7 @@ import { translateForDisplay } from "../slices/translate/index.js";
 export {
   DisplayTranslation,
   translateOutputForDisplay,
+  completeForDisplay,
 } from "../slices/translate/index.js";
 
 /**

@@ -85,6 +85,10 @@ export interface Strings {
   translationFailedNote: string;
   displayTranslatedNote: string;
   immuneDialogTitle: string;
+  /** /uma immune stats — evidence for consent-mode tuning (SPAI-047). */
+  immuneStatsNone: string;
+  immuneStatsSummary: string;
+  immuneStatsHint: string;
 }
 
 const STRINGS: Record<Locale, Strings> = {
@@ -107,6 +111,9 @@ const STRINGS: Record<Locale, Strings> = {
     translationFailedNote: "🌐 translation unavailable — showing the original",
     displayTranslatedNote: "🌐 display translation — memory and CLI output unchanged",
     immuneDialogTitle: "🛡️ UMA immune interceptor",
+    immuneStatsNone: "🛡️ No immune decisions logged yet — the log fills as you answer consent dialogs.",
+    immuneStatsSummary: "🛡️ Immune decisions: {t} total · recommended Yes: {y} (you approved {ya}) · recommended No: {n} (you blocked {nb})",
+    immuneStatsHint: "If you agree with the recommendation every time, /uma immune warn --global removes the dialogs.",
     dialogProceed: "Yes, proceed",
     dialogBlock: "No, block it",
     editPromptTitle: "Edit Title:",
@@ -231,6 +238,9 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
     translationFailedNote: "🌐 překlad nedostupný — zobrazuje se originál",
     displayTranslatedNote: "🌐 zobrazený překlad — pamět i výstup CLI se nemění",
     immuneDialogTitle: "🛡️ UMA imunitní interceptor",
+    immuneStatsNone: "🛡️ Zatím žádná zaznamenaná rozhodnutí — log se plní, jak odpovídáš na souhlasové dialogy.",
+    immuneStatsSummary: "🛡️ Rozhodnutí interceptoru: {t} celkem · doporučeno Ano: {y} (schválil jsi {ya}) · doporučeno Ne: {n} (zablokoval jsi {nb})",
+    immuneStatsHint: "Pokud doporučení vždy přijímáš, /uma immune warn --global odstraní dialogy.",
     dialogProceed: "Ano, pokračovat",
     dialogBlock: "Ne, zablokovat",
     editPromptTitle: "Upravit název:",
