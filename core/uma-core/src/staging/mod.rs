@@ -118,7 +118,7 @@ pub fn list_drafts(store: &Store) -> Result<DraftListing> {
 
     let mut listing = DraftListing::default();
     for entry in walkdir::WalkDir::new(&dir).into_iter().flatten() {
-        if !entry.file_type().is_file() || !entry.path().extension().is_some_and(|e| e == "json") {
+        if !entry.file_type().is_file() || entry.path().extension().is_none_or(|e| e != "json") {
             continue;
         }
         match std::fs::read_to_string(entry.path()) {

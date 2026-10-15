@@ -34,7 +34,10 @@ fn test_staging_draft_lifecycle() {
     let drafts = list_drafts(&store).unwrap();
     assert_eq!(drafts.len(), 1);
     assert_eq!(drafts.drafts[0].confidence, 0.95);
-    assert_eq!(drafts.drafts[0].fact.title, "Direct Store integration tests");
+    assert_eq!(
+        drafts.drafts[0].fact.title,
+        "Direct Store integration tests"
+    );
     assert!(drafts.skipped.is_empty());
 
     // 3. Load draft
@@ -147,13 +150,20 @@ fn test_list_reports_legacy_and_corrupt_drafts() {
 
     let listing = list_drafts(&store).unwrap();
     assert_eq!(listing.drafts.len(), 1, "the legacy draft must still load");
-    assert_eq!(listing.drafts[0].provenance.trigger_type, "muscle_synthesis");
+    assert_eq!(
+        listing.drafts[0].provenance.trigger_type,
+        "muscle_synthesis"
+    );
     assert_eq!(listing.drafts[0].fact.tags, vec!["muscle"]);
     assert!(
         listing.drafts[0].fact.spai.is_empty(),
         "a missing link list defaults to empty rather than failing the read"
     );
-    assert_eq!(listing.skipped.len(), 1, "the corrupt file must be reported");
+    assert_eq!(
+        listing.skipped.len(),
+        1,
+        "the corrupt file must be reported"
+    );
     assert!(
         listing.skipped[0].error.contains("missing field"),
         "the reason must survive: {}",
