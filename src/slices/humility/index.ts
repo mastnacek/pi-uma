@@ -24,6 +24,13 @@ export function flagsOf(state: ExtensionState): HumilityFlag[] {
   return state.humilityFlags;
 }
 
+/** Upper bound on the whole check (SPAI-052): passed to runUma as its
+ *  execFile timeout so the child is reaped (exit 124) instead of orphaned.
+ *  With the semantic judge in play the engine's own HTTP timeout must stay
+ *  BELOW this (see TIMEOUT_SECS in jev.rs) so a slow judge degrades to the
+ *  offline verdict inside the budget instead of tripping this ceiling. */
+const HUMILITY_TIMEOUT_MS = 15_000;
+
 /** Registers the tool and the read-tracking listener; returns the unsubscribe. */
 export function registerHumilityTool(pi: ExtensionAPI, state: ExtensionState): () => void {
   // Read tracking: every read result feeds the flagged subsystems.
@@ -128,7 +135,7 @@ export function registerHumilityTool(pi: ExtensionAPI, state: ExtensionState): (
       if (files.length > 0) args.push("--files", files.join(","));
       if (params.judge) args.push("--judge", params.judge);
 
-      const res = await runUma(binPath, args, ctx.cwd);
+      const res = await runUma(binPath, args, ctx.cwd, HUMILITY_TIMEOUT_MS);
       if (res.code !== 0) {
         return {
           content: [{ type: "text", text: `Humility check failed: ${res.stderr.split("\n")[0] || res.stdout}` }],
@@ -136,12 +143,20 @@ export function registerHumilityTool(pi: ExtensionAPI, state: ExtensionState): (
         };
       }
 
-      const verdict = JSON.parse(res.stdout) as {
+      let verdict: {
         familiarity: string;
         exploration_required: boolean;
         fact_coverage: number;
         advice: string;
       };
+      try {
+        verdict = JSON.parse(res.stdout) as typeof verdict;
+      } catch {
+        return {
+          content: [{ type: "text", text: "Humility check failed: engine returned malformed JSON." }],
+          details: {},
+        };
+      }
 
       // LOW verdict flags the touched directories in session state so the gate can ask.
       if (verdict.familiarity === "low" && verdict.exploration_required) {

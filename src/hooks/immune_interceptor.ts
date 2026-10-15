@@ -32,7 +32,11 @@ import {
 } from "../slices/immune/recommendation.ts";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-/** Upper bound per check: a warning that costs 5 seconds is worse than none. */
+/** Upper bound per check: a warning that costs 5 seconds is worse than none.
+ *  Passed to runUma as its execFile timeout: the child is reaped (exit 124)
+ *  instead of being orphaned when the call gives up (SPAI-052) — the old
+ *  bare Promise.race left uma.exe running for up to the engine's internal
+ *  timeout. */
 const CHECK_TIMEOUT_MS = 5_000;
 
 /** Upper bound for the semantic second opinion: the dialog is interactive,
@@ -49,6 +53,11 @@ interface CachedRules {
 
 let rulesCache: CachedRules | undefined;
 
+/**
+ * Deadline wrapper for promises that do NOT own a spawned child (LLM calls
+ * over fetch). Never wrap runUma in this: abandoning the race leaves the
+ * engine process running — runUma's timeoutMs argument reaps instead.
+ */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
   return Promise.race([
     promise,
@@ -58,8 +67,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined>
 
 async function fetchPain(cwd: string, path: string): Promise<PainVerdict | undefined> {
   const binPath = findUmaBinary(cwd);
-  const output = await withTimeout(runUma(binPath, ["risk", "pain", path, "--json"], cwd), CHECK_TIMEOUT_MS);
-  if (!output || output.code !== 0) return undefined;
+  // CHECK_TIMEOUT_MS rides inside runUma (exit 124 on kill), so the promise
+  // always settles and no orphaned uma.exe survives the deadline.
+  const output = await runUma(binPath, ["risk", "pain", path, "--json"], cwd, CHECK_TIMEOUT_MS);
+  if (output.code !== 0) return undefined;
   try {
     return JSON.parse(output.stdout) as PainVerdict;
   } catch {
@@ -77,12 +88,12 @@ async function fetchRules(cwd: string): Promise<RuleL1[]> {
   // call with both types silently reduced the cache to patterns only — the
   // decision rules (the VSA isolation rule among them) were missing.
   const outputs = await Promise.all([
-    withTimeout(runUma(binPath, ["list", "--json", "--type", "decision"], cwd), CHECK_TIMEOUT_MS),
-    withTimeout(runUma(binPath, ["list", "--json", "--type", "pattern"], cwd), CHECK_TIMEOUT_MS),
+    runUma(binPath, ["list", "--json", "--type", "decision"], cwd, CHECK_TIMEOUT_MS),
+    runUma(binPath, ["list", "--json", "--type", "pattern"], cwd, CHECK_TIMEOUT_MS),
   ]);
   const rules: RuleL1[] = [];
   for (const output of outputs) {
-    if (!output || output.code !== 0) continue;
+    if (output.code !== 0) continue;
     try {
       const parsed = JSON.parse(output.stdout) as RuleL1[];
       rules.push(...parsed);
