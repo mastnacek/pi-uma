@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-15 11:27:51",
+  "lastUpdated": "2026-10-15 11:43:13",
   "records": [
     {
       "id": "SPAI-001",
@@ -826,8 +826,8 @@
       "id": "SPAI-047",
       "title": "Immune recommendation: Jev second opinion inside the interceptor dialog — rule text + added diff -> {violates|touches|unrelated, confidence, reason} shown as a recommendation line above the localized Ano/Ne buttons; timeout degrades quiet; operator decision log (session-local, not memory facts) tracks agreement with recommendations so the operator can evidence-based switch to warn mode later (/uma immune stats). Invariants: Jev recommends only, never auto-approves or blocks; consent stays fail-closed",
       "type": "Idea",
-      "status": "idea",
-      "symbol": "?",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-15 11:27:51",
       "tags": [
         "immune",
@@ -836,7 +836,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-047-immune-recommendation-jev-second-opinion-inside-th.md"
     }
   ]
