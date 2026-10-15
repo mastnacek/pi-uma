@@ -139,19 +139,24 @@ pub fn run(args: StagingArgs) -> Result<()> {
 
     match args.command {
         StagingCommand::List(list) => {
-            let drafts = list_drafts(&store)?;
+            let listing = list_drafts(&store)?;
             if list.json {
-                println!("{}", serde_json::to_string_pretty(&drafts)?);
+                // The array shape is unchanged (plugin consumers parse it): the
+                // unreadable files are reported on stderr, never mixed into JSON.
+                println!("{}", serde_json::to_string_pretty(&listing.drafts)?);
+                if let Some(warning) = listing.warning() {
+                    eprintln!("! {warning}");
+                }
                 return Ok(());
             }
 
-            if drafts.is_empty() {
+            if listing.is_empty() && listing.skipped.is_empty() {
                 println!("No staged drafts in .uma/.staging/");
                 return Ok(());
             }
 
-            println!("Staged memory drafts ({} pending review):\n", drafts.len());
-            for (idx, d) in drafts.iter().enumerate() {
+            println!("Staged memory drafts ({} pending review):\n", listing.len());
+            for (idx, d) in listing.drafts.iter().enumerate() {
                 println!(
                     "{}. [{}] {} (confidence: {:.0}%)",
                     idx + 1,
@@ -162,6 +167,9 @@ pub fn run(args: StagingArgs) -> Result<()> {
                 println!("   ID: {}", d.id);
                 println!("   Trigger: {}", d.provenance.trigger_type);
                 println!();
+            }
+            if let Some(warning) = listing.warning() {
+                eprintln!("! {warning}");
             }
             println!("Review interactively in Pi via `/uma review` or approve with `uma staging approve <ID>`.");
         }

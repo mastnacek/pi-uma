@@ -25,13 +25,21 @@ pub struct Fact {
     pub status: FactStatus,
     pub supersedes: Option<FactId>,
     pub generated: Option<ActorEvent>,
+    /// Provenance entries. Absent in older records and legitimately empty when
+    /// no review happened — a missing collection must never make a record
+    /// unreadable. (2026-10-15: adding `spai` without a default silently
+    /// orphaned every draft written before it; the staging reader then dropped
+    /// them without a word.)
+    #[serde(default)]
     pub verified: Vec<ActorEvent>,
     pub validity: Validity,
     pub tags: Vec<String>,
+    #[serde(default)]
     pub links: Vec<FactId>,
     /// SPAI backlog item IDs this fact is linked to (e.g. "SPAI-035").
     /// Cross-reference only — SPAI stays the work ledger, UMA the knowledge base;
     /// task state itself must never enter the fact space (decision 01M4WVY8NVB2WNKKZH3497Y8K9).
+    #[serde(default)]
     pub spai: Vec<String>,
 }
 

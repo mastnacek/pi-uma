@@ -64,26 +64,82 @@ pub fn save_draft(store: &Store, draft: &StagedDraft) -> Result<PathBuf> {
     Ok(file_path)
 }
 
-/// Lists all staged drafts from `.uma/.staging/`, sorted newest first.
-pub fn list_drafts(store: &Store) -> Result<Vec<StagedDraft>> {
-    let dir = staging_dir(store);
-    if !dir.exists() {
-        return Ok(Vec::new());
+/// A staging file that could not be read, with the reason. Callers surface
+/// these instead of pretending the file does not exist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkippedDraft {
+    pub path: PathBuf,
+    pub error: String,
+}
+
+/// The staging area as the operator should see it: the readable drafts plus
+/// every file that failed to parse.
+#[derive(Debug, Clone, Default)]
+pub struct DraftListing {
+    pub drafts: Vec<StagedDraft>,
+    pub skipped: Vec<SkippedDraft>,
+}
+
+impl DraftListing {
+    pub fn is_empty(&self) -> bool {
+        self.drafts.is_empty()
     }
 
-    let mut drafts = Vec::new();
+    pub fn len(&self) -> usize {
+        self.drafts.len()
+    }
+
+    /// One-line warning naming the first unreadable file, or `None` when
+    /// everything parsed. Never silent: an unreadable draft is a draft the
+    /// operator cannot review.
+    pub fn warning(&self) -> Option<String> {
+        let first = self.skipped.first()?;
+        Some(format!(
+            "{} staging file(s) could not be read (first: {}: {}) — \
+             legacy or corrupt drafts are reported here instead of being hidden.",
+            self.skipped.len(),
+            first.path.display(),
+            first.error
+        ))
+    }
+}
+
+/// Lists all staged drafts from `.uma/.staging/`, sorted newest first.
+///
+/// A file that does not parse is REPORTED in `skipped`, never silently dropped:
+/// a draft the operator cannot see is a draft they cannot review, and that is
+/// exactly how 21 `muscle_synthesis` drafts written before the `spai` field
+/// became invisible to `uma staging list` and the review modal.
+pub fn list_drafts(store: &Store) -> Result<DraftListing> {
+    let dir = staging_dir(store);
+    if !dir.exists() {
+        return Ok(DraftListing::default());
+    }
+
+    let mut listing = DraftListing::default();
     for entry in walkdir::WalkDir::new(&dir).into_iter().flatten() {
-        if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "json") {
-            if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                if let Ok(draft) = serde_json::from_str::<StagedDraft>(&content) {
-                    drafts.push(draft);
-                }
-            }
+        if !entry.file_type().is_file() || !entry.path().extension().is_some_and(|e| e == "json") {
+            continue;
+        }
+        match std::fs::read_to_string(entry.path()) {
+            Ok(content) => match serde_json::from_str::<StagedDraft>(&content) {
+                Ok(draft) => listing.drafts.push(draft),
+                Err(err) => listing.skipped.push(SkippedDraft {
+                    path: entry.path().to_path_buf(),
+                    error: err.to_string(),
+                }),
+            },
+            Err(err) => listing.skipped.push(SkippedDraft {
+                path: entry.path().to_path_buf(),
+                error: err.to_string(),
+            }),
         }
     }
 
-    drafts.sort_by(|a, b| b.fact.validity.since.cmp(&a.fact.validity.since));
-    Ok(drafts)
+    listing
+        .drafts
+        .sort_by(|a, b| b.fact.validity.since.cmp(&a.fact.validity.since));
+    Ok(listing)
 }
 
 /// Loads a single staged draft by its FactId string (or filename).
