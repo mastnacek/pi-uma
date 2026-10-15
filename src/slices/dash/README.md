@@ -1,33 +1,57 @@
 # dash — read-only HTMX browser dashboard
 
-**What.** `/uma dash` starts a loopback-only `node:http` server that renders
-UMA memory as a "TUI in a browser": monospace, dark, box borders, mouse **and**
-keyboard driven. `/uma dash stop` closes it. A dashboard never outlives its pi
-session (`session_shutdown` drains the unsubscribe returned by `registerDash`).
+**What.** `/uma dash` starts a loopback-only `node:http` server that renders UMA
+as a "TUI in a browser": monospace, dark, box borders, mouse **and** keyboard
+driven. `/uma dash stop` closes it. A dashboard never outlives its pi session
+(`session_shutdown` drains the unsubscribe returned by `registerDash`).
 
 **Why a plugin slice, not an engine feature.** The Rust core stays
 harness-agnostic and sync (no tokio/axum); the plugin already owns every other
-UMA UI surface. Data flows through the existing `uma` CLI JSON output
-(`list --json`, `search --json`, `read --json`) via `findUmaBinary` + `runUma`,
-so the engine gains no HTTP dependency. HTTP is `node:http` from the standard
-library — **no new npm dependencies** (HTMX is vendored in `assets/`).
+UMA UI surface. Data flows through the existing `uma` CLI JSON output, so the
+engine gains no HTTP dependency. HTTP is `node:http` from the standard library —
+**no new npm dependencies** (HTMX is vendored in `assets/`).
 
-**Files.**
+## Record coverage
+
+Every record kind UMA can store, and where it appears:
+
+| Record kind | Read via | In the dash |
+| --- | --- | --- |
+| Active facts (cwd project + global) | `list --json` | facts list |
+| Deprecated / superseded facts | `list --include-deprecated` | 🕰 history toggle, dimmed |
+| Supersession chains | `timeline --json --id` | detail pane ("🕰 history") |
+| Full fact metadata: status, validity (since/stale_after/until), provenance (generated/verified), SPAI + fact links, AST contract, skill template, plasticity, saliency | `read --json` | detail pane |
+| Staged drafts (shadow worker + muscle synthesiser), with confidence and provenance | `staging list --json` / `staging show --json` | 📥 drafts view + draft detail |
+| Muscle routines | skill facts tagged `muscle` (surfaced by `uma muscle list`) | as `[SKILL]` in the facts list |
+| Facts in other project scopes | `search --scope <name>` (the engine refuses `list` outside cwd) | ❌ out of scope by decision |
+| Debt ledger, humility flags | plugin session state only — **never persisted** | ❌ impossible (no store to read) |
+| SPAI backlog | separate store, `search --source spai` | ❌ deliberately separate |
+
+Not stored records (nothing to show): risk pain score, secrets scan, recall/route
+verdicts, skeptic/humility verdicts, consolidation proposals, doctor/export/scopes,
+session browsing and import (import *produces* drafts).
+
+## Files
 
 | File | Role |
 | --- | --- |
 | `index.ts` | Lifecycle + browser glue; exposes start/stop on `state.dash` |
 | `server.ts` | `node:http` routing, token gate, static assets, bounded `POST /frag/translate` |
-| `data.ts` | CLI adapter + pure normalize/filter/page helpers. Scope chips map onto the CLI (`--scope global|project`, bare `list` = project); the "all" chip merges both stores, because a bare `list` returns the project store only |
-| `page.ts` | Full HTML shell (grid layout, chips, keyboard script) |
-| `fragments.ts` | Pure HTML fragment renderers + escaping boundary + the per-card translation control and degraded banner |
+| `record.ts` | The record model + pure normalization (list/read/search shapes → `DashFact`) |
+| `data.ts` | Fact queries: list/search/read abstractions, history diffing, chains, counts |
+| `drafts.ts` | Staging adapter (`staging list`/`show --json`) |
+| `fragments.ts` | Cards, list, stats, errors, per-card translation control, escaping boundary |
+| `detail.ts` | Detail pane: metadata, contract, template, chain, body |
+| `draft_fragments.ts` | Draft cards, draft list, draft detail (read-only) |
+| `page.ts` | Full HTML shell (grid layout, chips, history toggle, keyboard script) |
 | `assets/htmx.min.js` | Vendored HTMX 2.0.6 (MIT) — no CDN, works offline |
 | `assets/dash.css` | The whole TUI theme (design tokens) |
 
-**Invariants.**
+## Invariants
 
-1. **Read-only.** Only `list`/`search`/`read` are invoked. Nothing here writes
-   memory; all mutations keep going through the TUI approval modal.
+1. **Read-only.** Only `list`/`search`/`read`/`timeline`/`staging list|show` are
+   invoked, always with `--json`. Nothing here writes or promotes anything;
+   mutations and draft approval stay in the TUI modal.
 2. **Loopback + token.** Bound to `127.0.0.1`, port 0 (OS-assigned), with a
    16-byte hex token required as `?t=` or `x-uma-token`; mismatches get a bare
    404. `/assets/*` is exempt (link/script tags cannot send headers, and those
@@ -35,34 +59,37 @@ library — **no new npm dependencies** (HTMX is vendored in `assets/`).
 3. **Escaping is the XSS boundary.** `fragments.ts` escapes every record field
    before interpolation; fact bodies are markdown-lite rendered *after*
    escaping. The engine's `[match]` markers never reach the browser.
-4. **Degradation is data.** A non-zero CLI exit or unparseable JSON becomes an
-   error fragment (`renderError`), never an uncaught throw in the handler.
-5. **No caching.** Every fragment request re-runs the CLI (~70 ms locally) so
-   the dashboard always reflects the live store.
-6. **No slice-to-slice imports.** The commands slice dispatches
+4. **Degradation is data and is visible.** A non-zero CLI exit or unparseable
+   JSON becomes an error fragment; an engine search that falls back from hybrid
+   to keyword-only is shown as a banner; unreadable staging files are surfaced
+   as a warning instead of being hidden — a draft the operator cannot see is a
+   draft they cannot review.
+5. **Retired facts never look current.** The default list is active-only; the
+   🕰 history toggle asks the engine for `--include-deprecated` and dims them.
+   The list JSON has no status field, so inactivity is derived by diffing the
+   active and full listings (two cheap calls, no per-fact `read`).
+6. **No caching.** Every fragment request re-runs the CLI (~70 ms locally) so
+   the dashboard always reflects the live store. The only exception is derived
+   display data: a per-card translation is fetched once and kept in the DOM, and
+   unchecking the toggle sends no body at all.
+7. **No slice-to-slice imports.** The commands slice dispatches
    `/uma dash [stop]` through `state.dash`, wired by the composition root.
-7. **Scope chips are real CLI scopes.** `uma list` defaults to the current
+8. **Scope chips are real CLI scopes.** `uma list` defaults to the current
    project, so the "all" chip merges `list` + `list --scope global` (deduped by
-   id); `search` covers both stores by default. Type/scope also go to the CLI
-   **before** the result cap (`--type`, `--scope project|global`), because
-   filtering the returned top-N in code could report "no facts match" while
-   matches exist past the cap. Code-side filtering stays as a safety net.
-8. **Search is the engine's own hybrid mode.** `-n 50` lifts the engine's
+   id). Type/scope also go to the CLI **before** the result cap (`--type`,
+   `--scope project|global`) — filtering the returned top-N in code could report
+   "no facts match" while matches exist past the cap.
+9. **Search is the engine's own hybrid mode.** `-n 50` lifts the engine's
    10-hit default so the list can page; no `--mode` is passed, so hybrid
-   (BM25 + stored vectors, RRF) is what runs. That means one live OpenRouter
-   embedding call per search (~1.2 s here, vs 77 ms keyword-only), which is why
-   the search box debounces at 800 ms instead of 300 ms.
-9. **Degradation is shown, never swallowed.** `uma search` reports
-   `degraded` + `note` when hybrid falls back to keyword-only; the note is
-   rendered as a banner above the cards. The engine's rule is explicit: a
-   caller who asked for hybrid ranking must not silently receive BM25.
-10. **Display translation is per card, display-only, and optional.** The 🌐 CS
-   toggle on a card is a CSS checkbox: HTMX fills `.trans` once
-   (POST `/frag/translate`), and unchecking reveals the original with **no**
-   second request and **no** model call (the request carries no `checked`
-   field). Two translations per card (title, excerpt) in parallel, because the
-   shape of the card must survive translation; text travels in the request
-   body so the translation is of exactly what is on screen. Nothing is cached
-   and nothing is stored: the original text always remains in the DOM, and a
-   failure shows the original plus the reason. Facts stay byte-identical to
-   what the engine returned.
+   (BM25 + stored vectors, RRF) runs. That means one live OpenRouter embedding
+   call per search (~1.2 s measured, vs 77 ms keyword-only), which is why the
+   search box debounces at 800 ms.
+10. **Display translation is per card, display-only, optional.** The 🌐 CS
+    toggle is a CSS checkbox: HTMX fills `.trans` once, unchecking is free (no
+    request body, no model call, no cache), and a failure keeps the original
+    text plus the reason. It uses the TUI's own model seam
+    (`translateTextForDisplay` → the flash model), never the engine's embedder.
+    Stored facts stay byte-identical.
+11. **Drafts are shown, never promoted.** The drafts view has no approve or
+    discard control by construction; `uma staging` remains the only promotion
+    path, and its unreadable-file warnings are carried into the UI.

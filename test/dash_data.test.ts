@@ -15,10 +15,12 @@ import {
   normalizeScope,
   normalizeSearchHits,
   pageFacts,
+  parseChainJson,
   parseSearchJson,
   searchArgs,
 } from "../src/slices/dash/data.ts";
-import { LIST_JSON, SEARCH_JSON, fact, query } from "./dash_fixtures.ts";
+import { markInactive, normalizeRecord } from "../src/slices/dash/record.ts";
+import { LIST_JSON, SEARCH_JSON, TIMELINE_JSON, fact, query } from "./dash_fixtures.ts";
 
 test("normalizeListFacts: parses recorded list records into unified facts", () => {
   const facts = normalizeListFacts(LIST_JSON);
@@ -107,6 +109,48 @@ test("searchArgs: filters reach the CLI (pre-cap) and -n lifts the 10-hit defaul
   ]);
   assert.ok(!searchArgs(query({ q: "vsa" })).includes("--scope"));
   assert.ok(!searchArgs(query({ q: "vsa" })).includes("--type"));
+});
+
+test("searchArgs: the history view asks the engine for retired facts too", () => {
+  assert.ok(!searchArgs(query({ q: "vsa" })).includes("--include-deprecated"));
+  assert.ok(
+    searchArgs(query({ q: "vsa", history: true })).includes("--include-deprecated"),
+    "history must reach the engine, not be filtered afterwards",
+  );
+});
+
+test("parseChainJson: reads statuses, windows and the current revision", () => {
+  const chain = parseChainJson(TIMELINE_JSON);
+  assert.ok(chain);
+  assert.equal(chain.length, 2);
+  assert.equal(chain.hasHistory, true);
+  assert.equal(chain.current, "01M4QW0BW1WWJRGPE7FZTPBBMN");
+  assert.equal(chain.revisions[0].status, "deprecated");
+  assert.equal(chain.revisions[0].until, "2026-10-12T10:54:47.195736+00:00");
+  assert.equal(chain.revisions[1].status, "stable");
+  assert.equal(chain.revisions[1].until, undefined);
+  assert.equal(parseChainJson("[]"), undefined);
+});
+
+test("markInactive: retired facts are marked, active ones untouched", () => {
+  const all = normalizeListFacts(LIST_JSON).map((f) => ({ ...f, deprecated: false }));
+  const activeIds = new Set([all[0].id]);
+  const marked = markInactive(all, activeIds);
+  assert.equal(marked[0].deprecated, false);
+  assert.equal(marked[1].deprecated, true);
+  assert.equal(marked[1].status, "deprecated");
+});
+
+test("normalizeRecord: reads the metadata blocks of a full record", () => {
+  const record = normalizeRecord(
+    JSON.parse('{"id":"01X","title":"t","fact_type":"Decision"}') as never,
+  );
+  assert.equal(record.factType, "decision");
+  assert.deepEqual(record.spai, []);
+  assert.deepEqual(record.links, []);
+  assert.deepEqual(record.validity, {});
+  assert.equal(record.contract, undefined);
+  assert.equal(record.deprecated, false, "a record without a status is active");
 });
 
 test("filterFacts: type and scope chips filter both list and search sets", () => {

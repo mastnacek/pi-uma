@@ -16,7 +16,6 @@ import {
   renderBodyHtml,
   renderCard,
   renderDegradedNote,
-  renderDetail,
   renderError,
   renderFacts,
   renderStats,
@@ -196,26 +195,10 @@ test("renderFacts: a degraded mode shows a banner above the cards", () => {
   assert.ok(renderDegradedNote("<b>x</b>").includes("&lt;b&gt;"));
 });
 
-test("renderDetail: full view carries metadata and rendered body", () => {
-  const html = renderDetail(
-    fact({
-      factType: "pattern",
-      scope: "project:pi-uma",
-      tags: ["a"],
-      weight: 0.75,
-      body: "### X\n\n**y**",
-    }),
-  );
-  assert.ok(html.includes("PATTERN"));
-  assert.ok(html.includes("project:pi-uma"));
-  assert.ok(html.includes("weight 0.75"));
-  assert.ok(html.includes("#a"));
-  assert.ok(html.includes("<h4>X</h4>"));
-});
-
 test("renderStats: totals by type and scope", () => {
   const html = renderStats({
     total: 3,
+    inactive: 0,
     byType: { decision: 2, note: 1 },
     byScope: { "project:pi-uma": 2, global: 1 },
   });
@@ -223,6 +206,27 @@ test("renderStats: totals by type and scope", () => {
   assert.ok(html.includes("2 decision"));
   assert.ok(html.includes("1 🌐 global"));
   assert.ok(html.includes("📁 project:pi-uma"));
+  // A healthy store advertises no inactive count and no drafts button.
+  assert.ok(!html.includes("inactive"));
+  assert.ok(!html.includes("drafts"));
+});
+
+test("renderStats: inactive facts and the draft queue are surfaced", () => {
+  const html = renderStats(
+    {
+      total: 10,
+      inactive: 4,
+      byType: { decision: 2 },
+      byScope: { global: 2 },
+    },
+    3,
+  );
+  assert.ok(html.includes("4 inactive"));
+  assert.ok(html.includes("📥 3 drafts"));
+  assert.ok(html.includes('hx-get="/frag/drafts"'));
+
+  const one = renderStats({ total: 1, inactive: 0, byType: {}, byScope: {} }, 1);
+  assert.ok(one.includes("1 draft"), "singular must stay singular");
 });
 
 test("renderError: escapes and bounds the message", () => {

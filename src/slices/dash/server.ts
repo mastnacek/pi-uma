@@ -18,14 +18,20 @@ import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchCounts, fetchFact, fetchFacts, type DashQuery } from "./data.ts";
+import { fetchChain, fetchCounts, fetchFact, fetchFacts, type DashQuery } from "./data.ts";
 import {
-  renderDetail,
   renderError,
   renderFacts,
   renderStats,
   renderTranslatedCard,
 } from "./fragments.ts";
+import { renderDetail } from "./detail.ts";
+import {
+  renderDraftBody,
+  renderDraftDetail,
+  renderDrafts,
+} from "./draft_fragments.ts";
+import { fetchDraft, fetchDrafts } from "./drafts.ts";
 import { renderPage } from "./page.ts";
 
 /** One display-only translation call (the slice never formats the prompt). */
@@ -87,6 +93,7 @@ function readQuery(u: URL): DashQuery {
     type: u.searchParams.get("type") ?? "",
     scope: u.searchParams.get("scope") ?? "",
     offset: Math.max(0, Number.parseInt(u.searchParams.get("offset") ?? "0", 10) || 0),
+    history: u.searchParams.has("history"),
   };
 }
 
@@ -196,13 +203,42 @@ export async function startDashServer(
         }
         if (pathname.startsWith("/frag/fact/")) {
           const id = pathname.slice("/frag/fact/".length);
-          const result = await fetchFact(cwd, id);
-          sendHtml(res, result.ok ? renderDetail(result.value) : renderError(result.error));
+          const [fact, chain] = await Promise.all([fetchFact(cwd, id), fetchChain(cwd, id)]);
+          if (!fact.ok) {
+            sendHtml(res, renderError(fact.error));
+            return;
+          }
+          // A missing chain is normal (a fact with no revisions yet).
+          sendHtml(res, renderDetail(fact.value, chain.ok ? chain.value : undefined));
+          return;
+        }
+        // Staged drafts: read-only view of the shadow worker's queue.
+        if (pathname === "/frag/drafts") {
+          const result = await fetchDrafts(cwd);
+          sendHtml(res, result.ok ? renderDrafts(result.value) : renderError(result.error));
+          return;
+        }
+        if (pathname.startsWith("/frag/draft/")) {
+          const id = pathname.slice("/frag/draft/".length);
+          const result = await fetchDraft(cwd, id);
+          sendHtml(
+            res,
+            result.ok
+              ? renderDraftDetail(result.value, renderDraftBody(result.value))
+              : renderError(result.error),
+          );
           return;
         }
         if (pathname === "/frag/stats") {
-          const result = await fetchCounts(cwd);
-          sendHtml(res, result.ok ? renderStats(result.value) : renderError(result.error));
+          // The header carries the draft queue too: a proposal the operator has
+          // not reviewed is the one number the dashboard should not hide.
+          const [counts, drafts] = await Promise.all([fetchCounts(cwd), fetchDrafts(cwd)]);
+          sendHtml(
+            res,
+            counts.ok
+              ? renderStats(counts.value, drafts.ok ? drafts.value.drafts.length : undefined)
+              : renderError(counts.error),
+          );
           return;
         }
         sendNotFound(res);

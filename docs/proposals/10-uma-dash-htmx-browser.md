@@ -222,3 +222,35 @@ lines above where they differ.
 6. **`assets/*` is exempt from the token.** §5 required a token on every
    request, but `<link>`/`<script>` cannot send headers and those files carry
    no memory data. All data routes stay token-gated (404 otherwise).
+
+## 14. Record coverage (2026-10-15, second review)
+
+Question asked: "are we displaying all the records UMA has?" No — v1 showed one
+slice of the store. Measured on the live store (project + global):
+
+| Record kind | Count then | Now |
+| --- | --- | --- |
+| Active facts (project 33 + global 20) | 53 | ✅ facts list |
+| Deprecated/superseded facts (18 + 8) | 26 | ✅ 🕰 history toggle (dimmed, with status) |
+| Supersession chains | 7 chains (up to 7 revisions) | ✅ detail pane, navigable revisions |
+| Per-fact metadata (2 contracts, 5 SPAI links, 4 templates, validity, provenance, plasticity/saliency) | all | ✅ detail pane (`read --json` already returned them) |
+| Staged drafts, readable | 12 | ✅ 📥 drafts view + draft detail (read-only) |
+| Staged drafts written before the `spai` field | 21 (9 project + 12 global) | ✅ **engine fixed** (see below) |
+| Muscle routines | 3 | ⚠️ listed as `[SKILL]` facts; routine identity is the title prefix |
+| Facts in other project scopes | 11 in 4 stores | ❌ out of scope by decision (`list` refuses non-cwd scopes; only `search --scope` reaches them) |
+| Debt ledger, humility flags | session | ❌ not persisted anywhere — no store to read |
+| SPAI backlog | 46 items | ❌ deliberately separate (read-only source in the TUI) |
+
+Engine bug found and fixed in the same pass (SPAI-044): `StagedDraft.fact`
+required `spai`, so every draft written before that field existed failed to
+deserialize, and `list_drafts` swallowed the failure via `if let Ok(...)` — 21
+`muscle_synthesis` drafts were invisible to `uma staging list` **and** to the
+plugin's review modal. Fix: `#[serde(default)]` on the optional collections
+(`spai`, `links`, `verified`) so a schema addition cannot orphan older records,
+plus `DraftListing { drafts, skipped }` with a `warning()` — unreadable files are
+now reported on stderr (JSON shape unchanged for consumers). Verified: `staging
+list` returns 21 drafts (was 12) and `staging show` opens the former orphans.
+
+Also fixed while wiring this up (SPAI-045, recorded): the immune gate refused
+read-only inspection commands whenever a store path and any redirect (`2>&1`,
+`>`) appeared together.

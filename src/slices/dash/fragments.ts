@@ -234,32 +234,13 @@ export function renderDegradedNote(note: string): string {
   return `<div class="degraded">⚠ ${escapeHtml(stripMatchMarkers(note))}</div>`;
 }
 
-/** The detail fragment: full view of one fact in the right pane. */
-export function renderDetail(fact: DashFact): string {
-  const type = escapeHtml(fact.factType);
-  const bodySource = fact.body ?? fact.snippet ?? "";
-  const weight = fact.weight !== null ? `<span class="meta-item">weight ${fact.weight.toFixed(2)}</span>` : "";
-  const statusGlyph = fact.deprecated ? "⚠ " : "";
-  const status = fact.status
-    ? `<span class="meta-item">${statusGlyph}${escapeHtml(fact.status)}</span>`
-    : "";
-  return (
-    `<div class="detail-head">` +
-    `<span class="badge t-${type}">${type.toUpperCase()}</span>` +
-    `<h3>${escapeHtml(fact.title)}</h3>` +
-    `<div class="meta">` +
-    `<span class="meta-item">id ${escapeHtml(fact.id)}</span>` +
-    `<span class="meta-item scope ${scopeClass(fact.scope)}">${scopeLabel(fact.scope)}</span>` +
-    weight +
-    status +
-    (fact.tags.length > 0 ? `<span class="meta-item">${fact.tags.map((t) => `#${escapeHtml(t)}`).join(" ")}</span>` : "") +
-    `</div></div>` +
-    `<div class="body">${renderBodyHtml(bodySource)}</div>`
-  );
-}
-
-/** Header stats fragment: total plus nonzero per-type and per-scope counts. */
-export function renderStats(counts: DashCounts): string {
+/**
+ * Header stats fragment: active totals, nonzero per-type/per-scope counts, the
+ * inactive (deprecated/superseded) count and a button into the drafts view.
+ * Inactive facts are counted but never mixed into the type mix — a retired rule
+ * must not look current.
+ */
+export function renderStats(counts: DashCounts, draftCount?: number): string {
   const parts: string[] = [
     `<span class="stat"><strong>${counts.total}</strong> facts</span>`,
   ];
@@ -271,6 +252,17 @@ export function renderStats(counts: DashCounts): string {
   for (const scope of Object.keys(counts.byScope).sort((a, b) => a.localeCompare(b))) {
     parts.push(
       `<span class="stat scope ${scopeClass(scope)}">${counts.byScope[scope]} ${scope === "global" ? "🌐" : "📁"} ${escapeHtml(scope)}</span>`,
+    );
+  }
+  if (counts.inactive > 0) {
+    parts.push(
+      `<span class="stat inactive" title="deprecated or superseded — enable 🕰 history">${counts.inactive} inactive</span>`,
+    );
+  }
+  if (draftCount !== undefined) {
+    parts.push(
+      `<button type="button" class="stat-btn" hx-get="/frag/drafts" hx-target="#cards" hx-swap="innerHTML">` +
+        `📥 ${draftCount} draft${draftCount === 1 ? "" : "s"}</button>`,
     );
   }
   return parts.join("");

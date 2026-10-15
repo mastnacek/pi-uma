@@ -284,3 +284,99 @@ footer {
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background: var(--border); }
 *::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── header extras: inactive count + drafts button (Proposal 10 §13) ─────── */
+
+.stat.inactive { color: var(--amber); }
+
+.stat-btn {
+  font: inherit;
+  font-size: 12px;
+  margin-left: 10px;
+  padding: 1px 7px;
+  color: var(--text);
+  background: var(--bg-sel);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.stat-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── metadata rows in the detail pane ───────────────────────────────────── */
+
+.detail-head .description { color: var(--muted); margin: 4px 0 6px; }
+.meta-label { color: var(--dim); margin-right: 5px; }
+.meta-item.deprecated { color: var(--amber); }
+.meta-item.scope.global { color: var(--green); }
+.meta-item.scope.project { color: var(--accent); }
+
+/* ── blocks: contract, template, chain ─────────────────────────────────── */
+
+.block {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  margin: 8px 0;
+  padding: 6px 9px;
+  background: var(--bg-raise);
+}
+
+.block-head { color: var(--text); font-size: 12px; margin-bottom: 4px; }
+.block-note { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+
+.code {
+  font: inherit;
+  font-size: 12px;
+  color: var(--teal);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  margin: 4px 0 0;
+  padding: 5px 7px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.sev { font-weight: 700; letter-spacing: 0.06em; margin-left: 6px; }
+.sev-deny { color: var(--red); }
+.sev-warn { color: var(--amber); }
+
+.chain { display: flex; flex-direction: column; gap: 1px; }
+
+.chain-row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto auto;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 5px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.chain-row:hover { background: var(--bg-sel); border-color: var(--border); }
+.chain-row.current { border-left: 3px solid var(--accent); }
+.chain-status { font-size: 11px; letter-spacing: 0.04em; }
+.chain-status.st-stable { color: var(--green); }
+.chain-status.st-deprecated, .chain-status.st-superseded { color: var(--amber); }
+.chain-current { color: var(--accent); }
+
+/* ── staged drafts ─────────────────────────────────────────────────────── */
+
+.card.draft { border-left-color: var(--amber); }
+
+.chip-conf {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  padding: 0 4px;
+  margin-left: 6px;
+}
+
+.detail-head .chip-conf { margin-left: 6px; }

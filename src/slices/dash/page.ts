@@ -50,6 +50,19 @@ function scopeChips(): string {
 }
 
 /**
+ * The history toggle: unchecked (the default) the list hides deprecated and
+ * superseded facts, exactly like `uma list`. Checked, they come back dimmed with
+ * their status — retired rules are reviewable, never silently current.
+ */
+function historyChip(): string {
+  return (
+    `<input type="checkbox" name="history" value="1" id="history"` +
+    ` hx-get="/frag/facts" hx-target="#cards" hx-trigger="change" hx-include="#search,#filters">` +
+    `<label for="history" title="include deprecated and superseded facts">🕰 history</label>`
+  );
+}
+
+/**
  * The keyboard driver: `/` focuses search, j/k/arrows move a CSS `selected`
  * class, Enter clicks the selected card (cards are buttons with hx-get, so
  * .click() reuses the HTMX path), Esc clears the detail pane, g/G jump.
@@ -109,6 +122,7 @@ export function renderPage(token: string): string {
   <form id="filters" class="chips" onsubmit="return false">
     <span class="chip-group">${typeChips()}</span>
     <span class="chip-group">${scopeChips()}</span>
+    <span class="chip-group">${historyChip()}</span>
   </form>
   <main>
     <section id="list" aria-label="facts">
@@ -116,7 +130,7 @@ export function renderPage(token: string): string {
     </section>
     <section id="detail" aria-label="detail"><div class="placeholder">select a fact · Enter opens · Esc clears</div></section>
   </main>
-  <footer><span class="dim">↑↓/jk move · enter open · / search · esc close · 🌐 CS translate (display only) — read-only, nothing here writes memory</span></footer>
+  <footer><span class="dim">↑↓/jk move · enter open · / search · esc close · 🌐 CS translate (display only) · 🕰 history shows retired facts — read-only, nothing here writes memory</span></footer>
 </div>
 <script>${KEYBOARD_SCRIPT}</script>
 </body>

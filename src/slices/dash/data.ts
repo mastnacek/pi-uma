@@ -4,38 +4,41 @@
  * Every fact the dashboard shows flows through the existing `uma` CLI JSON
  * output — the engine stays harness-agnostic and sync, the plugin owns the
  * HTTP surface. This module is the only place that talks to the engine; the
- * renderers in fragments.ts are pure string-in/string-out.
+ * renderers are pure string-in/string-out, and the record model lives in
+ * record.ts.
  *
  * Invariants:
- * - Read-only: only `list` / `search` / `read` with `--json` are invoked.
+ * - Read-only: only `list` / `search` / `read` / `timeline` with `--json`.
  * - Degradation is data, not an exception: a non-zero exit or unparseable
  *   JSON becomes `{ ok: false, error }` so the HTTP layer can render an
  *   error fragment instead of crashing the handler.
  */
 
-// `.ts` specifier (not `.js`): data.ts is imported directly by the test suite
-// under `node --experimental-strip-types`, which resolves real file names.
-// Precedent: complete.ts imports command_help.ts. Type-only `.js` imports in
-// client.ts are erased, so this chain stays loadable in tests.
 import { findUmaBinary, runUma } from "../../shared/client.ts";
+import {
+  PAGE_SIZE,
+  filterFacts,
+  markInactive,
+  normalizeListFacts,
+  normalizeRecord,
+  pageFacts,
+  parseSearchJson,
+  tryParseJson,
+  type DashFact,
+  type JsonValue,
+  type SearchOutcome,
+} from "./record.ts";
 
-/** One browsable fact, unified from `list` full records and `search` hits. */
-export interface DashFact {
-  id: string;
-  title: string;
-  factType: string;
-  /** "global" or "project:<name>" as serialized by the engine. */
-  scope: string;
-  tags: string[];
-  /** Search-hit snippet (may contain [match] markers — fragments strips them). */
-  snippet?: string;
-  /** Full record body (list/read records only). */
-  body?: string;
-  /** Search-hit status; "stable" or anything else (e.g. "deprecated"). */
-  status?: string;
-  weight: number | null;
-  deprecated: boolean;
-}
+export {
+  PAGE_SIZE,
+  filterFacts,
+  normalizeListFacts,
+  normalizeScope,
+  normalizeSearchHits,
+  pageFacts,
+  parseSearchJson,
+} from "./record.ts";
+export type { DashFact, SearchOutcome } from "./record.ts";
 
 export interface FactsPage {
   facts: DashFact[];
@@ -54,102 +57,39 @@ export interface DashQuery {
   type: string;
   scope: string;
   offset: number;
+  /** Include deprecated/superseded facts (the history view). */
+  history: boolean;
 }
 
-/** Page size for the fact list and its "load more" sentinel. */
-export const PAGE_SIZE = 50;
-
-/** Normalizes one raw CLI record (list/read JSON shape) into a DashFact. */
-export function normalizeRecord(raw: Record<string, unknown>): DashFact {
-  return {
-    id: String(raw.id ?? ""),
-    title: String(raw.title ?? ""),
-    factType: String(raw.fact_type ?? "note").toLowerCase(),
-    scope: normalizeScope(raw.scope),
-    tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-    body: typeof raw.body === "string" ? raw.body : undefined,
-    weight: typeof raw.effective_weight === "number" ? raw.effective_weight : null,
-    deprecated: false,
-  };
+/** One revision in a fact's supersession chain. */
+export interface DashRevision {
+  id: string;
+  title: string;
+  status: string;
+  since?: string;
+  until?: string;
 }
 
-/** Accepts "global" / "Global" / "project:x" / { "Project": "x" } / { "Global": null }. */
-export function normalizeScope(value: unknown): string {
-  if (typeof value !== "string") {
-    if (value && typeof value === "object") {
-      const obj = value as Record<string, unknown>;
-      if (typeof obj.Project === "string" && obj.Project.length > 0) {
-        return `project:${obj.Project}`;
-      }
-    }
-    return "project";
-  }
-  const lower = value.toLowerCase();
-  if (lower === "global") return "global";
-  if (lower.startsWith("project:")) return value;
-  return `project:${value}`;
+export interface DashChain {
+  current: string;
+  length: number;
+  hasHistory: boolean;
+  revisions: DashRevision[];
 }
 
-/** A parsed JSON document (strict recursive domain type for parse boundaries). */
-type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
-
-/** Controlled JSON.parse: wraps the SyntaxError in a domain error message. */
-function tryParseJson(stdout: string): JsonValue {
-  try {
-    return JSON.parse(stdout) as JsonValue;
-  } catch (err) {
-    throw new Error(`invalid JSON (${err instanceof Error ? err.message : String(err)})`);
-  }
-}
-
-/** Parses `uma list --json` output into unified facts. Throws on bad JSON. */
-export function normalizeListFacts(stdout: string): DashFact[] {
-  const parsed = tryParseJson(stdout);
-  if (!Array.isArray(parsed)) throw new Error("expected a JSON array");
-  return parsed.map((item) => normalizeRecord(item as Record<string, unknown>));
-}
-
-/** One `uma search --json` document: the hits plus the degradation note. */
-export interface SearchOutcome {
-  hits: DashFact[];
-  /** The engine's one-line explanation, or undefined when nothing degraded. */
-  note?: string;
-}
-
-/** Parses `uma search --json` output (hits + degradation). Throws on bad JSON. */
-export function parseSearchJson(stdout: string): SearchOutcome {
-  const parsed = tryParseJson(stdout);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !Array.isArray(parsed.hits)) {
-    throw new Error("expected a hits array");
-  }
-  const hits = parsed.hits.map((hit) => {
-    const record = hit as Record<string, unknown>;
-    const status = typeof record.status === "string" ? record.status : "stable";
-    return {
-      ...normalizeRecord(record),
-      snippet: typeof record.snippet === "string" ? record.snippet : undefined,
-      body: undefined,
-      status,
-      deprecated: status !== "stable",
-    };
-  });
-  const note = typeof parsed.note === "string" && parsed.note.length > 0 ? parsed.note : undefined;
-  const degraded = parsed.degraded === true;
-  if (degraded && !note) {
-    return { hits, note: "search degraded to keyword-only results (no embeddings available)" };
-  }
-  return { hits, note };
-}
-
-/** Deprecated alias kept for callers that only want the hits. */
-export function normalizeSearchHits(stdout: string): DashFact[] {
-  return parseSearchJson(stdout).hits;
+/**
+ * The CLI `list` invocations a scope chip needs. The engine lists one store at
+ * a time and defaults to the current project, so "all" merges both ("🌐 global"
+ * would otherwise always render empty from a bare `list`).
+ */
+function listArgsForScope(scope: string, history: boolean): string[][] {
+  const include = history ? ["--include-deprecated"] : [];
+  if (scope === "global") return [["list", "--json", "--scope", "global", ...include]];
+  if (scope === "project") return [["list", "--json", ...include]];
+  return [
+    ["list", "--json", ...include],
+    ["list", "--json", "--scope", "global", ...include],
+  ];
 }
 
 /**
@@ -165,36 +105,15 @@ export function searchArgs(query: DashQuery): string[] {
   if (query.scope === "global" || query.scope === "project") {
     args.push("--scope", query.scope);
   }
+  if (query.history) args.push("--include-deprecated");
   args.push(query.q);
   return args;
 }
 
-/** Applies the dashboard's type/scope chips to an already-fetched set. */
-export function filterFacts(
-  facts: DashFact[],
-  filters: { type?: string; scope?: string },
-): DashFact[] {
-  const type = filters.type?.trim().toLowerCase();
-  const scope = filters.scope?.trim().toLowerCase();
-  return facts.filter((f) => {
-    if (type && f.factType !== type) return false;
-    if (scope === "global" && f.scope !== "global") return false;
-    if (scope === "project" && f.scope === "global") return false;
-    return true;
-  });
-}
-
-/** Slices a filtered set into one page for the fragment renderer. */
-export function pageFacts(facts: DashFact[], offset: number, limit = PAGE_SIZE): FactsPage {
-  const start = Math.max(0, offset);
-  return {
-    facts: facts.slice(start, start + limit),
-    hasMore: facts.length > start + limit,
-    total: facts.length,
-  };
-}
-
-function engineError(prefix: string, res: { stderr: string; stdout: string; code: number }): DataResult<never> {
+function engineError(
+  prefix: string,
+  res: { stderr: string; stdout: string; code: number },
+): DataResult<never> {
   const firstLine = (res.stderr || res.stdout || `exit code ${res.code}`).split("\n")[0].trim();
   return { ok: false, error: `${prefix}: ${firstLine || `exit code ${res.code}`}` };
 }
@@ -227,21 +146,16 @@ async function runJson<T>(
   }
 }
 
-/**
- * The CLI `list` invocations a scope chip needs. The engine lists one store at
- * a time and defaults to the current project, so "all" merges both ("🌐 global"
- * would otherwise always render empty from a bare `list`).
- */
-function listArgsForScope(scope: string): string[][] {
-  if (scope === "global") return [["list", "--json", "--scope", "global"]];
-  if (scope === "project") return [["list", "--json"]];
-  return [["list", "--json"], ["list", "--json", "--scope", "global"]];
-}
-
 /** Lists the stores the scope chip asks for, merged and deduped by fact id. */
-async function fetchAllLists(cwd: string, scope: string): Promise<DataResult<DashFact[]>> {
+async function fetchAllLists(
+  cwd: string,
+  scope: string,
+  history: boolean,
+): Promise<DataResult<DashFact[]>> {
   const results = await Promise.all(
-    listArgsForScope(scope).map((args) => runJson(cwd, args, "list", normalizeListFacts)),
+    listArgsForScope(scope, history).map((args) =>
+      runJson(cwd, args, "list", normalizeListFacts),
+    ),
   );
   const merged = new Map<string, DashFact>();
   for (const result of results) {
@@ -252,24 +166,49 @@ async function fetchAllLists(cwd: string, scope: string): Promise<DataResult<Das
 }
 
 /**
+ * Marks the inactive facts. The list JSON carries no status (only `read` does),
+ * so the history view derives it: everything present in the `--include-deprecated`
+ * listing but absent from the active listing is no longer active. Two cheap CLI
+ * calls beat one `read` per fact.
+ */
+async function withHistoryMarks(
+  cwd: string,
+  scope: string,
+  all: DashFact[],
+): Promise<DataResult<DashFact[]>> {
+  const active = await fetchAllLists(cwd, scope, false);
+  if (!active.ok) return active;
+  const activeIds = new Set(active.value.map((f) => f.id));
+  return { ok: true, value: markInactive(all, activeIds) };
+}
+
+/**
  * Fetches one page of facts for the list fragment: the engine's hybrid search
  * when `q` is non-empty, a merged list otherwise (the engine lists one store at
- * a time). Type/scope chips go to the CLI where the CLI supports them and are
- * re-applied in code as a safety net, so both paths agree.
+ * a time). Type/scope chips reach the CLI where the CLI supports them and are
+ * re-applied in code as a safety net.
  */
 export async function fetchFacts(cwd: string, query: DashQuery): Promise<DataResult<FactsPage>> {
   const filters = { type: query.type, scope: query.scope };
   if (query.q.trim()) {
     const found = await runJson(cwd, searchArgs(query), "search", parseSearchJson);
     if (!found.ok) return found;
+    const outcome: SearchOutcome = found.value;
     return {
       ok: true,
-      value: { ...pageFacts(filterFacts(found.value.hits, filters), query.offset), note: found.value.note },
+      value: {
+        ...pageFacts(filterFacts(outcome.hits, filters), query.offset),
+        note: outcome.note,
+      },
     };
   }
-  const listed = await fetchAllLists(cwd, query.scope);
+  const listed = await fetchAllLists(cwd, query.scope, query.history);
   if (!listed.ok) return listed;
-  return { ok: true, value: pageFacts(filterFacts(listed.value, filters), query.offset) };
+  const facts = query.history
+    ? await withHistoryMarks(cwd, query.scope, listed.value)
+    : listed;
+  if (!facts.ok) return facts;
+  return { ok: true, value: pageFacts(filterFacts(facts.value, filters), query.offset) };
 }
 
 /** Fetches one full fact for the detail fragment. */
@@ -278,27 +217,84 @@ export function fetchFact(cwd: string, id: string): Promise<DataResult<DashFact>
   if (!safeId) return Promise.resolve({ ok: false, error: "read: missing fact id" });
   return runJson(cwd, ["read", "--json", safeId], "read", (out) => {
     const parsed = tryParseJson(out);
-    const raw: unknown = Array.isArray(parsed) ? parsed[0] : parsed;
-    if (!raw || typeof raw !== "object") throw new Error("expected a record object");
-    return normalizeRecord(raw as Record<string, unknown>);
+    const raw: JsonValue = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("expected a record object");
+    }
+    return normalizeRecord(raw as Record<string, JsonValue>);
   });
+}
+
+/**
+ * Fetches the supersession chain containing a fact (`timeline --json --id`).
+ * The engine emits the whole chain, oldest revision first, including statuses —
+ * so the detail pane can show real history instead of guessing.
+ */
+/** Parses `uma timeline --json --id <id>` output. Throws on bad JSON. */
+export function parseChainJson(stdout: string): DashChain | undefined {
+  const parsed = tryParseJson(stdout);
+  if (!Array.isArray(parsed) || parsed.length === 0) return undefined;
+  const chain = asObject(parsed[0]);
+  const revisions = Array.isArray(chain.revisions) ? chain.revisions : [];
+  return {
+    current: typeof chain.current === "string" ? chain.current : "",
+    length: typeof chain.length === "number" ? chain.length : revisions.length,
+    hasHistory: chain.has_history === true,
+    revisions: revisions.map((rev) => {
+      const r = asObject(rev);
+      return {
+        id: typeof r.id === "string" ? r.id : "",
+        title: typeof r.title === "string" ? r.title : "",
+        status: typeof r.status === "string" ? r.status : "unknown",
+        since: typeof r.since === "string" ? r.since : undefined,
+        until: typeof r.until === "string" ? r.until : undefined,
+      };
+    }),
+  };
+}
+
+export function fetchChain(cwd: string, id: string): Promise<DataResult<DashChain | undefined>> {
+  const safeId = id.trim();
+  if (!safeId) return Promise.resolve({ ok: false, error: "timeline: missing fact id" });
+  return runJson(cwd, ["timeline", "--json", "--id", safeId], "timeline", parseChainJson);
+}
+
+function asObject(value: JsonValue | undefined): Record<string, JsonValue> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value;
 }
 
 export interface DashCounts {
   total: number;
   byType: Record<string, number>;
   byScope: Record<string, number>;
+  /** Facts that are no longer active (deprecated/superseded). */
+  inactive: number;
 }
 
-/** Header counts (total, by type, by scope) across both stores. */
+/** Header counts (total, by type, by scope, inactive) across both stores. */
 export async function fetchCounts(cwd: string): Promise<DataResult<DashCounts>> {
-  const listed = await fetchAllLists(cwd, "");
-  if (!listed.ok) return listed;
+  const all = await fetchAllLists(cwd, "", true);
+  if (!all.ok) return all;
+  const active = await fetchAllLists(cwd, "", false);
+  if (!active.ok) return active;
+  const activeIds = new Set(active.value.map((f) => f.id));
+
   const byType: Record<string, number> = {};
   const byScope: Record<string, number> = {};
-  for (const f of listed.value) {
+  let inactive = 0;
+  for (const f of all.value) {
+    // Only active facts feed the type/scope mix; the rest are reported as one
+    // "inactive" number so the header never implies retired rules are current.
+    if (!activeIds.has(f.id)) {
+      inactive += 1;
+      continue;
+    }
     byType[f.factType] = (byType[f.factType] ?? 0) + 1;
     byScope[f.scope] = (byScope[f.scope] ?? 0) + 1;
   }
-  return { ok: true, value: { total: listed.value.length, byType, byScope } };
+  return {
+    ok: true,
+    value: { total: active.value.length, inactive, byType, byScope },
+  };
 }
