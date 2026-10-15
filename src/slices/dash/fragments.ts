@@ -134,6 +134,27 @@ function tagList(tags: string[]): string {
  * no second request, no server cache. The text being translated travels with
  * the request as hidden fields, so the translation is exactly of what is shown.
  */
+/**
+ * The CSS-only 🌐 CS control shared by fact cards and draft cards.
+ *
+ * A checkbox flips `.orig` against `.trans` and HTMX fills `.trans` once. The
+ * text to translate travels as hidden fields, so the translation is of exactly
+ * what is on screen; the id keys the checkbox, the target and the span, and the
+ * caller renders `<span class="trans" id="trans-<id>">` inside its element.
+ */
+export function renderTranslationToggle(id: string, title: string, excerpt: string): string {
+  const safeId = escapeHtml(id);
+  return (
+    `<input type="checkbox" class="lang-cb" id="lang-${safeId}" name="checked" ` +
+    `hx-post="/frag/translate" hx-target="#trans-${safeId}" hx-swap="innerHTML" ` +
+    `hx-include="closest .card-wrap" hx-trigger="change">` +
+    `<label class="lang-toggle" for="lang-${safeId}" title="translate for display (stored text unchanged)">🌐 CS</label>` +
+    `<input type="hidden" name="id" value="${safeId}">` +
+    `<input type="hidden" name="title" value="${escapeHtml(title)}">` +
+    `<input type="hidden" name="excerpt" value="${escapeHtml(excerpt)}">`
+  );
+}
+
 export function renderCard(fact: DashFact): string {
   const id = escapeHtml(fact.id);
   const type = escapeHtml(fact.factType);
@@ -144,13 +165,7 @@ export function renderCard(fact: DashFact): string {
   const status = fact.status && fact.status !== "stable" ? ` · ${escapeHtml(fact.status)}` : "";
   return (
     `<div class="card-wrap" id="wrap-${id}">` +
-    `<input type="checkbox" class="lang-cb" id="lang-${id}" name="checked" ` +
-    `hx-post="/frag/translate" hx-target="#trans-${id}" hx-swap="innerHTML" ` +
-    `hx-include="closest .card-wrap" hx-trigger="change">` +
-    `<label class="lang-toggle" for="lang-${id}" title="translate for display (stored text unchanged)">🌐 CS</label>` +
-    `<input type="hidden" name="id" value="${id}">` +
-    `<input type="hidden" name="title" value="${title}">` +
-    `<input type="hidden" name="excerpt" value="${escapeHtml(excerpt)}">` +
+    renderTranslationToggle(fact.id, fact.title, excerpt) +
     `<div class="card${deprecated}" id="card-${id}" role="button" tabindex="0" ` +
     `hx-get="/frag/fact/${encodeURIComponent(fact.id)}" hx-target="#detail" hx-swap="innerHTML">` +
     `<span class="badge t-${type}">${type.toUpperCase()}</span>` +
@@ -202,16 +217,13 @@ export function factsPath(query: DashQuery, offset?: number): string {
 }
 
 /**
- * The list fragment: cards for the page plus a "load more" sentinel when
- * more exist. The sentinel targets itself with outerHTML — when HTMX reveals
- * it, the next page (ending in a fresh sentinel) replaces it, giving
- * infinite scroll with zero client-side rendering.
+ * The fact cards of one page plus the "load more" sentinel. The sentinel
+ * targets itself with outerHTML — when HTMX reveals it, the next page (ending
+ * in a fresh sentinel) replaces it, giving infinite scroll with zero
+ * client-side rendering. No banner, no empty state: the list composer owns
+ * those (see listing.ts).
  */
-export function renderFacts(page: FactsPage, query: DashQuery): string {
-  const banner = page.note ? renderDegradedNote(page.note) : "";
-  if (page.facts.length === 0) {
-    return `${banner}<div class="empty">∅ no facts match</div>`;
-  }
+export function renderFactCards(page: FactsPage, query: DashQuery): string {
   const cards = page.facts.map(renderCard);
   if (page.hasMore) {
     const nextOffset = Math.max(0, query.offset) + PAGE_SIZE;
@@ -221,7 +233,16 @@ export function renderFacts(page: FactsPage, query: DashQuery): string {
         `hx-trigger="revealed">… ${page.total - nextOffset} more · load …</button>`,
     );
   }
-  return banner + cards.join("\n");
+  return cards.join("\n");
+}
+
+/** The facts-only list fragment (banner, empty state, cards, sentinel). */
+export function renderFacts(page: FactsPage, query: DashQuery): string {
+  const banner = page.note ? renderDegradedNote(page.note) : "";
+  if (page.facts.length === 0) {
+    return `${banner}<div class="empty">∅ no facts match</div>`;
+  }
+  return banner + renderFactCards(page, query);
 }
 
 /**
@@ -235,12 +256,13 @@ export function renderDegradedNote(note: string): string {
 }
 
 /**
- * Header stats fragment: active totals, nonzero per-type/per-scope counts, the
- * inactive (deprecated/superseded) count and a button into the drafts view.
- * Inactive facts are counted but never mixed into the type mix — a retired rule
- * must not look current.
+ * Header stats fragment: active totals, nonzero per-type/per-scope counts and
+ * the inactive (deprecated/superseded) count. Inactive facts are counted but
+ * never mixed into the type mix — a retired rule must not look current. The
+ * draft queue is NOT a stat here: pending proposals appear in the list itself,
+ * as elements alongside the facts, not behind a button.
  */
-export function renderStats(counts: DashCounts, draftCount?: number): string {
+export function renderStats(counts: DashCounts): string {
   const parts: string[] = [
     `<span class="stat"><strong>${counts.total}</strong> facts</span>`,
   ];
@@ -257,12 +279,6 @@ export function renderStats(counts: DashCounts, draftCount?: number): string {
   if (counts.inactive > 0) {
     parts.push(
       `<span class="stat inactive" title="deprecated or superseded — enable 🕰 history">${counts.inactive} inactive</span>`,
-    );
-  }
-  if (draftCount !== undefined) {
-    parts.push(
-      `<button type="button" class="stat-btn" hx-get="/frag/drafts" hx-target="#cards" hx-swap="innerHTML">` +
-        `📥 ${draftCount} draft${draftCount === 1 ? "" : "s"}</button>`,
     );
   }
   return parts.join("");

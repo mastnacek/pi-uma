@@ -254,3 +254,25 @@ list` returns 21 drafts (was 12) and `staging show` opens the former orphans.
 Also fixed while wiring this up (SPAI-045, recorded): the immune gate refused
 read-only inspection commands whenever a store path and any redirect (`2>&1`,
 `>`) appeared together.
+
+7. **Drafts are list elements, not a view (§13 delta 7, 2026-10-15).** The first
+   cut put the queue behind a `📥 N drafts` button in the header; the operator's
+   review: "remove the drafts from the menu of other elements — why should they
+   be opened using a button?" The button is gone, `/frag/drafts` is gone. Pending
+   drafts now render as ordinary cards **in the same pane as the facts**, above
+   them under a `📥 pending review · N` heading, and they take part in everything
+   the pane already does: the type/scope/history chips and the search box filter
+   them (type and scope match the proposed record; the search term matches title,
+   body, tags or trigger, so a proposal about the query is no longer invisible
+   just because it is not stored), and the keyboard script selects them like any
+   card because they carry the same `.card` class. The badge, the `draft · 72%`
+   chip and the `DRAFT · not stored yet` detail header are the only tells.
+   `listing.ts` composes the pane; `fragments.ts` and `draft_fragments.ts` stay
+   pure.
+8. **Draft cards are translatable like fact cards (§13 delta 8).** The operator's
+   primary language is Czech and the shadow worker writes English proposals, so
+   the 🌐 CS control is now the *shared* `renderTranslationToggle` markup used by
+   both card kinds: same checkbox, same one-shot HTMX fill, same free uncheck, no
+   cache, same fail-visible fallback, same display-only guarantee. The draft
+   *detail* pane still shows the proposed body untranslated — consistent with the
+   facts' detail pane, and a separate decision if it should change.

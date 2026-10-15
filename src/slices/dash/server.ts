@@ -19,19 +19,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchChain, fetchCounts, fetchFact, fetchFacts, type DashQuery } from "./data.ts";
-import {
-  renderError,
-  renderFacts,
-  renderStats,
-  renderTranslatedCard,
-} from "./fragments.ts";
+import { renderError, renderStats, renderTranslatedCard } from "./fragments.ts";
 import { renderDetail } from "./detail.ts";
-import {
-  renderDraftBody,
-  renderDraftDetail,
-  renderDrafts,
-} from "./draft_fragments.ts";
-import { fetchDraft, fetchDrafts } from "./drafts.ts";
+import { renderDraftBody, renderDraftDetail } from "./draft_fragments.ts";
+import { fetchDraft, fetchDrafts, filterDrafts } from "./drafts.ts";
+import { renderList } from "./listing.ts";
 import { renderPage } from "./page.ts";
 
 /** One display-only translation call (the slice never formats the prompt). */
@@ -197,8 +189,24 @@ export async function startDashServer(
         }
         if (pathname === "/frag/facts") {
           const query = readQuery(u);
-          const result = await fetchFacts(cwd, query);
-          sendHtml(res, result.ok ? renderFacts(result.value, query) : renderError(result.error));
+          // Pending drafts are part of the list, not a separate view: they come
+          // from the same chips and the same search box as the facts.
+          const [facts, drafts] = await Promise.all([fetchFacts(cwd, query), fetchDrafts(cwd)]);
+          if (!facts.ok) {
+            sendHtml(res, renderError(facts.error));
+            return;
+          }
+          const queue = drafts.ok ? drafts.value.drafts : [];
+          sendHtml(
+            res,
+            renderList(facts.value, query, {
+              drafts: filterDrafts(queue, query),
+              total: queue.length,
+              // A staging failure is a reason to trust this pane less; say so
+              // instead of silently showing facts only.
+              warning: drafts.ok ? drafts.value.warning : drafts.error,
+            }),
+          );
           return;
         }
         if (pathname.startsWith("/frag/fact/")) {
@@ -210,12 +218,6 @@ export async function startDashServer(
           }
           // A missing chain is normal (a fact with no revisions yet).
           sendHtml(res, renderDetail(fact.value, chain.ok ? chain.value : undefined));
-          return;
-        }
-        // Staged drafts: read-only view of the shadow worker's queue.
-        if (pathname === "/frag/drafts") {
-          const result = await fetchDrafts(cwd);
-          sendHtml(res, result.ok ? renderDrafts(result.value) : renderError(result.error));
           return;
         }
         if (pathname.startsWith("/frag/draft/")) {
@@ -230,15 +232,8 @@ export async function startDashServer(
           return;
         }
         if (pathname === "/frag/stats") {
-          // The header carries the draft queue too: a proposal the operator has
-          // not reviewed is the one number the dashboard should not hide.
-          const [counts, drafts] = await Promise.all([fetchCounts(cwd), fetchDrafts(cwd)]);
-          sendHtml(
-            res,
-            counts.ok
-              ? renderStats(counts.value, drafts.ok ? drafts.value.drafts.length : undefined)
-              : renderError(counts.error),
-          );
+          const result = await fetchCounts(cwd);
+          sendHtml(res, result.ok ? renderStats(result.value) : renderError(result.error));
           return;
         }
         sendNotFound(res);

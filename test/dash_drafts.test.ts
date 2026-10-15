@@ -1,15 +1,17 @@
 /**
- * /uma dash tests — the staged-drafts view (Proposal 10 §13 delta).
+ * /uma dash tests — pending drafts as list elements (Proposal 10 §13 delta).
  *
  * Drafts are not facts: they live in `.uma/.staging/*.json` and are only
- * reachable through `uma staging`. The dashboard shows them read-only — a
- * browser that could promote a draft would move consent out of the TUI modal.
+ * reachable through `uma staging`. In the dashboard they are ordinary elements
+ * of the same list — same pane, same chips, same keys, same 🌐 CS translation —
+ * and read-only: promotion stays in the TUI modal.
  */
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   cleanWarning,
+  filterDrafts,
   normalizeDraft,
   normalizeDrafts,
 } from "../src/slices/dash/drafts.ts";
@@ -17,9 +19,9 @@ import {
   renderDraftBody,
   renderDraftCard,
   renderDraftDetail,
-  renderDrafts,
 } from "../src/slices/dash/draft_fragments.ts";
-import { DRAFTS_JSON, draftsFixture } from "./dash_fixtures.ts";
+import { renderList } from "../src/slices/dash/listing.ts";
+import { DRAFTS_JSON, draftsFixture, fact, query } from "./dash_fixtures.ts";
 
 test("normalizeDrafts: parses the recorded staging payload with provenance", () => {
   const drafts = normalizeDrafts(DRAFTS_JSON);
@@ -62,6 +64,25 @@ test("cleanWarning: keeps the engine's reason, drops the marker", () => {
   assert.equal(cleanWarning("   \n  "), undefined);
 });
 
+test("filterDrafts: the same chips that filter facts filter the queue", () => {
+  const drafts = draftsFixture();
+  assert.equal(filterDrafts(drafts, {}).length, 2);
+  // type matches the PROPOSED record's type
+  assert.equal(filterDrafts(drafts, { type: "skill" }).length, 1);
+  assert.equal(filterDrafts(drafts, { type: "note" }).length, 1);
+  assert.equal(filterDrafts(drafts, { type: "decision" }).length, 0);
+  // scope
+  assert.equal(filterDrafts(drafts, { scope: "project" }).length, 2);
+  assert.equal(filterDrafts(drafts, { scope: "global" }).length, 0);
+  // search text: title, body, tags and trigger all match
+  assert.equal(filterDrafts(drafts, { q: "muscle" }).length, 1);
+  assert.equal(filterDrafts(drafts, { q: "SPAI-042" }).length, 1);
+  assert.equal(filterDrafts(drafts, { q: "list the directory" }).length, 1);
+  assert.equal(filterDrafts(drafts, { q: "nothing here" }).length, 0);
+  // filters combine
+  assert.equal(filterDrafts(drafts, { q: "muscle", type: "note" }).length, 0);
+});
+
 test("renderDraftCard: says what it is, how sure, and where it came from", () => {
   const html = renderDraftCard(draftsFixture()[0]);
   assert.ok(html.includes(">NOTE<"));
@@ -71,6 +92,19 @@ test("renderDraftCard: says what it is, how sure, and where it came from", () =>
   assert.ok(html.includes("SPAI-042"));
   // Read-only: no promote/discard control anywhere.
   assert.ok(!/approve|discard/i.test(html));
+});
+
+test("renderDraftCard: carries the same 🌐 CS translation control as a fact", () => {
+  const html = renderDraftCard(draftsFixture()[1]);
+  assert.ok(html.includes('class="lang-cb"'));
+  assert.ok(html.includes('name="checked"'));
+  assert.ok(html.includes('hx-post="/frag/translate"'));
+  assert.ok(html.includes('hx-target="#trans-01M4RMTNN90RWZQF5XWXFDPTKB"'));
+  assert.ok(html.includes('id="trans-01M4RMTNN90RWZQF5XWXFDPTKB"'));
+  assert.ok(html.includes('for="lang-01M4RMTNN90RWZQF5XWXFDPTKB"'));
+  // The displayed text travels with the request.
+  assert.ok(html.includes('name="title" value="muscle:ls--la-cd"'));
+  assert.ok(html.includes('name="excerpt" value="1. list the directory"'));
 });
 
 test("renderDraftCard: injected HTML in a title stays inert", () => {
@@ -83,22 +117,59 @@ test("renderDraftCard: injected HTML in a title stays inert", () => {
   assert.ok(html.includes("&lt;script&gt;"));
 });
 
-test("renderDrafts: empty state explains the queue and offers the way back", () => {
-  const html = renderDrafts({ drafts: [] });
-  assert.ok(html.includes("no staged drafts"));
-  assert.ok(html.includes("← back to facts"));
+test("renderList: drafts are elements of the list, above the stored facts", () => {
+  const html = renderList(
+    { facts: [fact({ title: "Stored fact" })], hasMore: false, total: 1 },
+    query(),
+    { drafts: draftsFixture(), total: 2 },
+  );
+  assert.ok(html.includes("📥 pending review"), "the queue has a section, not a button");
+  assert.ok(html.includes("· 2<"), "the queue count is shown");
+  assert.ok(html.includes("📚 stored facts"));
+  assert.ok(html.includes("draft · 70%"));
+  assert.ok(html.includes("Stored fact"));
+  // Order: drafts first, facts after.
+  assert.ok(html.indexOf("pending review") < html.indexOf("stored facts"));
+  // No separate view affordance anywhere.
+  assert.ok(!html.includes('hx-get="/frag/drafts"'));
   assert.ok(!/approve|discard/i.test(html));
 });
 
-test("renderDrafts: an unreadable-draft warning is shown, not swallowed", () => {
-  const html = renderDrafts({
-    drafts: draftsFixture(),
-    warning: "21 staging file(s) could not be read (first: x.json: missing field `spai`)",
+test("renderList: filtered queues report 'N of M' without hiding the store", () => {
+  const html = renderList(
+    { facts: [fact()], hasMore: false, total: 1 },
+    query({ q: "muscle" }),
+    { drafts: [draftsFixture()[1]], total: 23 },
+  );
+  assert.ok(html.includes("1 of 23"));
+  assert.ok(html.includes("stored facts"));
+});
+
+test("renderList: an empty store explains itself, with and without drafts", () => {
+  const empty = renderList({ facts: [], hasMore: false, total: 0 }, query(), {
+    drafts: [],
+    total: 0,
   });
-  assert.ok(html.includes('class="degraded"'));
-  assert.ok(html.includes("21 staging file(s) could not be read"));
-  assert.ok(html.includes("draft · 70%") && html.includes("draft · 80%"));
-  assert.ok(html.includes("← back to facts"));
+  assert.ok(empty.includes("nothing matches"));
+
+  const draftsOnly = renderList({ facts: [], hasMore: false, total: 0 }, query(), {
+    drafts: draftsFixture(),
+    total: 2,
+  });
+  assert.ok(draftsOnly.includes("no stored facts match"));
+  assert.ok(draftsOnly.includes("only the drafts above"));
+});
+
+test("renderList: both degradation banners sit on top of the pane", () => {
+  const html = renderList(
+    { facts: [fact()], hasMore: false, total: 1, note: "Hybrid search degraded to Keyword." },
+    query(),
+    { drafts: draftsFixture(), total: 2, warning: "1 staging file(s) could not be read" },
+  );
+  assert.ok(html.includes("Hybrid search degraded to Keyword."));
+  assert.ok(html.includes("1 staging file(s) could not be read"));
+  assert.ok(html.indexOf("degraded") < html.indexOf("pending review"));
+  assert.ok(html.indexOf("could not be read") < html.indexOf("📥"));
 });
 
 test("renderDraftDetail: marks the draft as not stored and points at the TUI", () => {

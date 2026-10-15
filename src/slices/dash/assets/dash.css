@@ -285,23 +285,9 @@ footer {
 *::-webkit-scrollbar-thumb { background: var(--border); }
 *::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* ── header extras: inactive count + drafts button (Proposal 10 §13) ─────── */
+/* ── header extras: the inactive count (Proposal 10 §13) ─────────────────── */
 
 .stat.inactive { color: var(--amber); }
-
-.stat-btn {
-  font: inherit;
-  font-size: 12px;
-  margin-left: 10px;
-  padding: 1px 7px;
-  color: var(--text);
-  background: var(--bg-sel);
-  border: 1px solid var(--border);
-  border-radius: 0;
-  cursor: pointer;
-}
-
-.stat-btn:hover { color: var(--accent); border-color: var(--accent); }
 
 /* ── metadata rows in the detail pane ───────────────────────────────────── */
 
@@ -380,3 +366,20 @@ footer {
 }
 
 .detail-head .chip-conf { margin-left: 6px; }
+
+/* ── list sections: pending drafts above stored facts ───────────────────── */
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 6px 2px 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-head:first-child { margin-top: 2px; }

@@ -63,6 +63,32 @@ export function normalizeDrafts(stdout: string): DashDraft[] {
   return parsed.map((item) => normalizeDraft(asObject(item)));
 }
 
+/**
+ * Applies the list chips to the pending queue, so drafts behave like facts in
+ * the same pane: the type and scope chips match the *proposed* record, and a
+ * search term matches its title, body, tags or trigger. A proposal that
+ * mentions the query should not be invisible just because it is not stored yet.
+ */
+export function filterDrafts(
+  drafts: DashDraft[],
+  filters: { q?: string; type?: string; scope?: string },
+): DashDraft[] {
+  const type = filters.type?.trim().toLowerCase();
+  const scope = filters.scope?.trim().toLowerCase();
+  const needle = filters.q?.trim().toLowerCase();
+  return drafts.filter((draft) => {
+    const fact = draft.proposed;
+    if (type && fact.factType !== type) return false;
+    if (scope === "global" && fact.scope !== "global") return false;
+    if (scope === "project" && fact.scope === "global") return false;
+    if (needle) {
+      const haystack = `${fact.title}\n${fact.body ?? ""}\n${fact.tags.join(" ")}\n${draft.trigger}`;
+      if (!haystack.toLowerCase().includes(needle)) return false;
+    }
+    return true;
+  });
+}
+
 /** Strips the engine's leading "! " marker from a stderr warning line. */
 export function cleanWarning(stderr: string): string | undefined {
   const line = stderr

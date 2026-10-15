@@ -21,7 +21,7 @@ Every record kind UMA can store, and where it appears:
 | Deprecated / superseded facts | `list --include-deprecated` | 🕰 history toggle, dimmed |
 | Supersession chains | `timeline --json --id` | detail pane ("🕰 history") |
 | Full fact metadata: status, validity (since/stale_after/until), provenance (generated/verified), SPAI + fact links, AST contract, skill template, plasticity, saliency | `read --json` | detail pane |
-| Staged drafts (shadow worker + muscle synthesiser), with confidence and provenance | `staging list --json` / `staging show --json` | 📥 drafts view + draft detail |
+| Staged drafts (shadow worker + muscle synthesiser), with confidence and provenance | `staging list --json` / `staging show --json` | 📥 **section of the list pane**, above the facts + draft detail |
 | Muscle routines | skill facts tagged `muscle` (surfaced by `uma muscle list`) | as `[SKILL]` in the facts list |
 | Facts in other project scopes | `search --scope <name>` (the engine refuses `list` outside cwd) | ❌ out of scope by decision |
 | Debt ledger, humility flags | plugin session state only — **never persisted** | ❌ impossible (no store to read) |
@@ -40,9 +40,10 @@ session browsing and import (import *produces* drafts).
 | `record.ts` | The record model + pure normalization (list/read/search shapes → `DashFact`) |
 | `data.ts` | Fact queries: list/search/read abstractions, history diffing, chains, counts |
 | `drafts.ts` | Staging adapter (`staging list`/`show --json`) |
-| `fragments.ts` | Cards, list, stats, errors, per-card translation control, escaping boundary |
+| `fragments.ts` | Fact cards, stats, errors, the shared 🌐 toggle, escaping boundary |
 | `detail.ts` | Detail pane: metadata, contract, template, chain, body |
-| `draft_fragments.ts` | Draft cards, draft list, draft detail (read-only) |
+| `draft_fragments.ts` | Draft card (same toggle as a fact) + draft detail (read-only) |
+| `listing.ts` | Composes the pane: pending drafts first, then the stored-facts page |
 | `page.ts` | Full HTML shell (grid layout, chips, history toggle, keyboard script) |
 | `assets/htmx.min.js` | Vendored HTMX 2.0.6 (MIT) — no CDN, works offline |
 | `assets/dash.css` | The whole TUI theme (design tokens) |
@@ -89,7 +90,14 @@ session browsing and import (import *produces* drafts).
     request body, no model call, no cache), and a failure keeps the original
     text plus the reason. It uses the TUI's own model seam
     (`translateTextForDisplay` → the flash model), never the engine's embedder.
-    Stored facts stay byte-identical.
-11. **Drafts are shown, never promoted.** The drafts view has no approve or
-    discard control by construction; `uma staging` remains the only promotion
-    path, and its unreadable-file warnings are carried into the UI.
+    `renderTranslationToggle` is shared, so a **draft card is translatable
+    exactly like a fact card** — the queue reads in Czech while the TUI review
+    keeps the English original. Stored facts and draft files stay byte-identical.
+11. **Drafts are list elements, never a mode.** Pending proposals appear in the
+    same pane as the facts — above them, under a `📥 pending review` heading with
+    their count — and are filtered by the same chips and search box (type/scope
+    match the *proposed* record; a search term matches title, body, tags or
+    trigger). They use the same selection keys and the same detail pane. There is
+    no separate drafts view, no button, and no approve/discard control by
+    construction: `uma staging` remains the only promotion path, and its
+    unreadable-file warnings are carried into the pane as a banner.

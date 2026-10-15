@@ -17,6 +17,7 @@ import {
   renderCard,
   renderDegradedNote,
   renderError,
+  renderFactCards,
   renderFacts,
   renderStats,
   renderTranslatedCard,
@@ -152,6 +153,15 @@ test("renderBodyHtml: HTML in a body is inert, formatting still applies", () => 
 
 // ── list, detail, stats, errors ───────────────────────────────────────────
 
+test("renderFactCards: no cards without facts, sentinel only when more exist", () => {
+  assert.equal(renderFactCards({ facts: [], hasMore: false, total: 0 }, query()), "");
+  assert.ok(
+    renderFactCards({ facts: [fact()], hasMore: true, total: PAGE_SIZE + 5 }, query()).includes(
+      `offset=${PAGE_SIZE}`,
+    ),
+  );
+});
+
 test("renderFacts: empty page, sentinel and terminal page", () => {
   const empty = renderFacts({ facts: [], hasMore: false, total: 0 }, query());
   assert.ok(empty.includes("no facts"));
@@ -211,22 +221,18 @@ test("renderStats: totals by type and scope", () => {
   assert.ok(!html.includes("drafts"));
 });
 
-test("renderStats: inactive facts and the draft queue are surfaced", () => {
-  const html = renderStats(
-    {
-      total: 10,
-      inactive: 4,
-      byType: { decision: 2 },
-      byScope: { global: 2 },
-    },
-    3,
-  );
+test("renderStats: inactive facts are surfaced, drafts are not a header button", () => {
+  const html = renderStats({
+    total: 10,
+    inactive: 4,
+    byType: { decision: 2 },
+    byScope: { global: 2 },
+  });
   assert.ok(html.includes("4 inactive"));
-  assert.ok(html.includes("📥 3 drafts"));
-  assert.ok(html.includes('hx-get="/frag/drafts"'));
-
-  const one = renderStats({ total: 1, inactive: 0, byType: {}, byScope: {} }, 1);
-  assert.ok(one.includes("1 draft"), "singular must stay singular");
+  // The queue belongs to the list pane: no drafts affordance in the header.
+  assert.ok(!html.includes("drafts"));
+  assert.ok(!html.includes("📥"));
+  assert.ok(!html.includes("<button"));
 });
 
 test("renderError: escapes and bounds the message", () => {

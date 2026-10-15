@@ -1,32 +1,43 @@
 /**
- * Rendering for the staged-drafts view (Proposal 10 §13 delta).
+ * Rendering for pending drafts inside the list (Proposal 10 §13 delta).
+ *
+ * Drafts are list elements, not a separate view: they appear in the same pane
+ * as facts, are selected with the same keys, open their detail in the same right
+ * pane, and carry the same 🌐 CS display translation as a stored fact. Only the
+ * badge, the confidence chip and the "not stored yet" wording tell them apart.
  *
  * Read-only by construction: there is no approve/discard control anywhere in
  * these fragments. A browser that could promote a draft would move consent out
  * of the TUI modal, which is where the operator review lives.
  */
 
-import type { DashDraft, DraftsPage } from "./drafts.ts";
+import type { DashDraft } from "./drafts.ts";
 import {
   escapeHtml,
   excerptOf,
   renderBodyHtml,
+  renderTranslationToggle,
   scopeLabel,
-  stripMatchMarkers,
 } from "./fragments.ts";
 
 function confidencePct(draft: DashDraft): string {
   return `${Math.round(draft.confidence * 100)}%`;
 }
 
-/** One draft card: what would be stored, how sure the engine is, who asked. */
+/**
+ * One draft card: what would be stored, how sure the engine is, what produced
+ * it — plus the same 🌐 CS toggle a fact card has, so a proposal is readable in
+ * Czech while the TUI review keeps the English original.
+ */
 export function renderDraftCard(draft: DashDraft): string {
   const fact = draft.proposed;
+  const id = escapeHtml(draft.id);
   const type = escapeHtml(fact.factType);
   const excerpt = excerptOf(fact);
   return (
-    `<div class="card-wrap" id="wrap-${escapeHtml(draft.id)}">` +
-    `<div class="card draft" id="card-${escapeHtml(draft.id)}" role="button" tabindex="0" ` +
+    `<div class="card-wrap" id="wrap-${id}">` +
+    renderTranslationToggle(draft.id, fact.title, excerpt) +
+    `<div class="card draft" id="card-${id}" role="button" tabindex="0" ` +
     `hx-get="/frag/draft/${encodeURIComponent(draft.id)}" hx-target="#detail" hx-swap="innerHTML">` +
     `<span class="badge t-${type}">${type.toUpperCase()}</span>` +
     `<span class="chip-conf">draft · ${confidencePct(draft)}</span>` +
@@ -38,27 +49,9 @@ export function renderDraftCard(draft: DashDraft): string {
     `</span>` +
     (excerpt ? `<span class="snippet">${escapeHtml(excerpt)}</span>` : "") +
     `</span>` +
+    `<span class="trans" id="trans-${id}"></span>` +
     `</div></div>`
   );
-}
-
-/** The drafts list fragment, with a way back to the facts view. */
-export function renderDrafts(page: DraftsPage): string {
-  const warning = page.warning
-    ? `<div class="degraded">⚠ ${escapeHtml(stripMatchMarkers(page.warning))}</div>`
-    : "";
-  const back =
-    `<button type="button" class="card more" hx-get="/frag/facts" hx-target="#cards" ` +
-    `hx-swap="innerHTML" hx-include="#filters">← back to facts</button>`;
-  if (page.drafts.length === 0) {
-    return (
-      warning +
-      `<div class="empty">∅ no staged drafts awaiting review` +
-      `<br><span class="dim">the shadow worker parks proposals here; review them with /uma review</span></div>` +
-      back
-    );
-  }
-  return warning + page.drafts.map(renderDraftCard).join("\n") + back;
 }
 
 /** Full view of one draft: the proposed record plus why it exists. */
