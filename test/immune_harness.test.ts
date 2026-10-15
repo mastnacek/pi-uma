@@ -49,7 +49,10 @@ const tsVsaRule: RuleL1 = {
 
 // ── Scenario 1: Rust VSA Contract Violations ─────────────────────────────
 
-test("Harness: catches direct sibling slice import in Rust", () => {
+test("blind-spot Rust pattern degrades to warn, never hard-blocks", async () => {
+  // SPAI-049 live finding: the shipped pattern cannot match deep scoped
+  // paths under real ast-grep, so the breach surfaces as a VISIBLE warn
+  // degradation instead of a silent pass or a false hard block.
   const diff = `
 +use crate::slices::doctor::checks::inspect_index;
 +
@@ -58,17 +61,17 @@ test("Harness: catches direct sibling slice import in Rust", () => {
      Ok(())
  }
 `;
-  const breaches = checkContractRules([realVsaRule], "src/slices/search/mod.rs", diff);
+  const breaches = await checkContractRules([realVsaRule], "src/slices/search/mod.rs", diff);
 
   assert.equal(breaches.length, 1);
   assert.equal(breaches[0].factId, "01M4D7S5YART7AGWN7RDSRNRM1");
-  assert.equal(breaches[0].severity, "deny");
-  assert.ok(breaches[0].ruleMessage.includes("Inviolable VSA Rule"));
+  assert.equal(breaches[0].severity, "warn");
+  assert.ok(breaches[0].ruleMessage.includes("DEGRADED"));
 
-  // Mode verification
+  // Mode verification: a degraded breach rides the advisory channel in every
+  // mode — auto-blocking stays reserved for VERIFIED deterministic matches.
   const autoDecision = decideImmuneAction("auto", [], breaches);
-  assert.equal(autoDecision.kind, "block");
-  assert.ok(autoDecision.kind === "block" && autoDecision.reason.includes("[UMA Immune System Block]"));
+  assert.equal(autoDecision.kind, "confirm");
 
   const askDecision = decideImmuneAction("ask", [], breaches);
   assert.equal(askDecision.kind, "confirm");
@@ -77,7 +80,34 @@ test("Harness: catches direct sibling slice import in Rust", () => {
   assert.equal(warnDecision.kind, "notify");
 });
 
-test("Harness: allows valid shared kernel imports in Rust", () => {
+test("verified Rust breach denies and auto-blocks", async () => {
+  const diff = `
++use crate::slices::doctor::checks::inspect_index;
++
+ pub fn run_search() -> Result<()> {
++    println!("searching...");
+     Ok(())
+ }
+`;
+  const verifiable: RuleL1 = {
+    ...realVsaRule,
+    contract: {
+      ...realVsaRule.contract!,
+      rule: { ...realVsaRule.contract!.rule, pattern: "use crate::slices::doctor::checks::inspect_index;" },
+    },
+  };
+  const breaches = await checkContractRules([verifiable], "src/slices/search/mod.rs", diff);
+
+  assert.equal(breaches.length, 1);
+  assert.equal(breaches[0].severity, "deny");
+  assert.ok(breaches[0].ruleMessage.includes("Inviolable VSA Rule"));
+
+  const autoDecision = decideImmuneAction("auto", [], breaches);
+  assert.equal(autoDecision.kind, "block");
+  assert.ok(autoDecision.kind === "block" && autoDecision.reason.includes("[UMA Immune System Block]"));
+});
+
+test("allows valid shared kernel imports in Rust", async () => {
   const diff = `
 +use crate::shared::format::print_fact;
 +use uma_core::store::Store;
@@ -87,50 +117,53 @@ test("Harness: allows valid shared kernel imports in Rust", () => {
      Ok(())
  }
 `;
-  const breaches = checkContractRules([realVsaRule], "src/slices/search/mod.rs", diff);
-  assert.equal(breaches.length, 0);
+  const breaches = await checkContractRules([realVsaRule], "src/slices/search/mod.rs", diff);
+  // No DENY breach — but the blind-spot rule still degrades visibly.
+  assert.equal(breaches.filter((b) => b.severity === "deny").length, 0);
+  assert.equal(breaches.filter((b) => b.severity === "warn").length, 1);
 
   const decision = decideImmuneAction("auto", [], breaches);
-  assert.equal(decision.kind, "allow");
+  assert.equal(decision.kind, "confirm");
 });
 
-test("Harness: exempts files outside the 'inside' glob", () => {
+test("exempts files outside the 'inside' glob", async () => {
   // main.rs is the composition root, where multi-slice imports are explicitly allowed!
   const diff = `
 +use crate::slices::doctor::run as run_doctor;
 +use crate::slices::search::run as run_search;
 `;
-  const breaches = checkContractRules([realVsaRule], "src/main.rs", diff);
+  const breaches = await checkContractRules([realVsaRule], "src/main.rs", diff);
   assert.equal(breaches.length, 0);
 });
 
 // ── Scenario 2: TypeScript VSA Contract Violations ───────────────────────
 
-test("Harness: catches relative sibling slice deep-import in TypeScript", () => {
+test("blind-spot TS pattern degrades to warn (metavariable in a string literal)", async () => {
   const diff = `
 +import { registerCommands } from "../commands/index.ts";
 +
  export function search() {}
 `;
-  const breaches = checkContractRules([tsVsaRule], "src/slices/search/index.ts", diff);
+  const breaches = await checkContractRules([tsVsaRule], "src/slices/search/index.ts", diff);
   assert.equal(breaches.length, 1);
-  assert.equal(breaches[0].severity, "deny");
-  assert.ok(breaches[0].ruleMessage.includes("Forbidden sibling slice import"));
+  assert.equal(breaches[0].severity, "warn");
+  assert.ok(breaches[0].ruleMessage.includes("DEGRADED"));
+  assert.ok(breaches[0].ruleMessage.includes("string literal"));
 });
 
-test("Harness: allows shared imports in TypeScript", () => {
+test("allows shared imports in TypeScript", async () => {
   const diff = `
 +import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 +import { stringsFor } from "../../shared/i18n.ts";
 +import type { PluginState } from "../../shared/state.ts";
 `;
-  const breaches = checkContractRules([tsVsaRule], "src/slices/search/index.ts", diff);
-  assert.equal(breaches.length, 0);
+  const breaches = await checkContractRules([tsVsaRule], "src/slices/search/index.ts", diff);
+  assert.equal(breaches.filter((b) => b.severity === "deny").length, 0);
 });
 
 // ── Scenario 3: Pain Score & Heuristic Warnings ───────────────────────────
 
-test("Harness: critical pain triggers test-first warning but NEVER blocks alone", () => {
+test("critical pain triggers test-first warning but NEVER blocks alone", async () => {
   const harmlessEdit = "pub fn add(a: i32, b: i32) -> i32 { a + b }";
   const warnings = assessEdit(pain(85, "critical"), [realVsaRule], harmlessEdit);
 
@@ -144,7 +177,7 @@ test("Harness: critical pain triggers test-first warning but NEVER blocks alone"
   assert.notEqual(action.kind, "block");
 });
 
-test("Harness: low pain and clean code produces zero warnings", () => {
+test("low pain and clean code produces zero warnings", async () => {
   const warnings = assessEdit(pain(10, "low"), [realVsaRule], "const PI = 3.14159;");
   assert.deepEqual(warnings, []);
   assert.deepEqual(decideImmuneAction("auto", warnings, []), { kind: "allow" });
@@ -152,7 +185,7 @@ test("Harness: low pain and clean code produces zero warnings", () => {
 
 // ── Scenario 4: Multi-Hunk Tool Payload Extraction ────────────────────────
 
-test("Harness: extractEdit handles full multi-edit tool calls", () => {
+test("extractEdit handles full multi-edit tool calls", async () => {
   const multiEditToolInput = {
     path: "src/slices/delegate/index.ts",
     edits: [
@@ -167,6 +200,6 @@ test("Harness: extractEdit handles full multi-edit tool calls", () => {
   assert.ok(extracted.added.includes("let a = 2;"));
   assert.ok(extracted.added.includes("use crate::slices::doctor;"));
 
-  const breaches = checkContractRules([realVsaRule], extracted.path, extracted.added);
+  const breaches = await checkContractRules([realVsaRule], extracted.path, extracted.added);
   assert.equal(breaches.length, 1);
 });

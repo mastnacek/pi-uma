@@ -147,7 +147,9 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
         fetchRules(ctx.cwd),
       ]);
       const warnings = assessEdit(pain, rules, edit.added);
-      const breaches = checkContractRules(rules, edit.path, edit.added);
+      // SPAI-049: real ast-grep matching (child process) — awaited, and the
+      // hook's catch still degrades any failure to silence.
+      const breaches = await checkContractRules(rules, edit.path, edit.added);
       const action = decideImmuneAction(mode, warnings, breaches);
 
       switch (action.kind) {

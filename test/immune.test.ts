@@ -112,27 +112,67 @@ const vsaContractRule: RuleL1 = {
   },
 };
 
-test("checkContractRules: detects forbidden cross-slice import in slices folder", () => {
+test("blind-spot pattern degrades visibly instead of silently matching nothing", async () => {
+  // SPAI-049 live finding: the shipped pattern `use crate::slices::$$$REST;`
+  // is ast-grep-blind (metavariable after '::' binds one segment only), so the
+  // deep import used to sail through BOTH the regex transliteration AND a
+  // naive real scan. It must surface as a warn breach with a degradation note.
   const badEdit = "use crate::slices::doctor::checks::inspect_index;\n\npub fn outcome() {}";
-  const breaches = checkContractRules([vsaContractRule], "uma-cli/src/slices/search/outcome.rs", badEdit);
+  const breaches = await checkContractRules([vsaContractRule], "uma-cli/src/slices/search/outcome.rs", badEdit);
 
   assert.equal(breaches.length, 1);
   assert.equal(breaches[0].factId, "01M4D7S5");
+  assert.equal(breaches[0].severity, "warn");
+  assert.ok(breaches[0].ruleMessage.includes("DEGRADED"));
+  assert.ok(breaches[0].ruleMessage.includes("path segment"));
+});
+
+test("a verifiable contract pattern matches with real ast-grep semantics", async () => {
+  // Same rule, but a pattern ast-grep can actually evaluate end-to-end —
+  // exactly what the regex transliteration got wrong for years.
+  const verifiable: RuleL1 = {
+    ...vsaContractRule,
+    contract: {
+      ...vsaContractRule.contract!,
+      rule: { ...vsaContractRule.contract!.rule, pattern: "use crate::slices::doctor::checks::inspect_index;" },
+    },
+  };
+  const breaches = await checkContractRules(
+    [verifiable],
+    "uma-cli/src/slices/search/outcome.rs",
+    "use crate::slices::doctor::checks::inspect_index;\n\npub fn outcome() {}",
+  );
+  assert.equal(breaches.length, 1);
   assert.equal(breaches[0].severity, "deny");
-  assert.ok(breaches[0].ruleMessage.includes("Inviolable VSA Rule"));
+  // A clean import produces NO breach for a verifiable pattern.
+  const clean = await checkContractRules(
+    [verifiable],
+    "uma-cli/src/slices/search/outcome.rs",
+    "use crate::shared::format::print_fact;",
+  );
+  assert.equal(clean.length, 0);
 });
 
-test("checkContractRules: clean import in slices folder does not breach", () => {
-  const cleanEdit = "use crate::shared::format::print_fact;\n\npub fn outcome() {}";
-  const breaches = checkContractRules([vsaContractRule], "uma-cli/src/slices/search/outcome.rs", cleanEdit);
-
-  assert.equal(breaches.length, 0);
+test("unverifiable scan (missing engine) degrades deny to warn", async () => {
+  // Force-scan an exotic language no engine parses here: the scan degrades
+  // visibly instead of silently passing the deny contract.
+  const exotic: RuleL1 = {
+    ...vsaContractRule,
+    contract: {
+      ...vsaContractRule.contract!,
+      rule: { ...vsaContractRule.contract!.rule, pattern: "plt_call($$$ARGS)", language: "pla", inside: "proc.plt" },
+    },
+  };
+  const breaches = await checkContractRules([exotic], "proc.plt", "plt_call(write(x))");
+  assert.equal(breaches.length, 1);
+  assert.equal(breaches[0].severity, "warn");
+  assert.ok(breaches[0].ruleMessage.includes("DEGRADED"));
 });
 
-test("checkContractRules: path outside 'inside' glob is exempt from the contract", () => {
+test("path outside 'inside' glob is exempt from the contract", async () => {
   const badEdit = "use crate::slices::doctor::checks::inspect_index;";
   // Allowed in main or tests outside src/slices
-  const breaches = checkContractRules([vsaContractRule], "uma-cli/src/main.rs", badEdit);
+  const breaches = await checkContractRules([vsaContractRule], "uma-cli/src/main.rs", badEdit);
 
   assert.equal(breaches.length, 0);
 });

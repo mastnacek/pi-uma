@@ -13,6 +13,7 @@
  */
 
 import type { ContractDefinition } from "../../shared/types.js";
+import { scanContractRules, type ContractRuleInput } from "./astgrep.ts";
 
 /** Verdict of `uma risk pain <path> --json`. */
 export interface PainVerdict {
@@ -143,33 +144,6 @@ export type ImmuneAction =
   | { kind: "confirm"; message: string }
   | { kind: "block"; reason: string };
 
-/** Converts a simple ast-grep pattern into a regular expression. */
-export function patternToRegex(pattern: string): RegExp {
-  const multiVars: string[] = [];
-  let intermediate = pattern.replace(/\$\$\$([A-Z0-9_]+)/g, (_m, name) => {
-    multiVars.push(name);
-    return `__UMA_MULTI_${multiVars.length - 1}__`;
-  });
-
-  const singleVars: string[] = [];
-  intermediate = intermediate.replace(/\$([A-Z0-9_]+)/g, (_m, name) => {
-    singleVars.push(name);
-    return `__UMA_SINGLE_${singleVars.length - 1}__`;
-  });
-
-  let escaped = intermediate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  for (let i = 0; i < multiVars.length; i++) {
-    escaped = escaped.replace(`__UMA_MULTI_${i}__`, "[^;\\n]*?");
-  }
-  for (let i = 0; i < singleVars.length; i++) {
-    escaped = escaped.replace(`__UMA_SINGLE_${i}__`, "[a-zA-Z0-9_.:]+(?:\\([^)]*\\))?");
-  }
-
-  escaped = escaped.replace(/\\\s+/g, "\\s+");
-  return new RegExp(escaped, "m");
-}
-
 /** Matches a file path against a contract's `inside` glob pattern. */
 export function pathMatchesInside(inside: string, filePath: string): boolean {
   const normPath = filePath.replace(/\\/g, "/");
@@ -195,48 +169,79 @@ export function pathMatchesInside(inside: string, filePath: string): boolean {
   return normPath.includes(normInside);
 }
 
-/** Checks active contract-backed rules against a proposed edit. */
-export function checkContractRules(
+/** The visible note riding a degraded (unverifiable) contract breach. */
+function degradedMessage(contract: ContractDefinition, reason: string): string {
+  return (
+    `${contract.rule.message} ` +
+    `[UMA inline check DEGRADED: ${reason} — this deny contract is downgraded to warn and was NOT verified.]`
+  );
+}
+
+/**
+ * Checks active contract-backed rules against a proposed edit with REAL
+ * ast-grep matching (SPAI-049): each applicable contract becomes a rule YAML,
+ * the added text becomes a snippet, and `ast-grep scan --json=compact` runs
+ * exactly like the engine's `uma contracts check`. The regex transliteration
+ * this replaced could not match metavariables across string literals or
+ * newlines, so deny contracts silently missed real breaches.
+ *
+ * Never throws. Every unverifiable rule degrades VISIBLY: severity warn with
+ * a degradation note — it can neither silently pass nor silently block.
+ */
+export async function checkContractRules(
   rules: RuleL1[],
   filePath: string,
   addedText: string,
-): ContractBreach[] {
-  const breaches: ContractBreach[] = [];
-
-  for (const rule of rules) {
+): Promise<ContractBreach[]> {
+  const applicable = rules.filter((rule): rule is RuleL1 & { contract: ContractDefinition } => {
     const contract = rule.contract;
-    if (!contract || !contract.rule || !contract.rule.pattern) continue;
+    if (!contract?.rule?.pattern) return false;
+    return !contract.rule.inside || pathMatchesInside(contract.rule.inside, filePath);
+  });
+  if (applicable.length === 0 || addedText.trim() === "") return [];
 
-    if (contract.rule.inside && !pathMatchesInside(contract.rule.inside, filePath)) {
-      continue;
-    }
+  const inputs: ContractRuleInput[] = applicable.map((rule) => ({
+    id: rule.id,
+    contract: rule.contract,
+  }));
+  const report = await scanContractRules(inputs, filePath, addedText);
 
-    try {
-      const rx = patternToRegex(contract.rule.pattern);
-      if (rx.test(addedText)) {
-        breaches.push({
-          factId: rule.id,
-          title: rule.title,
-          ruleMessage: contract.rule.message || `Violated contract pattern: ${contract.rule.pattern}`,
-          severity: contract.severity || "deny",
-          pattern: contract.rule.pattern,
-          file: filePath,
-        });
-      }
-    } catch {
-      if (addedText.includes(contract.rule.pattern.replace(/[$^]/g, ""))) {
-        breaches.push({
-          factId: rule.id,
-          title: rule.title,
-          ruleMessage: contract.rule.message,
-          severity: contract.severity || "deny",
-          pattern: contract.rule.pattern,
-          file: filePath,
-        });
-      }
-    }
+  if (!report.available) {
+    return applicable.map((rule) => ({
+      factId: rule.id,
+      title: rule.title,
+      ruleMessage: degradedMessage(rule.contract, report.unavailableReason ?? "unavailable"),
+      severity: "warn" as const,
+      pattern: rule.contract.rule.pattern,
+      file: filePath,
+    }));
   }
 
+  const byId = new Map(applicable.map((rule) => [rule.id.toLowerCase(), rule]));
+  const breaches: ContractBreach[] = [];
+  for (const result of report.results) {
+    const rule = byId.get(result.ruleId.toLowerCase());
+    if (!rule) continue;
+    if (result.degraded) {
+      breaches.push({
+        factId: rule.id,
+        title: rule.title,
+        ruleMessage: degradedMessage(rule.contract, result.degraded),
+        severity: "warn",
+        pattern: rule.contract.rule.pattern,
+        file: filePath,
+      });
+    } else if (result.matched) {
+      breaches.push({
+        factId: rule.id,
+        title: rule.title,
+        ruleMessage: rule.contract.rule.message || `Violated contract pattern: ${rule.contract.rule.pattern}`,
+        severity: rule.contract.severity || "deny",
+        pattern: rule.contract.rule.pattern,
+        file: filePath,
+      });
+    }
+  }
   return breaches;
 }
 
@@ -257,8 +262,15 @@ export function decideImmuneAction(
 ): ImmuneAction {
   if (mode === "off") return { kind: "allow" };
 
-  if (breaches.length > 0) {
-    const breachMessages = breaches
+  // Severity decides: only VERIFIED deny breaches belong to the block path.
+  // Warn-severity breaches (explicit warn contracts, and degraded/unverifiable
+  // deny contracts) ride the warning channel — auto-blocking stays reserved
+  // for deterministic verified matches (the standing invariant).
+  const denies = breaches.filter((b) => b.severity === "deny");
+  const warnBreaches = breaches.filter((b) => b.severity === "warn");
+
+  if (denies.length > 0) {
+    const breachMessages = denies
       .map(
         (b) =>
           `[UMA Immune System Block]: Your proposed change in '${b.file}' violates active memory contract [${b.factId}] "${b.title}". Rule: ${b.ruleMessage}. Revise your implementation to comply with this constraint.`,
@@ -276,8 +288,13 @@ export function decideImmuneAction(
     }
   }
 
-  if (warnings.length === 0) return { kind: "allow" };
-  const message = warnings.join("\n");
+  const breachWarnings = warnBreaches.map(
+    (b) =>
+      `[UMA Contract] '${b.file}' may violate contract [${b.factId}] "${b.title}" (advisory only): ${b.ruleMessage}`,
+  );
+  const allWarnings = [...breachWarnings, ...warnings];
+  if (allWarnings.length === 0) return { kind: "allow" };
+  const message = allWarnings.join("\n");
 
   switch (mode) {
     case "warn":
