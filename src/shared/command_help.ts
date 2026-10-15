@@ -24,6 +24,8 @@ export interface CommandHelpStrings {
   cmdHumility: string;
   cmdMuscle: string;
   cmdSkeptic: string;
+  cmdDash: string;
+  cmdDashStop: string;
 
   // Level 2 & 3 parameters
   paramAutoApproveOn: string;
@@ -80,6 +82,8 @@ const csHelp: CommandHelpStrings = {
   cmdHumility: "Epistemická pokora: vyžaduje prozkoumání neznámého subsystému před mutací",
   cmdMuscle: "Svalová paměť: spouštění a správa kurátorských procedurálních rutin",
   cmdSkeptic: "Oponentura: kritické posouzení navržené změny před provedením",
+  cmdDash: "Otevře read-only dashboard paměti v prohlížeči (dash stop jej ukončí)",
+  cmdDashStop: "Zastaví dashboard server pro tuto relaci pi",
 
   paramAutoApproveOn: "Ukládá fakta do paměti přímo bez zobrazení schvalovacího okna",
   paramAutoApproveOff: "Zobrazí interaktivní okno pro schválení, editaci a překlad před zápisem",
@@ -133,6 +137,8 @@ const enHelp: CommandHelpStrings = {
   cmdHumility: "Epistemic humility: explore unfamiliar code before mutating",
   cmdMuscle: "Procedural muscle memory: run and manage curated routines",
   cmdSkeptic: "Adversarial critique of a proposed intent before execution",
+  cmdDash: "Open the read-only memory dashboard in the browser (dash stop closes it)",
+  cmdDashStop: "Stop the dashboard server for this pi session",
 
   paramAutoApproveOn: "Save facts directly to memory without showing review modal",
   paramAutoApproveOff: "Show interactive review modal with translation, wrapping, and scrolling",

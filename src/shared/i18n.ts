@@ -22,6 +22,12 @@ export interface Strings {
   noFactsFound: string;
   langUpdated: string;
   cmdUsage: string;
+  /** /uma dash — read-only browser dashboard (Proposal 10). */
+  dashOpened: string;
+  dashStopped: string;
+  dashNotRunning: string;
+  dashFailed: string;
+  dashUsage: string;
   searchUsage: string;
   timelineUsage: string;
   exportUsage: string;
@@ -112,6 +118,11 @@ const STRINGS: Record<Locale, Strings> = {
     noFactsFound: "No facts found.",
     langUpdated: "Language updated to: ",
     cmdUsage: "Usage: /uma [search <query> | list [global] | read <id> | timeline [--id <ULID>] [--all] | export --out <dir> | doctor | lang [cs|en] | auto-approve [on|off] | recall [on|off] | judge [jev|off] — toggles accept --global]",
+    dashOpened: "🖥️ UMA dashboard opened: ",
+    dashStopped: "🖥️ UMA dashboard stopped.",
+    dashNotRunning: "🖥️ UMA dashboard is not running.",
+    dashFailed: "🖥️ UMA dashboard failed: ",
+    dashUsage: "Usage: /uma dash [stop] — read-only browser dashboard",
     searchUsage: "Usage: /uma search <query>",
     timelineUsage: "Usage: /uma timeline [--id <ULID>] [--all]",
     exportUsage: "Usage: /uma export --out <directory>",
@@ -231,6 +242,11 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
     noFactsFound: "Nebyly nalezeny žádné záznamy.",
     langUpdated: "Jazyk rozhraní nastaven na: ",
     cmdUsage: "Použití: /uma [search <dotaz> | list [global] | read <id> | timeline [--id <ULID>] [--all] | export --out <složka> | doctor | lang [cs|en] | auto-approve [on|off] | recall [on|off] | judge [jev|off] — přepínače akceptují --global]",
+    dashOpened: "🖥️ UMA dashboard otevřen: ",
+    dashStopped: "🖥️ UMA dashboard zastaven.",
+    dashNotRunning: "🖥️ UMA dashboard neběží.",
+    dashFailed: "🖥️ UMA dashboard selhal: ",
+    dashUsage: "Použití: /uma dash [stop] — read-only dashboard paměti v prohlížeči",
     searchUsage: "Použití: /uma search <dotaz>",
     timelineUsage: "Použití: /uma timeline [--id <ULID>] [--all]",
     exportUsage: "Použití: /uma export --out <složka>",

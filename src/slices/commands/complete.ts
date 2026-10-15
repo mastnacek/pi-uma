@@ -165,6 +165,18 @@ export function getUmaCompletions(
       label: "😈 skeptic",
       description: h.cmdSkeptic,
     },
+    {
+      // Terminal leaves (spec §3): no trailing space — `/uma dash` starts,
+      // `/uma dash stop` stops. Both are complete commands as typed.
+      value: "dash",
+      label: "🖥️ dash",
+      description: h.cmdDash,
+    },
+    {
+      value: "dash stop",
+      label: "🖥️ dash stop",
+      description: h.cmdDashStop,
+    },
   ];
 
   return subcommands.filter((cmd) => cmd.value.toLowerCase().startsWith(normalizedPrefix));

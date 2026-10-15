@@ -285,6 +285,28 @@ ${lines.join("\n")}`, "info");
           }
         }
         void state.refreshDetector?.(ctx, true);
+      } else if (subcommand === "dash") {
+        // Read-only browser dashboard (Proposal 10). The slice exposes its
+        // lifecycle through state.dash (wired by the composition root), so
+        // this dispatch imports no slice.
+        const action = cleanParts[1]?.toLowerCase();
+        try {
+          if (action === "stop") {
+            const running = state.dash?.isRunning() ?? false;
+            if (running) await state.dash?.stop();
+            if (ctx.hasUI) {
+              ctx.ui.notify(running ? liveStrings.dashStopped : liveStrings.dashNotRunning, "info");
+            }
+          } else if (!action && state.dash) {
+            const url = await state.dash.start(ctx.cwd);
+            if (ctx.hasUI) ctx.ui.notify(`${liveStrings.dashOpened}${url}`, "info");
+          } else {
+            ctx.ui.notify(liveStrings.dashUsage, "info");
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (ctx.hasUI) ctx.ui.notify(`${liveStrings.dashFailed}${msg}`, "error");
+        }
       } else {
         ctx.ui.notify(liveStrings.cmdUsage, "info");
       }

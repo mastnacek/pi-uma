@@ -98,4 +98,14 @@ export interface ExtensionState {
   muscleProposed?: string[];
   /** Routine names from the last detector probe (muscle run/list completions). */
   muscleRoutineNames?: string[];
+  /** Browser dashboard control surface wired by the dash slice (Proposal 10).
+   *  The commands slice calls these to dispatch `/uma dash [stop]` without
+   *  importing the dash slice (VSA: slices never import slices). */
+  dash?: {
+    /** Starts (or reuses) the loopback server and opens the browser; returns the token URL. */
+    start: (cwd: string) => Promise<string>;
+    /** Closes the server if running. */
+    stop: () => Promise<void>;
+    isRunning: () => boolean;
+  };
 }
