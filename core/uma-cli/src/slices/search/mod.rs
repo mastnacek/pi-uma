@@ -127,6 +127,7 @@ pub fn run(args: SearchArgs) -> Result<()> {
         mode,
         args.include_deprecated,
         as_of_dt,
+        &[],
         args.limit,
     )?;
     let hits = &outcome.hits;

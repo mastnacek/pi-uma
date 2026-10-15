@@ -75,6 +75,11 @@ pub struct SearchOptions<'a> {
     pub fact_type: Option<&'a FactType>,
     pub include_deprecated: bool,
     pub as_of: Option<DateTime<Utc>>,
+    /// Fact IDs removed from the ranking competition BEFORE the limit is
+    /// applied (the recall gate's anti-echo). Scores are per-fact
+    /// independent, so excluding never reorders the survivors — it only
+    /// shortens the candidate list.
+    pub exclude_ids: Vec<String>,
     pub limit: usize,
 }
 
@@ -200,6 +205,7 @@ mod tests {
             fact_type: None,
             include_deprecated: false,
             as_of: None,
+            exclude_ids: Vec::new(),
             limit: 10,
         }
     }

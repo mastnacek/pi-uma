@@ -184,6 +184,7 @@ fn test_store_search() -> anyhow::Result<()> {
             fact_type: None,
             include_deprecated: false,
             as_of: None,
+            exclude_ids: Vec::new(),
             limit: 10,
         },
     )?;
@@ -277,4 +278,63 @@ fn test_store_write_refuses_a_secret_in_tags() {
     );
     fact.tags = vec!["ghp_0123456789abcdefghijklmnopqrstuvwxyzAB".to_string()];
     assert!(store.write(&fact).is_err(), "tags are scanned too");
+}
+
+#[test]
+fn test_search_excludes_ids_from_competition() -> anyhow::Result<()> {
+    // Anti-echo (SPAI-048): excluded IDs are removed BEFORE the limit is
+    // applied, so the window fills entirely with eligible facts — and the
+    // survivors keep the same relative order they would have had anyway
+    // (BM25 scores are per-fact independent).
+    let dir = tempdir()?;
+    let db_path = dir.path().join("index.db");
+    let indexer = crate::indexer::Indexer::open(&db_path)?;
+
+    let facts: Vec<crate::domain::Fact> = [
+        ("Injected One", "SQLite FTS5 index adoption decision."),
+        ("Injected Two", "FTS5 index tuning pattern."),
+        ("Fresh One", "SQLite FTS5 index storage layout."),
+        ("Fresh Two", "FTS5 index rebuild recipe."),
+    ]
+    .iter()
+    .map(|(title, body)| Fact::new(Scope::Global, FactType::Note, title.to_string(), body.to_string()))
+    .collect();
+    for fact in &facts {
+        indexer.index_fact(fact, None)?;
+    }
+
+    let opts = |limit: usize| crate::search::SearchOptions {
+        query: "FTS5 index",
+        scope: None,
+        current_project: None,
+        fact_type: None,
+        include_deprecated: false,
+        as_of: None,
+        exclude_ids: vec![facts[0].id.to_string(), facts[1].id.to_string()],
+        limit,
+    };
+
+    // The window fills with eligible facts only — an excluded fact never
+    // occupies a slot, and the survivors keep their relative rank order.
+    let hits = crate::search::search_keyword(indexer.connection(), &opts(3))?;
+    assert_eq!(hits.len(), 2);
+    let titles: Vec<&str> = hits.iter().map(|h| h.title.as_str()).collect();
+    assert!(titles.contains(&"Fresh One") && titles.contains(&"Fresh Two"), "{titles:?}");
+    assert!(!hits.iter().any(|h| h.id == facts[0].id || h.id == facts[1].id));
+
+    // The limit applies to the ELIGIBLE set: a window of 1 still returns
+    // exactly one eligible fact, not an excluded one.
+    let hits1 = crate::search::search_keyword(indexer.connection(), &opts(1))?;
+    assert_eq!(hits1.len(), 1);
+    assert!(titles.contains(&hits1[0].title.as_str()));
+
+    // Exclusion does not shrink the result when fewer facts were excluded
+    // than the window asks for.
+    let none_excluded = crate::search::SearchOptions {
+        exclude_ids: Vec::new(),
+        ..opts(10)
+    };
+    let all = crate::search::search_keyword(indexer.connection(), &none_excluded)?;
+    assert_eq!(all.len(), 4);
+    Ok(())
 }

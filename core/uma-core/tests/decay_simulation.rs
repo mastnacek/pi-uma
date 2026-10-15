@@ -39,6 +39,7 @@ fn search_options(query: &str, as_of: Option<chrono::DateTime<Utc>>) -> SearchOp
         fact_type: None,
         include_deprecated: false,
         as_of,
+        exclude_ids: Vec::new(),
         limit: 10,
     }
 }

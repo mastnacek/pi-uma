@@ -45,6 +45,12 @@ pub struct CheckArgs {
     #[arg(long = "max", default_value_t = 3)]
     pub max: usize,
 
+    /// Fact IDs removed from the ranking competition before the limit is
+    /// applied (the recall gate's anti-echo: facts the session already
+    /// injected). Repeatable.
+    #[arg(long = "exclude", value_name = "ID")]
+    pub exclude: Vec<String>,
+
     /// Emit the verdict and recalled facts as JSON
     #[arg(long = "json")]
     pub json: bool,
@@ -102,7 +108,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
         );
     }
 
-    let (facts, search_notes) = recall_facts(&prompt, &need.fact_types, args.max)?;
+    let (facts, search_notes) = recall_facts(&prompt, &need.fact_types, args.max, &args.exclude)?;
     // Merge provenance (judge note) with the search's degradation notes so a
     // relaxed recall is visible in the verdict, not silently presented as a
     // precise match.
@@ -169,6 +175,7 @@ fn recall_facts(
     prompt: &str,
     fact_types: &[String],
     max: usize,
+    exclude: &[String],
 ) -> Result<(Vec<serde_json::Value>, Vec<String>)> {
     let query = recall_query(prompt);
     let subtypes: Vec<FactType> = fact_types
@@ -197,6 +204,7 @@ fn recall_facts(
             SearchMode::Keyword,
             false,
             None,
+            exclude,
             max - facts.len(),
         )?;
         // A relaxed (any-term) recall must be visible in the verdict, not
@@ -220,7 +228,7 @@ fn recall_facts(
     }
 
     // Priming (Proposal 05, Pillar II): neighbors of every hit arrive warm.
-    facts = prime_neighbors(facts, max, &mut notes);
+    facts = prime_neighbors(facts, max, &mut notes, exclude);
     facts.truncate(max);
     Ok((facts, notes))
 }
@@ -231,6 +239,7 @@ fn prime_neighbors(
     mut facts: Vec<serde_json::Value>,
     max: usize,
     notes: &mut Vec<String>,
+    exclude: &[String],
 ) -> Vec<serde_json::Value> {
     if facts.is_empty() || facts.len() >= max {
         return facts;
@@ -278,6 +287,9 @@ fn prime_neighbors(
     for hit_id in &hits {
         for activated in graph.spread(hit_id, 0.5, 1) {
             if seen.contains(&activated.id) || activated.id == *hit_id {
+                continue;
+            }
+            if exclude.iter().any(|id| id == &activated.id) {
                 continue;
             }
             if facts.len() >= max {

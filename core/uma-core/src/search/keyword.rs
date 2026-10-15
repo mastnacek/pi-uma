@@ -78,6 +78,20 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         }
     }
 
+    // Anti-echo exclusion: dropped from the competition before the limit,
+    // so the caller's `limit` fills entirely with eligible facts.
+    let mut excluded_params: Vec<&str> = Vec::new();
+    if !opts.exclude_ids.is_empty() {
+        let placeholders = opts
+            .exclude_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(", ");
+        sql.push_str(&format!(" AND id NOT IN ({placeholders})"));
+        excluded_params.extend(opts.exclude_ids.iter().map(|s| s.as_str()));
+    }
+
     if opts.fact_type.is_some() {
         sql.push_str(" AND fact_type = ?");
     }
@@ -93,6 +107,10 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
             }
         }
         _ => {}
+    }
+    // Placeholder order must mirror the SQL: scope, exclusions, fact_type.
+    for excluded in excluded_params {
+        params_vec.push(excluded.to_string());
     }
     if let Some(ft) = opts.fact_type {
         params_vec.push(ft.to_string());

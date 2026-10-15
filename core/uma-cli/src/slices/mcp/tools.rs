@@ -159,6 +159,7 @@ fn search(args: &Value) -> Result<String, String> {
         mode,
         bool_arg(args, "includeDeprecated"),
         as_of,
+        &[],
         usize_arg(args, "limit", 10),
     )
     .map_err(|err| err.to_string())?;

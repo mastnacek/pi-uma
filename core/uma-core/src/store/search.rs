@@ -13,6 +13,14 @@ use super::Store;
 
 impl Store {
     /// Performs search using BM25 keyword matching, Semantic vector search, or Hybrid RRF fusion.
+    ///
+    /// `exclude_ids` removes facts from the ranking competition BEFORE the
+    /// limit is applied (the recall gate's anti-echo, SPAI-048): the returned
+    /// window fills entirely with eligible facts. BM25 scores are per-fact
+    /// independent, so exclusion never reorders the survivors. Currently
+    /// enforced on the keyword path (what recall uses); semantic/hybrid ignore
+    /// the list until they grow the same need.
+    #[allow(clippy::too_many_arguments)]
     pub fn search_all(
         query: &str,
         scope: Option<&Scope>,
@@ -20,6 +28,7 @@ impl Store {
         mode: SearchMode,
         include_deprecated: bool,
         as_of: Option<DateTime<Utc>>,
+        exclude_ids: &[String],
         limit: usize,
     ) -> Result<SearchOutcome> {
         let indexer = Self::central_indexer()?;
@@ -35,6 +44,7 @@ impl Store {
             fact_type,
             include_deprecated,
             as_of,
+            exclude_ids: exclude_ids.to_vec(),
             limit,
         };
 

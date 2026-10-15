@@ -171,6 +171,7 @@ fn recall_context_slice(
         SearchMode::Keyword,
         false,
         None,
+        &[],
         max,
     )?;
     Ok(outcome

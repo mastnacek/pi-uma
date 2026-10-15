@@ -68,3 +68,22 @@ fn test_offline_verdict_is_deterministic() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn test_check_parses_repeated_excludes() -> Result<(), clap::Error> {
+    // Anti-echo (SPAI-048): the gate passes every already-injected fact id
+    // as a repeated --exclude flag; the engine removes them from the
+    // ranking competition before applying the limit.
+    let args = parse(&[
+        "recall", "check", "how", "--max", "3",
+        "--exclude", "01AAA", "--exclude", "01BBB", "--json",
+    ])?;
+    match args.command {
+        RecallCommand::Check(check) => {
+            assert_eq!(check.exclude, vec!["01AAA", "01BBB"]);
+            assert_eq!(check.max, 3);
+            assert!(check.json);
+        }
+    }
+    Ok(())
+}

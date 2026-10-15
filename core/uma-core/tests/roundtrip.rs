@@ -32,6 +32,7 @@ fn search_options(query: &str) -> SearchOptions<'_> {
         fact_type: None,
         include_deprecated: false,
         as_of: None,
+        exclude_ids: Vec::new(),
         limit: 10,
     }
 }
