@@ -98,20 +98,89 @@ function isUmaExecutable(token: string): boolean {
   return UMA_BINARY_NAMES.has(base);
 }
 
-/** Shell-level writes straight into a memory store path. */
+/** True when a token names or embeds a UMA memory store path. Substring
+ *  semantics: an argv token may be a bare path (`.uma/x.md`), an absolute
+ *  store path, or embedded code (`open('.uma/x','w')`). */
+function tokenTouchesStore(token: string): boolean {
+  const norm = token.replace(/\\/g, "/").toLowerCase();
+  if (norm === ".uma" || /(^|[^a-z0-9_.])\.uma\//.test(norm)) return true;
+  return (
+    norm.includes("uma/uma/data/global") ||
+    norm.includes("uma/data/global") ||
+    norm.includes("com.uma.uma/global") ||
+    norm.includes(".local/share/uma/global")
+  );
+}
+
+/** Separate-form output redirections: ">", ">>", "2>", "2>>", "&>", "&>>". */
+const REDIRECT_OP_RE = /^&?\d*>>?$/;
+/** Attached form — operator and target share one token: "2>/dev/null", ">>out". */
+const ATTACHED_REDIRECT_RE = /^&?\d*(>>|>)(\S+)$/;
+
+/** True when an output redirection in the segment lands in a store path.
+ *  Input redirection (`< file`) is a read and never blocks; `/dev/null`
+ *  and ordinary temp targets stay allowed (SPAI-053). */
+function redirectWritesStore(tokens: string[]): boolean {
+  for (let i = 0; i < tokens.length; i++) {
+    if (REDIRECT_OP_RE.test(tokens[i])) {
+      const target = tokens[i + 1];
+      if (target && tokenTouchesStore(target)) return true;
+      continue;
+    }
+    const attached = ATTACHED_REDIRECT_RE.exec(tokens[i]);
+    if (attached && tokenTouchesStore(attached[2])) return true;
+  }
+  return false;
+}
+
+/** Utilities whose execution can mutate any file they name. */
+const MUTATING_UTILS = new Set([
+  "tee", "cp", "mv", "rm", "del", "sed", "truncate", "dd",
+  "install", "rsync", "python", "python3", "perl", "node",
+]);
+
+/** Wrappers that do not change what the effective command touches. Shared by
+ *  the store-write scan and the UMA-binary scan so both see through them. */
+const TRANSPARENT_WRAPPERS = new Set(["sudo", "env", "command", "nohup", "time", "nice", "xargs"]);
+
+/** Index of the first token that is not a wrapper (env assignments ignored). */
+function commandIndexAfter(tokens: string[], skipEnv: boolean): number {
+  let i = 0;
+  while (
+    i < tokens.length &&
+    (TRANSPARENT_WRAPPERS.has(tokens[i]) ||
+      (skipEnv && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i])))
+  ) {
+    i++;
+  }
+  return i;
+}
+
+/** True when the segment's effective command is a file-mutating utility and
+ *  some other token touches a store path. Every token except the command
+ *  itself counts as an operand — flags included, so `dd of=.uma/x` and
+ *  `node --eval="...writeFileSync('.uma/x',...)"` cannot hide in an option. */
+function utilityWritesStore(tokens: string[]): boolean {
+  for (const skipEnv of [false, true]) {
+    const cmdIdx = commandIndexAfter(tokens, skipEnv);
+    const cmd = tokens[cmdIdx]?.toLowerCase();
+    if (cmd && MUTATING_UTILS.has(cmd)) {
+      return tokens.some((t, idx) => idx !== cmdIdx && tokenTouchesStore(t));
+    }
+  }
+  return false;
+}
+
+/**
+ * True when a shell segment persists into a UMA store: an output redirection
+ * whose target is a store path, or a file-mutating utility naming one. The
+ * store mention and the write capability must co-occur in the same operand —
+ * a store path that is only NAMED, never written, stays allowed, so read-only
+ * commands like `ls .uma/ 2>/dev/null` no longer trip the gate (SPAI-053).
+ */
 function commandWritesMemoryPath(command: string): boolean {
-  const norm = command.replace(/\\/g, "/");
-  const storeHit =
-    /(?:^|[\s>|;&"'`])\.uma\//i.test(norm) ||
-    /\/\.uma\//i.test(norm) ||
-    /uma[\\/]uma[\\/]data[\\/]global/i.test(norm) ||
-    /uma[\\/]data[\\/]global/i.test(norm) ||
-    /com\.uma\.uma[\\/]global/i.test(norm) ||
-    /\.local[\\/]share[\\/]uma[\\/]global/i.test(norm);
-  if (!storeHit) return false;
-  // Only a write counts: redirection, `tee`, or a file-mutating utility.
-  return /(?:>>?|\btee\b|\b(?:cp|mv|rm|del|sed|truncate|dd|install|rsync|python\d?|perl|node)\b)/i.test(
-    command,
+  return segments(command).some(
+    (tokens) => redirectWritesStore(tokens) || utilityWritesStore(tokens),
   );
 }
 
@@ -122,19 +191,18 @@ function commandWritesMemoryPath(command: string): boolean {
  */
 export function isBypassingBashCommand(command: string): boolean {
   for (const tokens of segments(command)) {
-    let i = 0;
-    while (
-      i < tokens.length &&
-      (/^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i]) ||
-        ["sudo", "env", "command", "nohup", "time"].includes(tokens[i]))
-    ) {
-      i++;
-    }
-    if (isUmaExecutable(tokens[i] ?? "") && subcommandMutatesMemory(tokens.slice(i + 1))) {
+    const rest = effectiveCommandForBinary(tokens);
+    if (isUmaExecutable(rest[0] ?? "") && subcommandMutatesMemory(rest.slice(1))) {
       return true;
     }
   }
   return commandWritesMemoryPath(command);
+}
+
+/** Wrapper-aware effective command for the UMA-binary scan: env assignments
+ *  and transparent wrappers never make a different binary the real command. */
+function effectiveCommandForBinary(tokens: string[]): string[] {
+  return tokens.slice(commandIndexAfter(tokens, true));
 }
 
 /**

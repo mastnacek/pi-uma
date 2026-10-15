@@ -96,6 +96,30 @@ test("isBypassingBashCommand catches shell writes into a store path", () => {
   assert.equal(isBypassingBashCommand("ls .uma/"), false);
 });
 
+test("redirection target decides, not a bare mention (SPAI-053)", () => {
+  // The reported false positive: stderr into /dev/null is not a store write.
+  assert.equal(isBypassingBashCommand("ls .uma/ 2>/dev/null"), false);
+  assert.equal(isBypassingBashCommand("cat .uma/decision/x.md 2>/dev/null | head"), false);
+  assert.equal(isBypassingBashCommand("grep -r foo .uma/ > /tmp/out.txt"), false);
+  assert.equal(isBypassingBashCommand("uma list --json 2>/dev/null"), false);
+  assert.equal(isBypassingBashCommand("wc -l < .uma/decision/x.md"), false);
+  // …but a redirect INTO the store is still blocked, in every spelling.
+  assert.equal(isBypassingBashCommand("echo hi 2>/dev/null > .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("echo hi >>.uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("echo hi &> .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("echo hi | tee .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("rm .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("dd if=/dev/zero of=.uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("truncate -s 0 .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("sudo rm .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("env FOO=1 rm .uma/x.md"), true);
+  assert.equal(isBypassingBashCommand("python3 -c \"open('.uma/x','w')\""), true);
+  assert.equal(isBypassingBashCommand("echo x >> \"$APPDATA/uma/uma/data/global/f.md\""), true);
+  // Mixed segments: the safe one must not mask the unsafe one.
+  assert.equal(isBypassingBashCommand("ls .uma/ 2>/dev/null && rm -rf .uma"), true);
+  assert.equal(isBypassingBashCommand("echo ok > /tmp/a; cat .uma/x.md > /tmp/b"), false);
+});
+
 test("isProtectedMemoryPath resolves a symlink into .uma", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uma-symlink-"));
   try {
