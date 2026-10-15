@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-15 11:52:32",
+  "lastUpdated": "2026-10-15 20:26:01",
   "records": [
     {
       "id": "SPAI-001",
@@ -855,6 +855,104 @@
       "project": "pi-uma",
       "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-048-anti-echo-recall-injection-deduplicates-against-fa.md"
+    },
+    {
+      "id": "SPAI-049",
+      "title": "Replace patternToRegex with real ast-grep matching in the immune path",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-15 20:26:01",
+      "tags": [
+        "contracts",
+        "immune",
+        "review"
+      ],
+      "priority": "high",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-15-SPAI-049-replace-patterntoregex-with-real-ast-grep-matching.md"
+    },
+    {
+      "id": "SPAI-050",
+      "title": "Wire plasticity reinforce and frustrate to observable outcomes, or remove the machinery",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-15 20:26:01",
+      "tags": [
+        "plasticity",
+        "review"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-15-SPAI-050-wire-plasticity-reinforce-and-frustrate-to-observa.md"
+    },
+    {
+      "id": "SPAI-051",
+      "title": "Decide whether search ranking consumes effective_weight",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-15 20:26:01",
+      "tags": [
+        "search",
+        "plasticity",
+        "review"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-15-SPAI-051-decide-whether-search-ranking-consumes-effective-w.md"
+    },
+    {
+      "id": "SPAI-052",
+      "title": "Adopt the runUma timeout reaper in immune and humility paths",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-15 20:26:01",
+      "tags": [
+        "immune",
+        "timeout"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-15-SPAI-052-adopt-the-runuma-timeout-reaper-in-immune-and-humi.md"
+    },
+    {
+      "id": "SPAI-053",
+      "title": "Tighten commandWritesMemoryPath to check the redirection target",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-15 20:26:01",
+      "tags": [
+        "approval-gate",
+        "false-positive"
+      ],
+      "priority": "medium",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-15-SPAI-053-tighten-commandwritesmemorypath-to-check-the-redir.md"
+    },
+    {
+      "id": "SPAI-054",
+      "title": "Expose the jev judge on the uma_consolidate tool, or document lexical-only as intended",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-10-15 20:26:01",
+      "tags": [
+        "consolidate",
+        "review"
+      ],
+      "priority": "low",
+      "project": "pi-uma",
+      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "file": "2026-10-15-SPAI-054-expose-the-jev-judge-on-the-uma-consolidate-tool-o.md"
     }
   ]
 }
