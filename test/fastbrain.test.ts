@@ -170,3 +170,46 @@ test("preview caps at 8 lines and points to [v]", () => {
   assert.ok(joined.includes("[v] 📜"));
   assert.ok(!joined.includes("Line 9 "), "preview stops at 8 lines");
 });
+
+import {
+  formatGateOneLiner,
+  splitMatchMarkers,
+  stripMatchMarkers,
+} from "../src/slices/fastbrain/policy.ts";
+
+test("stripMatchMarkers removes engine highlight markers", () => {
+  assert.equal(stripMatchMarkers("a [match]hit[/match] b"), "a hit b");
+  assert.equal(stripMatchMarkers("no markers"), "no markers");
+  assert.equal(stripMatchMarkers("[match]x[/match][match]y[/match]"), "xy");
+});
+
+test("splitMatchMarkers segments highlighted and plain spans", () => {
+  assert.deepEqual(splitMatchMarkers("a [match]hit[/match] b"), [
+    { text: "a ", match: false },
+    { text: "hit", match: true },
+    { text: " b", match: false },
+  ]);
+  assert.deepEqual(splitMatchMarkers("plain"), [{ text: "plain", match: false }]);
+});
+
+test("the injected LLM message never carries raw match markers", () => {
+  const marked = { ...fact, snippet: "…[match]sync[/match] is git-based…" };
+  const result = buildRecallMessage(verdict([marked]), "en");
+  assert.ok(result);
+  assert.ok(!String(result.message?.content).includes("[match]"));
+  assert.ok(String(result.message?.content).includes("sync is git-based"));
+});
+
+test("the decision report never shows raw match markers", () => {
+  const marked = { ...fact, snippet: "[match]sync[/match] everywhere" };
+  const report = formatGateDecision("q", verdict([marked]), "en");
+  assert.ok(!report.includes("[match]"), report);
+  assert.ok(report.includes("sync everywhere"), report);
+});
+
+test("formatGateOneLiner summarizes each verdict shape", () => {
+  assert.equal(formatGateOneLiner({ ...verdict([]), search: false }, "en"), "🧠 jev ○ no trigger");
+  assert.equal(formatGateOneLiner(verdict([fact]), "en"), "🧠 jev ● trigger → 1 fact(s)");
+  assert.equal(formatGateOneLiner(verdict([]), "cs"), "🧠 jev ◐ trigger, nic nenalezeno");
+  assert.equal(formatGateOneLiner(verdict([fact, fact, fact]), "cs"), "🧠 jev ● trigger → 3 fakta");
+});

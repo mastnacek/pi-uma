@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-14 18:44:48",
+  "lastUpdated": "2026-10-15 07:51:58",
   "records": [
     {
       "id": "SPAI-001",
@@ -16,7 +16,7 @@
       ],
       "priority": "medium",
       "project": "ai-memory",
-      "projectPath": "D:/01_programovani/ai-memory",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-08-SPAI-001-jev-native-transport-swap-the-openrouter-chat-comp.md"
     },
     {
@@ -33,12 +33,12 @@
       ],
       "priority": "medium",
       "project": "ai-memory",
-      "projectPath": "D:/01_programovani/ai-memory",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-08-SPAI-002-run-uma-consolidate-scope-mozek-rust-judge-jev-on-.md"
     },
     {
       "id": "SPAI-003",
-      "title": "P03a executable contracts: contract: frontmatter block → ast-grep rule export (.uma/contracts/sgconfig.yml) → generated architecture_invariants.rs + `uma contracts check`; block-mode for the immune interceptor ONLY for contract-backed rules",
+      "title": "P03a Executable Contracts & Immune Interceptor Block-Mode (Epic)",
       "type": "Todo",
       "status": "done",
       "symbol": "x",
@@ -51,7 +51,7 @@
       ],
       "priority": "medium",
       "project": "ai-memory",
-      "projectPath": "D:/01_programovani/ai-memory",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-08-SPAI-003-p03a-executable-contracts-contract-frontmatter-blo.md"
     },
     {
@@ -69,15 +69,15 @@
       ],
       "priority": "medium",
       "project": "ai-memory",
-      "projectPath": "D:/01_programovani/ai-memory",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-08-SPAI-004-okf-v03-schema-pass-plasticity-weightreinforcement.md"
     },
     {
       "id": "SPAI-005",
       "title": "P02 shadow worker: telemetry capture (turn_end/tool_result: compiler recovery, reverts, dependency changes) → .uma/.staging/ drafts (JSON, no index pollution) → ctx.ui.setStatus \"✦ N drafts\" + /uma review batch approval through the modal",
       "type": "Todo",
-      "status": "cancelled",
-      "symbol": "z",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-08 23:15:12",
       "tags": [
         "roadmap",
@@ -87,15 +87,15 @@
       ],
       "priority": "medium",
       "project": "ai-memory",
-      "projectPath": "D:/01_programovani/ai-memory",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-08-SPAI-005-p02-shadow-worker-telemetry-capture-turn-endtool-r.md"
     },
     {
       "id": "SPAI-006",
       "title": "Deferred: P04 skeptic on-demand + debt ledger + epistemic-humility mode; P05 muscle routines (operator-curated only, auto-synthesis proposal-only) + priming graph + doctor --dream retrieval practice. Speculative tail — revisit after P03a+P02 land",
       "type": "Todo",
-      "status": "cancelled",
-      "symbol": "z",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-08 23:15:49",
       "tags": [
         "roadmap",
@@ -105,7 +105,7 @@
       ],
       "priority": "low",
       "project": "ai-memory",
-      "projectPath": "D:/01_programovani/ai-memory",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-08-SPAI-006-deferred-p04-skeptic-on-demand-debt-ledger-epistem.md"
     },
     {
@@ -185,10 +185,29 @@
     },
     {
       "id": "SPAI-011",
-      "title": "P05a muscle synthesis: shadow worker auto-detects repeated command sequences (3+ same-shaped sequences with identical exit codes across sessions) and stages a muscle routine PROPOSAL in .uma/.staging/ (never compiles or curates itself); /uma review modal offers [c]urate to promote it into a gated skill fact",
+      "title": "P05 deferred tail: priming graph (spreading activation) + uma doctor --dream (retrieval practice) + uma_muscle (operator-curated only)",
       "type": "Todo",
       "status": "done",
       "symbol": "x",
+      "timestamp": "2026-10-09 22:30:00",
+      "tags": [
+        "roadmap",
+        "p05",
+        "priming",
+        "dreaming",
+        "muscle"
+      ],
+      "priority": "low",
+      "project": "pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
+      "file": "2026-10-09-SPAI-011-p05-priming-graph-doctor-dream-muscle-routines.md"
+    },
+    {
+      "id": "SPAI-011",
+      "title": "P05a muscle synthesis: shadow worker auto-detects repeated command sequences (3+ same-shaped sequences with identical exit codes across sessions) and stages a muscle routine PROPOSAL in .uma/.staging/ (never compiles or curates itself); /uma review modal offers [c]urate to promote it into a gated skill fact",
+      "type": "Todo",
+      "status": "done",
+      "symbol": ".",
       "timestamp": "2026-10-10 00:21:32",
       "tags": [
         "roadmap",
@@ -334,7 +353,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-019-verify-and-fix-utf-8-byte-slicing-and-truncation-p.md"
     },
     {
@@ -351,7 +370,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-020-verify-and-fix-negation-detection-heuristic-and-cz.md"
     },
     {
@@ -369,7 +388,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-021-verify-ts-write-tool-scope-resolution-bug-and-stag.md"
     },
     {
@@ -387,7 +406,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-022-verify-indexer-schema-bump-foreign-roots-loss-atom.md"
     },
     {
@@ -404,7 +423,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-023-verify-binary-execution-lookup-order-from-cwd-and-.md"
     },
     {
@@ -422,7 +441,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-024-verify-approval-gate-regex-bypasses-path-traversal.md"
     },
     {
@@ -440,7 +459,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-025-verify-muscle-command-runner-execution-safety-cont.md"
     },
     {
@@ -458,7 +477,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-026-audit-cognitive-subsystem-heuristics-dead-code-div.md"
     },
     {
@@ -476,7 +495,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-027-verify-cli-json-contracts-shadow-worker-false-posi.md"
     },
     {
@@ -495,7 +514,7 @@
       ],
       "priority": "low",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-028-verify-repository-hygiene-esm-dirname-compatibilit.md"
     },
     {
@@ -512,7 +531,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-029-l1-concurrency-stress-test-10-thread-wal-writes-cr.md"
     },
     {
@@ -530,7 +549,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-030-l1-contracts-test-exportcheck-roundtrip-as-of-deca.md"
     },
     {
@@ -549,7 +568,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-031-l1-muscle-perf-benchmark-ensure-routines-run-10ms.md"
     },
     {
@@ -567,7 +586,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-032-l1-cli-as-of-flag-for-searchlistread-time-travel-q.md"
     },
     {
@@ -585,7 +604,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-12-SPAI-033-l1-cli-uma-doctor-prune-zombies-read-only-report-c.md"
     },
     {
@@ -601,7 +620,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-034-tier-1b-live-link-resolution-uma-read-resolve-spai.md"
     },
     {
@@ -617,7 +636,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-035-tier-1a-structural-cross-references-add-okf-frontm.md"
     },
     {
@@ -634,7 +653,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-036-tier-2-read-only-spai-source-adapter-register-docs.md"
     },
     {
@@ -650,7 +669,7 @@
         "shadow-worker"
       ],
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-037-tier-3-done-task-promotion-shadow-worker-watches-s.md"
     },
     {
@@ -666,7 +685,7 @@
       ],
       "priority": "high",
       "project": "pi-orchestrator",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-038-bug-orch-delegate-with-waitfalse-always-fails-dele.md"
     },
     {
@@ -682,7 +701,7 @@
       ],
       "priority": "high",
       "project": "pi-orchestrator",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-039-bug-orch-delegate-never-splits-a-new-pane-for-an-u.md"
     },
     {
@@ -698,7 +717,7 @@
       ],
       "priority": "medium",
       "project": "pi-orchestrator",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-040-bug-herdr-agent-prompt-wait-reports-false-negative.md"
     },
     {
@@ -715,7 +734,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-041-documentfix-the-binary-shadowing-trap-agents-4-say.md"
     },
     {
@@ -732,7 +751,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-14-SPAI-042-spai-ids-are-per-project-namespaces-a-fact-body-me.md"
     }
   ]

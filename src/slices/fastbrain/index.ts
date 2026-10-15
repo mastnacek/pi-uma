@@ -25,10 +25,11 @@ import {
 } from "../../shared/client.js";
 import {
   buildRecallMessage,
-  formatGateDecision,
+  formatGateOneLiner,
   isDegradedNote,
   type RecallVerdict,
 } from "./policy.js";
+import { RECALL_GATE_ENTRY_TYPE, registerRecallEntryRenderer } from "./entry_renderer.js";
 
 /** Upper bound on the whole gate: a triage that outlives this is skipped. */
 const GATE_TIMEOUT_MS = 15_000;
@@ -47,6 +48,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined>
 }
 
 export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): () => void {
+  // Transcript renderer for gate decisions: structured, color-coded, and
+  // scrollable by pi's own transcript — everything the flat notify was not.
+  registerRecallEntryRenderer(pi);
+
   const unsubscribe = pi.on("before_agent_start", async (event, ctx) => {
     // 1. System prompt enhancement (abendum / append toggle)
     if (state.config.appendPrompt && event.systemPromptOptions?.sections) {
@@ -84,14 +89,22 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       }
 
       const verdict = JSON.parse(output.stdout) as RecallVerdict;
-      // The operator sees the decision: what was asked, what the judge
-      // answered, what happens next. Only genuine degradations warn; normal
-      // model provenance is informative.
-      const isWarning = isDegradedNote(verdict.note);
-      ctx.ui.notify(
-        formatGateDecision(event.prompt, verdict, lang),
-        isWarning ? "warning" : "info",
-      );
+      // Two surfaces, two jobs: the transcript entry carries the structured,
+      // color-coded detail (scrollable, persistent); the notify is only a
+      // glanceable one-liner. No-trigger turns stay out of the transcript
+      // unless the judge degraded — silence must never hide a fallback.
+      const degraded = isDegradedNote(verdict.note);
+      if (verdict.search || degraded) {
+        pi.appendEntry(RECALL_GATE_ENTRY_TYPE, { prompt: event.prompt, verdict, lang });
+      }
+      if (ctx.hasUI) {
+        ctx.ui.notify(
+          degraded && verdict.note
+            ? `${formatGateOneLiner(verdict, lang)} ⚠ ${verdict.note.split("\n")[0]}`
+            : formatGateOneLiner(verdict, lang),
+          degraded ? "warning" : "info",
+        );
+      }
       return buildRecallMessage(verdict, lang);
     } catch {
       // The gate is advisory: any failure means "no recall", never "no run".

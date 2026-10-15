@@ -54,7 +54,7 @@ export function buildRecallMessage(
   if (!verdict.search || verdict.facts.length === 0) return undefined;
   const lines = verdict.facts.map(
     (fact) =>
-      `- [${fact.fact_type}] ${fact.title} (${formatScope(fact.scope)}): ${fact.snippet}`,
+      `- [${fact.fact_type}] ${stripMatchMarkers(fact.title)} (${formatScope(fact.scope)}): ${stripMatchMarkers(fact.snippet)}`,
   );
   const header =
     lang === "cs"
@@ -76,6 +76,60 @@ function elide(text: string, width: number): string {
   const single = text.replace(/\s+/g, " ").trim();
   if (single.length <= width) return single;
   return `${single.slice(0, width - 1)}…`;
+}
+
+/**
+ * The engine's BM25 recall marks hit terms with `[match]…[/match]`. Plain-text
+ * sinks (the LLM-bound injection, the notify fallback) must never see them —
+ * they leaked verbatim into both the transcript and the model's context.
+ */
+export function stripMatchMarkers(text: string): string {
+  return text.replace(/\[match\]|\[\/match\]/g, "");
+}
+
+/** Segments of a snippet, split on the engine's [match]…[/match] markers. */
+export interface MatchSegment {
+  text: string;
+  match: boolean;
+}
+
+/**
+ * Splits a snippet on `[match]…[/match]` markers so a TUI renderer can paint
+ * the hit terms instead of showing the raw markers. Marked text is never
+ * nested; unmatched markers pass through as plain text.
+ */
+export function splitMatchMarkers(text: string): MatchSegment[] {
+  const segments: MatchSegment[] = [];
+  const re = /\[match\]([\s\S]*?)\[\/match\]/g;
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    if (m.index > last) segments.push({ text: text.slice(last, m.index), match: false });
+    segments.push({ text: m[1], match: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) segments.push({ text: text.slice(last), match: false });
+  return segments;
+}
+
+/**
+ * The compact one-line gate report for the notify toast. The full structured
+ * view lives in the transcript entry renderer; this is the glanceable summary.
+ */
+export function formatGateOneLiner(verdict: RecallVerdict, lang: "cs" | "en"): string {
+  const judge = verdict.judged_by;
+  if (!verdict.search) {
+    return lang === "cs"
+      ? `🧠 ${judge} ○ žádný trigger`
+      : `🧠 ${judge} ○ no trigger`;
+  }
+  if (verdict.recalled > 0) {
+    return lang === "cs"
+      ? `🧠 ${judge} ● trigger → ${czechFactCount(verdict.recalled)}`
+      : `🧠 ${judge} ● trigger → ${verdict.recalled} fact(s)`;
+  }
+  return lang === "cs"
+    ? `🧠 ${judge} ◐ trigger, nic nenalezeno`
+    : `🧠 ${judge} ◐ trigger, nothing found`;
 }
 
 /** Checks whether a verdict note represents a degraded/fallback condition. */
@@ -156,8 +210,8 @@ export function formatGateDecision(
 
     for (const [index, fact] of verdict.facts.entries()) {
       lines.push(
-        `    ${index + 1}. [${fact.fact_type}] ${fact.title} (${formatScope(fact.scope)})\n` +
-        `       ${elide(fact.snippet, 100)}`,
+        `    ${index + 1}. [${fact.fact_type}] ${stripMatchMarkers(fact.title)} (${formatScope(fact.scope)})\n` +
+        `       ${elide(stripMatchMarkers(fact.snippet), 100)}`,
       );
     }
   }
