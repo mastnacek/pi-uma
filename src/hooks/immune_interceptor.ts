@@ -13,6 +13,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../shared/types.js";
 import { runUma, findUmaBinary } from "../shared/client.js";
 import { stringsFor } from "../shared/i18n.js";
+import { translateOutputForDisplay } from "../shared/translate_client.js";
 import {
   assessEdit,
   checkContractRules,
@@ -106,21 +107,36 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
       switch (action.kind) {
         case "allow":
           return undefined;
-        case "notify":
-          // UI-only: the agent and the transcript never see these.
-          ctx.ui.notify(action.message, "warning");
+        case "notify": {
+          // UI-only: the agent and the transcript never see these. The body
+          // is display-translated like every other fact view (translate
+          // slice invariant: presentation only, degrades to the original).
+          const { text } = await translateOutputForDisplay(ctx, action.message, state.config.lang);
+          ctx.ui.notify(text, "warning");
           return undefined;
-        case "confirm":
+        }
+        case "confirm": {
           // The AI proposed, the operator decides: a decline BLOCKS the
           // call with the reason — consented blocking, the consent model
-          // intact.
+          // intact. The dialog shows a display-translated body and localized
+          // buttons (pi's confirm() labels are hardcoded Yes/No, so select
+          // carries the consent); the block REASON stays the English
+          // original because the model reads it.
           if (action.message.length > 0) {
-            const proceed = await ctx.ui.confirm(stringsFor(state.config.lang).immuneDialogTitle, action.message);
-            if (proceed === false) {
+            const s = stringsFor(state.config.lang);
+            const { text } = await translateOutputForDisplay(ctx, action.message, state.config.lang);
+            // pi's confirm() hardcodes "Yes"/"No" (it is select(`${title}\n${message}`)
+            // internally), so the localized consent runs through select: the
+            // translated body rides in the multi-line title, the buttons come
+            // from the string table. The block REASON stays the English
+            // original — the model reads it.
+            const choice = await ctx.ui.select(`${s.immuneDialogTitle}\n${text}`, [s.dialogProceed, s.dialogBlock]);
+            if (choice !== s.dialogProceed) {
               return { block: true, reason: action.message };
             }
           }
           return undefined;
+        }
         case "block":
           return { block: true, reason: action.reason };
         default:

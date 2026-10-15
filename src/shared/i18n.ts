@@ -48,6 +48,9 @@ export interface Strings {
   debtAutoCaptured: string;
   debtStillOpen: string;
   humilityDialogTitle: string;
+  /** Localized consent buttons — pi's confirm() labels are hardcoded Yes/No. */
+  dialogProceed: string;
+  dialogBlock: string;
   humilityGateEnabled: string;
   humilityGateDisabled: string;
   humilityGateCurrent: string;
@@ -98,6 +101,8 @@ const STRINGS: Record<Locale, Strings> = {
     translationFailedNote: "🌐 translation unavailable — showing the original",
     displayTranslatedNote: "🌐 display translation — memory and CLI output unchanged",
     immuneDialogTitle: "🛡️ UMA immune interceptor",
+    dialogProceed: "Yes, proceed",
+    dialogBlock: "No, block it",
     editPromptTitle: "Edit Title:",
     editPromptBody: "Edit Content (Markdown):",
     editPromptTags: "Edit Tags (comma-separated):",
@@ -214,7 +219,9 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
     translatedNote: "🌐 zobrazený překlad — ukládá se ORIGINÁL (c: originál)",
     translationFailedNote: "🌐 překlad nedostupný — zobrazuje se originál",
     displayTranslatedNote: "🌐 zobrazený překlad — pamět i výstup CLI se nemění",
-    immuneDialogTitle: "🛡️ UMA imunní interceptor",
+    immuneDialogTitle: "🛡️ UMA imunitní interceptor",
+    dialogProceed: "Ano, pokračovat",
+    dialogBlock: "Ne, zablokovat",
     editPromptTitle: "Upravit název:",
     editPromptBody: "Upravit obsah (Markdown):",
     editPromptTags: "Upravit tagy (oddělené čárkou):",
@@ -282,8 +289,8 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
   • /uma doctor                      — Čtecí kontrola zdraví storu a indexu.
 
 Tip: Přidejte přepínač --global pro trvalé uložení do ~/.pi/agent/uma.json (platí pro všechny projekty).`,
-    immuneModeEnabled: "Režim imunního interceptoru nastaven: ",
-    immuneModeCurrent: "Režim imunního interceptoru: ",
+    immuneModeEnabled: "Režim imunitního interceptoru nastaven: ",
+    immuneModeCurrent: "Režim imunitního interceptoru: ",
     immuneModeLabel: "Imunita",
     hudEnabled: "Detektor UMA HUD zapnut",
     hudDisabled: "Detektor UMA HUD vypnut",

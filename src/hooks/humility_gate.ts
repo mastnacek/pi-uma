@@ -2,14 +2,18 @@
  * Humility gate hook — thin subscription over the pure policy in
  * slices/humility/policy.ts (mirrors the immune interceptor pattern).
  *
- * The dialog TITLE comes from the string table (user-facing); the message
- * body stays English because it quotes the model-facing verdict guidance.
- * The operator decides: a decline blocks the call — consented, never silent.
+ * The dialog TITLE and buttons come from the string table (user-facing);
+ * the message body is display-translated for the dialog like every other
+ * fact view, while the block REASON stays the English original — the model
+ * reads it, and translation is presentation-only by the translate-slice
+ * invariant. The operator decides: a decline blocks the call — consented,
+ * never silent.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../shared/types.js";
 import { stringsFor } from "../shared/i18n.js";
+import { translateOutputForDisplay } from "../shared/translate_client.js";
 import { decideHumilityGate, type HumilityFlag } from "../slices/humility/policy.ts";
 
 export function registerHumilityGate(pi: ExtensionAPI, state: ExtensionState): () => void {
@@ -25,11 +29,14 @@ export function registerHumilityGate(pi: ExtensionAPI, state: ExtensionState): (
     if (action.kind === "allow") return undefined;
     if (action.kind === "block") return { block: true, reason: action.reason };
 
-    const proceed = await ctx.ui.confirm(
-      stringsFor(state.config.lang).humilityDialogTitle,
-      action.message,
-    );
-    if (proceed === false) {
+    const s = stringsFor(state.config.lang);
+    const { text } = await translateOutputForDisplay(ctx, action.message, state.config.lang);
+    // Same pattern as the immune interceptor: translated body in the
+    // multi-line title, localized buttons via select (confirm() hardcodes
+    // Yes/No). Esc/undefined or the block button both decline — fail-closed,
+    // and the model-facing reason is always the English original.
+    const choice = await ctx.ui.select(`${s.humilityDialogTitle}\n${text}`, [s.dialogProceed, s.dialogBlock]);
+    if (choice !== s.dialogProceed) {
       return { block: true, reason: action.message };
     }
     return undefined;
