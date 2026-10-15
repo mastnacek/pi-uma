@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-15 20:26:01",
+  "lastUpdated": "2026-10-15 20:51:43",
   "records": [
     {
       "id": "SPAI-001",
@@ -910,8 +910,8 @@
       "id": "SPAI-052",
       "title": "Adopt the runUma timeout reaper in immune and humility paths",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-15 20:26:01",
       "tags": [
         "immune",
@@ -919,15 +919,15 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-052-adopt-the-runuma-timeout-reaper-in-immune-and-humi.md"
     },
     {
       "id": "SPAI-053",
       "title": "Tighten commandWritesMemoryPath to check the redirection target",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-15 20:26:01",
       "tags": [
         "approval-gate",
@@ -935,7 +935,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-053-tighten-commandwritesmemorypath-to-check-the-redir.md"
     },
     {
