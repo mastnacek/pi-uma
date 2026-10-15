@@ -92,6 +92,16 @@ export interface ExtensionState {
     hypothesis?: string;
     reads: string[];
   }>;
+  /**
+   * Fact IDs already injected into THIS session's context.
+   * Re-injecting a fact the model already has is pure token waste — the
+   * injected message persists in the transcript for the whole session.
+   * Restored from the branch's uma-recall entries on session_start
+   * (survives reload/resume); cleared on compaction, because after a
+   * compaction the context may no longer hold the facts and re-injection
+   * becomes useful again.
+   */
+  injectedFactIds?: Set<string>;
   /** Rolling command history for muscle-synthesis repetition detection. */
   muscleHistory?: { shapes: string[]; raw: string[] };
   /** Sequence keys already proposed this session (one proposal per sequence). */

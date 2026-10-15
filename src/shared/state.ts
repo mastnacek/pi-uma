@@ -5,5 +5,6 @@ export function createExtensionState(config: PluginConfig, globalConfigFile: str
     config,
     globalConfigFile,
     unsubscribers: [],
+    injectedFactIds: new Set<string>(),
   };
 }

@@ -33,7 +33,7 @@ export interface RecallMessage {
   customType: string;
   content: string;
   display: boolean;
-  details: { judge: string; count: number };
+  details: { judge: string; count: number; ids: string[] };
 }
 
 /** Renders the scope for display: "Global" becomes "global", the tagged
@@ -46,13 +46,25 @@ export function formatScope(scope: ScopeWire): string {
 /**
  * Pure decision: what should the hook do with a verdict?
  * No trigger or no facts → nothing is injected.
+ *
+ * `exclude` carries fact IDs already injected into this session (SPAI-048
+ * anti-echo): a fact the model already holds is pure token waste — the
+ * injected message persists in the transcript — so it is filtered out, and
+ * a verdict whose facts are ALL already in context injects nothing. The
+ * message details carry the injected ids so session_start can restore the
+ * exclusion set after reload/resume without a second gate run.
  */
 export function buildRecallMessage(
   verdict: RecallVerdict,
   lang: "cs" | "en",
+  exclude?: ReadonlySet<string>,
 ): { message: RecallMessage } | undefined {
   if (!verdict.search || verdict.facts.length === 0) return undefined;
-  const lines = verdict.facts.map(
+  const facts = exclude
+    ? verdict.facts.filter((fact) => !exclude.has(fact.id))
+    : verdict.facts;
+  if (facts.length === 0) return undefined;
+  const lines = facts.map(
     (fact) =>
       `- [${fact.fact_type}] ${stripMatchMarkers(fact.title)} (${formatScope(fact.scope)}): ${stripMatchMarkers(fact.snippet)}`,
   );
@@ -66,7 +78,7 @@ export function buildRecallMessage(
       customType: "uma-recall",
       content,
       display: false,
-      details: { judge: verdict.judged_by, count: verdict.facts.length },
+      details: { judge: verdict.judged_by, count: facts.length, ids: facts.map((f) => f.id) },
     },
   };
 }
@@ -114,18 +126,25 @@ export function splitMatchMarkers(text: string): MatchSegment[] {
 /**
  * The compact one-line gate report for the notify toast. The full structured
  * view lives in the transcript entry renderer; this is the glanceable summary.
+ * `injectedCount` overrides the verdict's recalled count when the anti-echo
+ * filter injected fewer facts than the judge recalled.
  */
-export function formatGateOneLiner(verdict: RecallVerdict, lang: "cs" | "en"): string {
+export function formatGateOneLiner(
+  verdict: RecallVerdict,
+  lang: "cs" | "en",
+  injectedCount?: number,
+): string {
   const judge = verdict.judged_by;
   if (!verdict.search) {
     return lang === "cs"
       ? `🧠 ${judge} ○ žádný trigger`
       : `🧠 ${judge} ○ no trigger`;
   }
-  if (verdict.recalled > 0) {
+  const shown = injectedCount ?? verdict.recalled;
+  if (shown > 0) {
     return lang === "cs"
-      ? `🧠 ${judge} ● trigger → ${czechFactCount(verdict.recalled)}`
-      : `🧠 ${judge} ● trigger → ${verdict.recalled} fact(s)`;
+      ? `🧠 ${judge} ● trigger → ${czechFactCount(shown)}`
+      : `🧠 ${judge} ● trigger → ${shown} fact(s)`;
   }
   return lang === "cs"
     ? `🧠 ${judge} ◐ trigger, nic nenalezeno`

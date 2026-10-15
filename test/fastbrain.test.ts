@@ -213,3 +213,24 @@ test("formatGateOneLiner summarizes each verdict shape", () => {
   assert.equal(formatGateOneLiner(verdict([]), "cs"), "🧠 jev ◐ trigger, nic nenalezeno");
   assert.equal(formatGateOneLiner(verdict([fact, fact, fact]), "cs"), "🧠 jev ● trigger → 3 fakta");
 });
+
+test("anti-echo: facts already injected this session are filtered out", () => {
+  const second = { ...fact, id: "01SECOND", title: "Second fact", snippet: "Distinct second snippet…" };
+  const result = buildRecallMessage(verdict([fact, second]), "en", new Set([fact.id]));
+  assert.ok(result);
+  const content = String(result.message?.content);
+  assert.ok(content.includes("Second fact"));
+  assert.ok(content.includes("Distinct second snippet"));
+  assert.ok(!content.includes("Sync is git-based"), content);
+  assert.equal(result.message?.details.count, 1);
+  assert.deepEqual(result.message?.details.ids, ["01SECOND"]);
+});
+
+test("anti-echo: a verdict whose facts are all already injected injects nothing", () => {
+  assert.equal(buildRecallMessage(verdict([fact]), "en", new Set([fact.id])), undefined);
+});
+
+test("anti-echo: without an exclusion set the message carries the injected ids", () => {
+  const result = buildRecallMessage(verdict([fact]), "en");
+  assert.deepEqual(result?.message?.details.ids, [fact.id]);
+});

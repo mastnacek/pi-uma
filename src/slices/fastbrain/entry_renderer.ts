@@ -33,6 +33,9 @@ export interface RecallGateEntryData {
   prompt: string;
   verdict: RecallVerdict;
   lang: "cs" | "en";
+  /** Facts actually injected after the anti-echo filter; undefined means
+   * the pre-dedup behavior (everything recalled was injected). */
+  injectedCount?: number;
 }
 
 export const RECALL_GATE_ENTRY_TYPE = "uma-recall-gate";
@@ -155,10 +158,20 @@ class RecallGateEntryComponent {
         `  ${theme.fg("dim", lang === "cs" ? "○ Žádný trigger → paměť zůstává zavřená" : "○ No trigger → memory stays closed")}`,
       );
     } else if (verdict.recalled > 0) {
+      // Anti-echo: the judge may recall 3 facts but inject only 2 new ones;
+      // the entry reports what actually entered the context.
+      const injected = this.data.injectedCount ?? verdict.recalled;
+      const countText = injected < verdict.recalled
+        ? lang === "cs"
+          ? `vybráno ${verdict.recalled}, injektováno ${injected}× (zbytek již v kontextu)`
+          : `recalled ${verdict.recalled}, injected ${injected}× (rest already in context)`
+        : lang === "cs"
+          ? `injektováno ${injected}×`
+          : `injected ${injected}×`;
       const label =
         lang === "cs"
-          ? `● Trigger (${types || "obecný"}) → injektováno ${verdict.recalled}×`
-          : `● Trigger (${types || "general"}) → injected ${verdict.recalled}×`;
+          ? `● Trigger (${types || "obecný"}) → ${countText}`
+          : `● Trigger (${types || "general"}) → ${countText}`;
       lines.push(`  ${theme.fg("success", theme.bold(label))}`);
     } else {
       const label =
