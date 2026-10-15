@@ -32,13 +32,13 @@ import { RECALL_GATE_ENTRY_TYPE, registerRecallEntryRenderer } from "./entry_ren
 const GATE_TIMEOUT_MS = 15_000;
 
 /**
- * Deeper recall window (SPAI-048): the engine returns this many facts, the
- * anti-echo filter drops what the session already injected, and the
- * injection budget (MAX_INJECTED in policy.ts) fills with the next-best new
- * facts in rank order. Roughly twice the injection budget — enough slack
- * for a session that keeps touching the same decisions, cheap on offline BM25.
+ * Cap on the exclusion list sent to the engine (SPAI-048): a very long
+ * session could grow the injected-id set unboundedly, and CLI argv has a
+ * hard length ceiling on Windows. The most RECENT ids matter most — an old
+ * fact whose exclusion gets dropped may legitimately re-appear after it
+ * scrolled far out of the effective context window anyway.
  */
-const RECALL_WINDOW = 6;
+const MAX_EXCLUDE_IDS = 100;
 
 /** Prompts that are commands, not questions — never gated. */
 function isCommand(prompt: string): boolean {
@@ -113,17 +113,21 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
     const lang = state.config.lang;
     try {
       const binPath = findUmaBinary(ctx.cwd ?? process.cwd());
-      // Deeper recall window (SPAI-048): the engine returns the top RECALL_WINDOW
-      // facts, the anti-echo filter removes what the session already holds, and
-      // the injection budget (MAX_INJECTED in policy) fills with the next-best
-      // new facts in rank order. Widening the FIRST search is free (offline
-      // BM25); re-searching after dedup would pay a second call for what the
-      // first already ranked.
+      // Engine-side anti-echo (SPAI-048): already-injected fact IDs are
+      // removed from the ranking competition BEFORE the limit is applied,
+      // so `--max 3` returns exactly the 3 best facts the session has not
+      // seen. BM25 scores are per-fact independent, so exclusion never
+      // reorders the survivors — the plugin-side filter in
+      // buildRecallMessage stays as defense in depth for data drift.
+      const injected = state.injectedFactIds ?? (state.injectedFactIds = new Set<string>());
+      const excludeArgs = Array.from(injected)
+        .slice(-MAX_EXCLUDE_IDS)
+        .flatMap((id) => ["--exclude", id]);
       const judgeArgs =
         (state.config.fastbrainJudge === "jev"
           ? ["recall", "check", "--judge", "jev", "--json"]
           : ["recall", "check", "--json"])
-          .concat(["--max", String(RECALL_WINDOW), event.prompt]);
+          .concat(["--max", "3"], excludeArgs, [event.prompt]);
 
       // Session cwd, not the process start dir: the engine scopes recall
       // search to the git-root project name of the cwd it is given. When pi
@@ -145,7 +149,8 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       // Anti-echo (SPAI-048): a fact the model already holds is pure token
       // waste — the injected message persists in the transcript — so facts
       // injected earlier this session are filtered out of the injection.
-      const injected = state.injectedFactIds ?? (state.injectedFactIds = new Set<string>());
+      // (`injected` was declared with the judge args; the engine already
+      // excluded these IDs from ranking, this filter is defense in depth.)
       const message = buildRecallMessage(verdict, lang, injected);
       const newCount = message?.message.details.count ?? 0;
       // Two surfaces, two jobs: the transcript entry carries the structured,
