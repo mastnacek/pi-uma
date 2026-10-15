@@ -28,7 +28,11 @@ import {
 } from "./policy.js";
 import { RECALL_GATE_ENTRY_TYPE, registerRecallEntryRenderer } from "./entry_renderer.js";
 
-/** Upper bound on the whole gate: a triage that outlives this is skipped. */
+/** Upper bound on the whole gate: a triage that outlives this is skipped.
+ *  The engine's own HTTP timeout must stay BELOW this (see TIMEOUT_SECS in
+ *  jev.rs) so a slow judge degrades to the offline verdict inside the budget
+ *  instead of tripping this ceiling. runUma reaps the child at this limit,
+ *  so a timed-out gate never leaves an orphaned uma.exe behind. */
 const GATE_TIMEOUT_MS = 15_000;
 
 /**
@@ -43,14 +47,6 @@ const MAX_EXCLUDE_IDS = 100;
 /** Prompts that are commands, not questions — never gated. */
 function isCommand(prompt: string): boolean {
   return prompt.trim().startsWith("/") || prompt.trim().startsWith("!");
-}
-
-/** Races a promise against the gate timeout; undefined on timeout. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
-  return Promise.race([
-    promise,
-    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms)),
-  ]);
 }
 
 export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): () => void {
@@ -135,8 +131,9 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       // makes current_project None and the engine drops the project filter
       // entirely — every project's facts became recallable and unrelated
       // memories leaked into unrelated sessions.
-      const output = await withTimeout(runUma(binPath, judgeArgs, ctx.cwd ?? process.cwd()), GATE_TIMEOUT_MS);
-      if (!output) {
+      const output = await runUma(binPath, judgeArgs, ctx.cwd ?? process.cwd(), GATE_TIMEOUT_MS);
+      // 124 = runUma's timeout reaper fired (engine outlived the gate).
+      if (output.code === 124) {
         ctx.ui.notify("🧠 recall gate timed out — memory skipped this turn", "warning");
         return undefined;
       }

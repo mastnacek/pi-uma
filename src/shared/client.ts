@@ -57,7 +57,8 @@ export function findUmaBinary(_cwd?: string): string {
 export function runUma(
   binPath: string,
   args: string[],
-  cwd: string
+  cwd: string,
+  timeoutMs?: number
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   // The missing-engine case must reach the MODEL as an instruction, not
   // surface as a bare ENOENT: a model that sees only "spawn failed"
@@ -67,7 +68,21 @@ export function runUma(
     return Promise.reject(missingBinaryError(binPath));
   }
   return new Promise((resolve, reject) => {
-    execFile(binPath, args, { cwd }, (error, stdout, stderr) => {
+    // timeoutMs arms execFile's own reaper: the child is SIGKILLed (on
+    // Windows: TerminateProcess) instead of being orphaned when the caller
+    // gives up — a Promise.race timeout alone leaves the engine running.
+    const options =
+      timeoutMs !== undefined
+        ? { cwd, timeout: timeoutMs, killSignal: "SIGKILL" as const }
+        : { cwd };
+    execFile(binPath, args, options, (error, stdout, stderr) => {
+      // Killed by our own timeout: surface as 124 (conventional timeout exit
+      // code) so callers can distinguish "engine too slow" from "engine
+      // refused". stdout/stderr keep whatever the child managed to write.
+      if (error && (error as { killed?: boolean }).killed) {
+        resolve({ stdout, stderr, code: 124 });
+        return;
+      }
       if (error && "code" in error && typeof error.code === "number" && error.code !== 0) {
         resolve({ stdout, stderr, code: error.code });
       } else if (error) {
