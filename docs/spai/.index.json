@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-15 08:59:07",
+  "lastUpdated": "2026-10-15 09:25:36",
   "records": [
     {
       "id": "SPAI-001",
@@ -758,8 +758,8 @@
       "id": "SPAI-043",
       "title": "Proposal 10: /uma dash — read-only HTMX browser dashboard for UMA records (plugin-side node:http slice, vendored HTMX, mouse+keyboard, herdr-style TUI theme). Spec: docs/proposals/10-uma-dash-htmx-browser.md",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-15 08:59:07",
       "tags": [
         "web",
@@ -768,7 +768,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-043-proposal-10-uma-dash-read-only-htmx-browser-dashbo.md"
     }
   ]

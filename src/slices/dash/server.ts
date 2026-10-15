@@ -19,8 +19,26 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchCounts, fetchFact, fetchFacts, type DashQuery } from "./data.ts";
-import { renderDetail, renderError, renderFacts, renderStats } from "./fragments.ts";
+import {
+  renderDetail,
+  renderError,
+  renderFacts,
+  renderStats,
+  renderTranslatedCard,
+} from "./fragments.ts";
 import { renderPage } from "./page.ts";
+
+/** One display-only translation call (the slice never formats the prompt). */
+export type TranslateText = (text: string) => Promise<{ text?: string; error?: string }>;
+
+export interface DashServerOptions {
+  /** Per-card translation. Absent → the route reports the reason instead of
+   *  pretending it worked (a dashboard must not silently do nothing). */
+  translate?: TranslateText;
+}
+
+/** Cap on the translate request body: a card's title + excerpt, with slack. */
+const MAX_TRANSLATE_BODY = 16 * 1024;
 
 export interface DashServer {
   port: number;
@@ -72,7 +90,53 @@ function readQuery(u: URL): DashQuery {
   };
 }
 
-export async function startDashServer(cwd: string): Promise<DashServer> {
+/** Reads a bounded request body; rejects (undefined) anything oversized. */
+async function readFormBody(
+  req: http.IncomingMessage,
+  limit: number,
+): Promise<URLSearchParams | undefined> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    const buf = chunk as Buffer;
+    size += buf.length;
+    if (size > limit) return undefined;
+    chunks.push(buf);
+  }
+  return new URLSearchParams(Buffer.concat(chunks).toString("utf8"));
+}
+
+/**
+ * Two display translations in parallel (title, excerpt) so the card's shape is
+ * preserved exactly. Falls back to the original text with the reason on any
+ * failure — translation is a convenience, never a data transformation.
+ */
+async function translateCard(
+  translate: TranslateText | undefined,
+  title: string,
+  excerpt: string,
+): Promise<string> {
+  if (!translate) {
+    return renderTranslatedCard(title, excerpt, { error: "no model context in this session" });
+  }
+  const [titleResult, excerptResult] = await Promise.all<
+    { text?: string; error?: string }
+  >([
+    translate(title),
+    excerpt ? translate(excerpt) : Promise.resolve({}),
+  ]);
+  const error = titleResult.error ?? excerptResult.error;
+  if (error) return renderTranslatedCard(title, excerpt, { error });
+  return renderTranslatedCard(title, excerpt, {
+    title: titleResult.text,
+    excerpt: excerptResult.text,
+  });
+}
+
+export async function startDashServer(
+  cwd: string,
+  options: DashServerOptions = {},
+): Promise<DashServer> {
   const token = randomBytes(16).toString("hex");
   const sockets = new Set<Socket>();
 
@@ -98,6 +162,30 @@ export async function startDashServer(cwd: string): Promise<DashServer> {
 
         if (pathname === "/" || pathname === "/index.html") {
           sendHtml(res, renderPage(token));
+          return;
+        }
+        // Display-only per-card translation. POST (not GET): the text being
+        // translated travels in the body, never in a URL.
+        if (pathname === "/frag/translate") {
+          if (req.method !== "POST") {
+            sendNotFound(res);
+            return;
+          }
+          const form = await readFormBody(req, MAX_TRANSLATE_BODY);
+          if (!form) {
+            sendHtml(res, renderError("translate: request body too large"));
+            return;
+          }
+          // Unchecking the toggle fires a change event too. Answer it with an
+          // empty body and NO model call — the CSS toggle already reveals the
+          // original text again, so a translation is only ever fetched once.
+          if (!form.has("checked")) {
+            sendHtml(res, "");
+            return;
+          }
+          const title = (form.get("title") ?? "").slice(0, 2000);
+          const excerpt = (form.get("excerpt") ?? "").slice(0, 4000);
+          sendHtml(res, await translateCard(options.translate, title, excerpt));
           return;
         }
         if (pathname === "/frag/facts") {

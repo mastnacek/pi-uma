@@ -103,7 +103,7 @@ export function renderPage(token: string): string {
   <header>
     <span class="logo">🧠 UMA DASH</span>
     <input id="search" name="q" type="search" placeholder="🔍 search…  ( / to focus )" autocomplete="off"
-           hx-get="/frag/facts" hx-target="#cards" hx-trigger="keyup changed delay:300ms" hx-include="#filters">
+           hx-get="/frag/facts" hx-target="#cards" hx-trigger="keyup changed delay:800ms" hx-include="#filters">
     <span id="stats" class="stats" hx-get="/frag/stats" hx-trigger="load"></span>
   </header>
   <form id="filters" class="chips" onsubmit="return false">
@@ -116,7 +116,7 @@ export function renderPage(token: string): string {
     </section>
     <section id="detail" aria-label="detail"><div class="placeholder">select a fact · Enter opens · Esc clears</div></section>
   </main>
-  <footer><span class="dim">↑↓/jk move · enter open · / search · esc close · click &amp; type both work — read-only, nothing here writes memory</span></footer>
+  <footer><span class="dim">↑↓/jk move · enter open · / search · esc close · 🌐 CS translate (display only) — read-only, nothing here writes memory</span></footer>
 </div>
 <script>${KEYBOARD_SCRIPT}</script>
 </body>

@@ -1,174 +1,32 @@
 /**
- * /uma dash slice tests (Proposal 10 §10).
+ * /uma dash slice tests — the rendering half (Proposal 10 §10).
  *
- * Pure parts only: fragments.ts is string-in/string-out and data.ts's
- * normalize/filter/page helpers run against recorded CLI fixtures. The HTTP
- * server is deliberately not exercised here — it stays thin enough that the
- * logic carrying the behaviour lives in these functions.
+ * fragments.ts is pure string-in/string-out: escaping, marker stripping,
+ * markdown-lite, cards (including the per-card display-translation control)
+ * and detail. The HTTP server is deliberately not exercised here; the CLI
+ * adapter half lives in dash_data.test.ts.
  */
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   escapeHtml,
+  excerptOf,
   factsPath,
   renderBodyHtml,
   renderCard,
+  renderDegradedNote,
   renderDetail,
   renderError,
   renderFacts,
   renderStats,
+  renderTranslatedCard,
   stripMatchMarkers,
 } from "../src/slices/dash/fragments.ts";
-import {
-  PAGE_SIZE,
-  filterFacts,
-  normalizeListFacts,
-  normalizeScope,
-  normalizeSearchHits,
-  pageFacts,
-  type DashFact,
-  type DashQuery,
-} from "../src/slices/dash/data.ts";
+import { PAGE_SIZE } from "../src/slices/dash/data.ts";
+import { fact, query } from "./dash_fixtures.ts";
 
-/** Recorded `uma list --json` shape (two facts, project + global scope). */
-const LIST_JSON = `[
-  {
-    "body": "### Invariant\\nUse VSA for every slice.\\n\\n- one slice per capability\\n- no cross imports\\n\\n**Bold** and \`code\`.",
-    "effective_weight": 1.0,
-    "fact_type": "decision",
-    "id": "01M4D6K8J6QGDFC0Y11FW45R87",
-    "scope": "project:pi-uma",
-    "tags": ["vsa", "architecture"],
-    "title": "Use VSA Architecture"
-  },
-  {
-    "body": "Prefer Rust for standalone cores.",
-    "effective_weight": 0.5,
-    "fact_type": "preference",
-    "id": "01M4D7SF7CH3SSFKRAY48YC20P",
-    "scope": "global",
-    "tags": [],
-    "title": "Prefer Standalone VSA Rust Core"
-  }
-]`;
-
-/** Recorded `uma search --json` shape, including BM25 markers and a deprecated hit. */
-const SEARCH_JSON = `{
-  "degraded": false,
-  "hits": [
-    {
-      "fact_type": "decision",
-      "file_path": "C:\\\\Users\\\\x\\\\decision\\\\01M4.md",
-      "id": "01M4D6K8J6QGDFC0Y11FW45R87",
-      "scope": "global",
-      "score": 0.03278688524590164,
-      "snippet": "...structured with Vertical Slice Architecture ([match]VSA[/match]).",
-      "status": "stable",
-      "supersedes": null,
-      "tags": ["vsa"],
-      "title": "Use VSA Architecture"
-    },
-    {
-      "fact_type": "note",
-      "id": "01MOLDDEPRECATEDXXXXXXXX",
-      "scope": "global",
-      "score": 0.01,
-      "snippet": "an old note",
-      "status": "deprecated",
-      "supersedes": null,
-      "tags": [],
-      "title": "Old Note"
-    }
-  ]
-}`;
-
-function fact(over: Partial<DashFact> = {}): DashFact {
-  return {
-    id: "01TESTFACT000000000000000",
-    title: "Test fact",
-    factType: "note",
-    scope: "global",
-    tags: [],
-    weight: null,
-    deprecated: false,
-    ...over,
-  };
-}
-
-function query(over: Partial<DashQuery> = {}): DashQuery {
-  return { q: "", type: "", scope: "", offset: 0, ...over };
-}
-
-// ── data.ts: normalization ────────────────────────────────────────────────
-
-test("normalizeListFacts: parses recorded list records into unified facts", () => {
-  const facts = normalizeListFacts(LIST_JSON);
-  assert.equal(facts.length, 2);
-  assert.equal(facts[0].id, "01M4D6K8J6QGDFC0Y11FW45R87");
-  assert.equal(facts[0].factType, "decision");
-  assert.equal(facts[0].scope, "project:pi-uma");
-  assert.equal(facts[0].weight, 1);
-  assert.deepEqual(facts[0].tags, ["vsa", "architecture"]);
-  assert.ok(facts[0].body?.includes("### Invariant"));
-  assert.equal(facts[0].deprecated, false);
-  assert.equal(facts[1].scope, "global");
-  assert.equal(facts[1].weight, 0.5);
-});
-
-test("normalizeScope: accepts string, capitalized, prefixed and enum shapes", () => {
-  assert.equal(normalizeScope("global"), "global");
-  assert.equal(normalizeScope("Global"), "global");
-  assert.equal(normalizeScope("project:pi-uma"), "project:pi-uma");
-  assert.equal(normalizeScope({ Project: "pi-uma" }), "project:pi-uma");
-  assert.equal(normalizeScope("other"), "project:other");
-  assert.equal(normalizeScope(undefined), "project");
-});
-
-test("normalizeSearchHits: keeps markers, flags non-stable hits as deprecated", () => {
-  const hits = normalizeSearchHits(SEARCH_JSON);
-  assert.equal(hits.length, 2);
-  assert.equal(hits[0].status, "stable");
-  assert.equal(hits[0].deprecated, false);
-  assert.ok(hits[0].snippet?.includes("[match]VSA[/match]"));
-  assert.equal(hits[0].body, undefined);
-  assert.equal(hits[1].status, "deprecated");
-  assert.equal(hits[1].deprecated, true);
-});
-
-test("data.ts: unparseable engine output is a controlled error, never a crash", () => {
-  assert.throws(() => normalizeListFacts("not json at all"));
-  assert.throws(() => normalizeListFacts('{"not":"an array"}'));
-  assert.throws(() => normalizeSearchHits('{"degraded":false}'));
-  assert.throws(() => normalizeSearchHits("[1,2,3]"));
-});
-
-test("filterFacts: type and scope chips filter both list and search sets", () => {
-  const facts = normalizeListFacts(LIST_JSON);
-  assert.equal(filterFacts(facts, { type: "decision" }).length, 1);
-  assert.equal(filterFacts(facts, { type: "preference" }).length, 1);
-  assert.equal(filterFacts(facts, { type: "" }).length, 2);
-  assert.equal(filterFacts(facts, { scope: "global" }).length, 1);
-  assert.equal(filterFacts(facts, { scope: "project" }).length, 1);
-  assert.equal(filterFacts(facts, { scope: "global", type: "decision" }).length, 0);
-});
-
-test("pageFacts: pages by PAGE_SIZE and reports hasMore", () => {
-  const many = Array.from({ length: PAGE_SIZE + 20 }, (_v, i) => fact({ id: `id-${i}` }));
-  const first = pageFacts(many, 0);
-  assert.equal(first.facts.length, PAGE_SIZE);
-  assert.equal(first.total, PAGE_SIZE + 20);
-  assert.equal(first.hasMore, true);
-
-  const last = pageFacts(many, PAGE_SIZE);
-  assert.equal(last.facts.length, 20);
-  assert.equal(last.hasMore, false);
-
-  // A negative offset never crashes into Array.slice negative indexing.
-  assert.equal(pageFacts(many, -5).facts.length, PAGE_SIZE);
-});
-
-// ── fragments.ts: the escaping boundary ───────────────────────────────────
+// ── escaping boundary ─────────────────────────────────────────────────────
 
 test("escapeHtml: neutralizes every HTML-significant character", () => {
   const escaped = escapeHtml('<script>alert("x") & \'y\'</script>');
@@ -184,6 +42,15 @@ test("renderCard: injected HTML in a title renders inert", () => {
   assert.ok(!html.includes("<script>"));
   assert.ok(html.includes("&lt;script&gt;"));
 });
+
+test("renderCard: injected HTML stays inert in the hidden translate fields", () => {
+  const html = renderCard(fact({ title: '<script>alert("x")</script>', body: '"><img src=x>' }));
+  assert.ok(!/<script/i.test(html));
+  assert.ok(!html.includes("<img"));
+  assert.ok(!html.includes('value="><img'));
+});
+
+// ── cards ─────────────────────────────────────────────────────────────────
 
 test("renderCard: badge, scope icon, weight and tags are rendered", () => {
   const html = renderCard(
@@ -213,6 +80,60 @@ test("stripMatchMarkers + renderCard: no [match] markers reach the browser", () 
   assert.ok(html.includes("VSA"));
 });
 
+test("excerptOf: snippet wins, body is flattened and truncated", () => {
+  assert.equal(excerptOf(fact({ snippet: "x [match]VSA[/match] y" })), "x VSA y");
+  const long = excerptOf(fact({ body: `## T\n\n${"word ".repeat(80)}` }), 20);
+  assert.ok(long.length <= 21, `excerpt length ${long.length}`);
+  assert.ok(long.endsWith("…"));
+  assert.ok(!long.includes("#"));
+  assert.equal(excerptOf(fact({ body: "short" })), "short");
+  assert.equal(excerptOf(fact()), "");
+});
+
+// ── per-card display translation ──────────────────────────────────────────
+
+test("renderCard: carries the per-card translate control", () => {
+  const html = renderCard(fact({ title: "T", body: "B" }));
+  assert.ok(html.includes('class="card-wrap"'));
+  assert.ok(html.includes('hx-post="/frag/translate"'));
+  assert.ok(html.includes('hx-include="closest .card-wrap"'));
+  assert.ok(html.includes('hx-trigger="change"'));
+  // Present only while checked: the server answers an uncheck with an empty
+  // body and no model call.
+  assert.ok(html.includes('name="checked"'));
+  assert.ok(html.includes('for="lang-01TESTFACT000000000000000"'));
+  assert.ok(html.includes('id="trans-01TESTFACT000000000000000"'));
+  assert.ok(html.includes('role="button"'));
+  // The displayed text travels with the request: the translation is of exactly
+  // what is on screen.
+  assert.ok(html.includes('name="title" value="T"'));
+  assert.ok(html.includes('name="excerpt" value="B"'));
+});
+
+test("renderCard: the translate control is a sibling, never nested in the card", () => {
+  const html = renderCard(fact());
+  const label = html.indexOf('class="lang-toggle"');
+  const card = html.indexOf('class="card"');
+  assert.ok(label > -1 && card > -1 && label < card, "label must precede the card div");
+  // A nested interactive control would be invalid HTML — no <button> wrapper.
+  assert.ok(!html.includes("<button"));
+});
+
+test("renderTranslatedCard: success note, and failure keeps the original text", () => {
+  const ok = renderTranslatedCard("Title", "Excerpt", { title: "Titulek", excerpt: "Výňatek" });
+  assert.ok(ok.includes("Titulek"));
+  assert.ok(ok.includes("Výňatek"));
+  assert.ok(ok.includes("stored text unchanged"));
+
+  const failed = renderTranslatedCard("<b>Title</b>", "Excerpt", { error: "no active model" });
+  assert.ok(failed.includes("translation unavailable"));
+  assert.ok(failed.includes("no active model"));
+  assert.ok(failed.includes("&lt;b&gt;Title&lt;/b&gt;"));
+  assert.ok(!failed.includes("<b>Title</b>"));
+});
+
+// ── body rendering ────────────────────────────────────────────────────────
+
 test("renderBodyHtml: markdown-lite on escaped input", () => {
   const html = renderBodyHtml("### Heading\n\n**bold** and `code`\n\n- one\n- two");
   assert.ok(html.includes("<h4>Heading</h4>"));
@@ -229,6 +150,8 @@ test("renderBodyHtml: HTML in a body is inert, formatting still applies", () => 
   assert.ok(html.includes("&lt;img"));
   assert.ok(html.includes("<strong>safe</strong>"));
 });
+
+// ── list, detail, stats, errors ───────────────────────────────────────────
 
 test("renderFacts: empty page, sentinel and terminal page", () => {
   const empty = renderFacts({ facts: [], hasMore: false, total: 0 }, query());
@@ -249,6 +172,28 @@ test("renderFacts: empty page, sentinel and terminal page", () => {
 
   const terminal = renderFacts({ facts: [fact()], hasMore: false, total: 1 }, query());
   assert.ok(!terminal.includes("revealed"));
+});
+
+test("renderFacts: a degraded mode shows a banner above the cards", () => {
+  const html = renderFacts(
+    {
+      facts: [fact()],
+      hasMore: false,
+      total: 1,
+      note: "Hybrid search degraded to Keyword: no embeddings are stored.",
+    },
+    query(),
+  );
+  assert.ok(html.includes('class="degraded"'));
+  assert.ok(html.includes("no embeddings are stored"));
+  assert.ok(
+    html.indexOf('class="degraded"') < html.indexOf('class="card-wrap"'),
+    "banner must come before the cards",
+  );
+
+  const healthy = renderFacts({ facts: [fact()], hasMore: false, total: 1 }, query());
+  assert.ok(!healthy.includes("degraded"));
+  assert.ok(renderDegradedNote("<b>x</b>").includes("&lt;b&gt;"));
 });
 
 test("renderDetail: full view carries metadata and rendered body", () => {

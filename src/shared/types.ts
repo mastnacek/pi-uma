@@ -102,8 +102,10 @@ export interface ExtensionState {
    *  The commands slice calls these to dispatch `/uma dash [stop]` without
    *  importing the dash slice (VSA: slices never import slices). */
   dash?: {
-    /** Starts (or reuses) the loopback server and opens the browser; returns the token URL. */
-    start: (cwd: string) => Promise<string>;
+    /** Starts (or reuses) the loopback server and opens the browser; returns the token URL.
+     *  The command context is used once, to build a model-access-only translation
+     *  environment for per-card display translation. */
+    start: (cwd: string, ctx?: unknown) => Promise<string>;
     /** Closes the server if running. */
     stop: () => Promise<void>;
     isRunning: () => boolean;

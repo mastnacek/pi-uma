@@ -298,7 +298,7 @@ ${lines.join("\n")}`, "info");
               ctx.ui.notify(running ? liveStrings.dashStopped : liveStrings.dashNotRunning, "info");
             }
           } else if (!action && state.dash) {
-            const url = await state.dash.start(ctx.cwd);
+            const url = await state.dash.start(ctx.cwd, ctx);
             if (ctx.hasUI) ctx.ui.notify(`${liveStrings.dashOpened}${url}`, "info");
           } else {
             ctx.ui.notify(liveStrings.dashUsage, "info");

@@ -182,3 +182,43 @@ Add `test/dash.test.ts` (node:test + strip-types, like the rest of the suite):
 - No writes/edits/approvals from the browser (consent stays in the TUI modal).
 - No WebSocket/live push, no pagination cursor persistence, no themes, no i18n (UI copy is Czech/English-neutral labels; keep strings minimal).
 - No engine changes: `core/` and `bin/uma.exe` stay untouched.
+
+---
+
+## 13. Implementation deltas (2026-10-15, committed in `ec0b400` … )
+
+The spec above was implemented as written; the following decisions were added
+after the first live review, each with a reason. They supersede the matching
+lines above where they differ.
+
+1. **Search filters moved to the CLI (pre-cap).** §5 said to filter the list
+   results in server code. For the *search* path that was wrong in a way that
+   matters: `uma search` caps its result set (10 by default) before the
+   dashboard filtered it, so `type=decision&scope=global` could report "no
+   facts match" while matches existed past the cap. Type/scope now go to the
+   engine (`--type`, `--scope project|global` — the CLI resolves the literal
+   `project` itself), with the code-side filter kept as a safety net. Measured:
+   that exact filter went from 0 cards to 2.
+2. **`-n 50` for search.** Lifts the engine's 10-hit default so the dashboard
+   pages like the browse path. The 10-hit cap is no longer inherited.
+3. **Search debounce raised 300 ms → 800 ms.** Hybrid search embeds the query
+   live: measured **1246 ms** per call versus **77 ms** for keyword-only, i.e.
+   one OpenRouter request per debounced keystroke. The mode is unchanged
+   (hybrid by default); the debounce absorbs typing.
+4. **Degradation is rendered.** The engine reports `degraded` + `note` when
+   hybrid falls back to keyword-only; the dashboard now shows that note as a
+   banner above the cards instead of dropping the field. A semantic search that
+   silently ranked by BM25 is the failure the engine's own docs call out.
+5. **Display translation per card (§12 said "no i18n").** A 🌐 CS control on
+   each card translates that card's title and excerpt for display, using the
+   same seam as the TUI (`translateTextForDisplay` → `resolveTranslateModel`:
+   pi-prompt-translate's configured flash model, else pi's default, else the
+   session model — *not* the engine's embedding model). It is a CSS checkbox
+   filled once by HTMX: unchecking is free (no request body, no model call, no
+   cache), failures keep the original text and show the reason, and stored
+   facts stay byte-identical. The detail pane stays untranslated — the browser
+   therefore does not mirror the TUI's whole-output translation; that is a
+   deliberate scope choice, not an oversight.
+6. **`assets/*` is exempt from the token.** §5 required a token on every
+   request, but `<link>`/`<script>` cannot send headers and those files carry
+   no memory data. All data routes stay token-gated (404 otherwise).

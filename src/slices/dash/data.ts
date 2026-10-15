@@ -41,6 +41,10 @@ export interface FactsPage {
   facts: DashFact[];
   hasMore: boolean;
   total: number;
+  /** Engine degradation note (hybrid fell back to keyword-only), when present.
+   *  Never dropped: the engine's own rule is that a caller who asked for hybrid
+   *  ranking must not silently receive BM25. */
+  note?: string;
 }
 
 export type DataResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -111,13 +115,20 @@ export function normalizeListFacts(stdout: string): DashFact[] {
   return parsed.map((item) => normalizeRecord(item as Record<string, unknown>));
 }
 
-/** Parses `uma search --json` output into unified facts. Throws on bad JSON. */
-export function normalizeSearchHits(stdout: string): DashFact[] {
+/** One `uma search --json` document: the hits plus the degradation note. */
+export interface SearchOutcome {
+  hits: DashFact[];
+  /** The engine's one-line explanation, or undefined when nothing degraded. */
+  note?: string;
+}
+
+/** Parses `uma search --json` output (hits + degradation). Throws on bad JSON. */
+export function parseSearchJson(stdout: string): SearchOutcome {
   const parsed = tryParseJson(stdout);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !Array.isArray(parsed.hits)) {
     throw new Error("expected a hits array");
   }
-  return parsed.hits.map((hit) => {
+  const hits = parsed.hits.map((hit) => {
     const record = hit as Record<string, unknown>;
     const status = typeof record.status === "string" ? record.status : "stable";
     return {
@@ -128,6 +139,34 @@ export function normalizeSearchHits(stdout: string): DashFact[] {
       deprecated: status !== "stable",
     };
   });
+  const note = typeof parsed.note === "string" && parsed.note.length > 0 ? parsed.note : undefined;
+  const degraded = parsed.degraded === true;
+  if (degraded && !note) {
+    return { hits, note: "search degraded to keyword-only results (no embeddings available)" };
+  }
+  return { hits, note };
+}
+
+/** Deprecated alias kept for callers that only want the hits. */
+export function normalizeSearchHits(stdout: string): DashFact[] {
+  return parseSearchJson(stdout).hits;
+}
+
+/**
+ * The engine `search` invocation for a query. Type/scope go to the CLI so the
+ * engine filters BEFORE its result cap — filtering the returned top-N in code
+ * could report "no facts match" while matches exist past the cap. `-n` lifts
+ * the 10-hit default so the list can page like the browse path.
+ */
+export function searchArgs(query: DashQuery): string[] {
+  const args = ["search", "--json", "-n", String(PAGE_SIZE)];
+  if (query.type) args.push("--type", query.type);
+  // The CLI resolves the literals "global" / "project" itself.
+  if (query.scope === "global" || query.scope === "project") {
+    args.push("--scope", query.scope);
+  }
+  args.push(query.q);
+  return args;
 }
 
 /** Applies the dashboard's type/scope chips to an already-fetched set. */
@@ -213,17 +252,20 @@ async function fetchAllLists(cwd: string, scope: string): Promise<DataResult<Das
 }
 
 /**
- * Fetches one page of facts for the list fragment: BM25 search when `q` is
- * non-empty (the engine already searches both stores), a merged list
- * otherwise. Type/scope chips are applied in code so both paths behave
- * identically, per the spec's "filter in server code" decision.
+ * Fetches one page of facts for the list fragment: the engine's hybrid search
+ * when `q` is non-empty, a merged list otherwise (the engine lists one store at
+ * a time). Type/scope chips go to the CLI where the CLI supports them and are
+ * re-applied in code as a safety net, so both paths agree.
  */
 export async function fetchFacts(cwd: string, query: DashQuery): Promise<DataResult<FactsPage>> {
   const filters = { type: query.type, scope: query.scope };
   if (query.q.trim()) {
-    const hits = await runJson(cwd, ["search", "--json", query.q], "search", normalizeSearchHits);
-    if (!hits.ok) return hits;
-    return { ok: true, value: pageFacts(filterFacts(hits.value, filters), query.offset) };
+    const found = await runJson(cwd, searchArgs(query), "search", parseSearchJson);
+    if (!found.ok) return found;
+    return {
+      ok: true,
+      value: { ...pageFacts(filterFacts(found.value.hits, filters), query.offset), note: found.value.note },
+    };
   }
   const listed = await fetchAllLists(cwd, query.scope);
   if (!listed.ok) return listed;

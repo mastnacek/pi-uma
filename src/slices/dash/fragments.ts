@@ -99,29 +99,94 @@ function scopeClass(scope: string): string {
   return scope === "global" ? "global" : "project";
 }
 
+/**
+ * One-line excerpt for a card: search hit snippet when present, else the
+ * first `max` characters of the body with markdown noise squeezed out.
+ * The card shows it in both languages, so the 🌐 toggle changes real content.
+ */
+export function excerptOf(fact: DashFact, max = 160): string {
+  if (fact.snippet) return stripMatchMarkers(fact.snippet).trim();
+  const body = (fact.body ?? "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .replace(/^[-*]\s*/gm, "· ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return body.length > max ? `${body.slice(0, max).trimEnd()}…` : body;
+}
+
 function tagList(tags: string[]): string {
   if (tags.length === 0) return "";
   return `<span class="tags">${tags.map((t) => `<span class="tag">#${escapeHtml(t)}</span>`).join(" ")}</span>`;
 }
 
-/** One fact card in the list pane. Cards are real buttons: mouse click and
- * the keyboard script's .click() both reuse the same HTMX path. */
+/**
+ * One fact card in the list pane, plus its per-card translate control.
+ *
+ * Structure note: the card is a role="button" div, NOT a <button>, because the
+ * 🌐 control is a real nested <label>/<input> pair — nesting interactive
+ * elements inside a <button> is invalid HTML. Mouse click and the keyboard
+ * script's .click() both reuse the same HTMX path.
+ *
+ * The translate control is CSS-only: the checkbox toggles `.orig` vs `.trans`,
+ * and HTMX fills `.trans` once (hx-trigger="change"). Toggling back is free —
+ * no second request, no server cache. The text being translated travels with
+ * the request as hidden fields, so the translation is exactly of what is shown.
+ */
 export function renderCard(fact: DashFact): string {
+  const id = escapeHtml(fact.id);
   const type = escapeHtml(fact.factType);
   const deprecated = fact.deprecated ? " deprecated" : "";
-  const snippet = fact.snippet
-    ? `<span class="snippet">${inlineFormat(escapeHtml(stripMatchMarkers(fact.snippet)))}</span>`
-    : "";
+  const title = escapeHtml(fact.title);
+  const excerpt = excerptOf(fact);
   const weight = fact.weight !== null ? ` · w ${fact.weight.toFixed(1)}` : "";
   const status = fact.status && fact.status !== "stable" ? ` · ${escapeHtml(fact.status)}` : "";
   return (
-    `<button type="button" class="card${deprecated}" id="card-${escapeHtml(fact.id)}" ` +
+    `<div class="card-wrap" id="wrap-${id}">` +
+    `<input type="checkbox" class="lang-cb" id="lang-${id}" name="checked" ` +
+    `hx-post="/frag/translate" hx-target="#trans-${id}" hx-swap="innerHTML" ` +
+    `hx-include="closest .card-wrap" hx-trigger="change">` +
+    `<label class="lang-toggle" for="lang-${id}" title="translate for display (stored text unchanged)">🌐 CS</label>` +
+    `<input type="hidden" name="id" value="${id}">` +
+    `<input type="hidden" name="title" value="${title}">` +
+    `<input type="hidden" name="excerpt" value="${escapeHtml(excerpt)}">` +
+    `<div class="card${deprecated}" id="card-${id}" role="button" tabindex="0" ` +
     `hx-get="/frag/fact/${encodeURIComponent(fact.id)}" hx-target="#detail" hx-swap="innerHTML">` +
-    `<span class="badge t-${type}">${type.toUpperCase()}</span> ` +
-    `<span class="title">${escapeHtml(fact.title)}</span>` +
+    `<span class="badge t-${type}">${type.toUpperCase()}</span>` +
+    `<span class="orig">` +
+    `<span class="title">${title}</span>` +
     `<span class="meta"><span class="scope ${scopeClass(fact.scope)}">${scopeLabel(fact.scope)}</span>${weight}${status} ${tagList(fact.tags)}</span>` +
-    snippet +
-    `</button>`
+    (excerpt ? `<span class="snippet">${inlineFormat(escapeHtml(excerpt))}</span>` : "") +
+    `</span>` +
+    `<span class="trans" id="trans-${id}"></span>` +
+    `</div></div>`
+  );
+}
+
+/**
+ * The translated card text, swapped into `.trans` when the 🌐 checkbox flips.
+ * Falls back to the original text plus a visible reason on failure — a
+ * translation that silently does nothing is indistinguishable from a bug.
+ */
+export function renderTranslatedCard(
+  title: string,
+  excerpt: string,
+  result: { title?: string; excerpt?: string; error?: string },
+): string {
+  if (result.error) {
+    return (
+      `<span class="trans-error">🌐 translation unavailable — ${escapeHtml(result.error.split("\n")[0])}</span>` +
+      `<span class="title">${escapeHtml(title)}</span>` +
+      (excerpt ? `<span class="snippet">${escapeHtml(excerpt)}</span>` : "")
+    );
+  }
+  return (
+    `<span class="title">${escapeHtml(result.title ?? title)}</span>` +
+    (excerpt
+      ? `<span class="snippet">${escapeHtml(result.excerpt ?? excerpt)}</span>`
+      : "") +
+    `<span class="trans-note">🌐 display translation — stored text unchanged</span>`
   );
 }
 
@@ -143,8 +208,9 @@ export function factsPath(query: DashQuery, offset?: number): string {
  * infinite scroll with zero client-side rendering.
  */
 export function renderFacts(page: FactsPage, query: DashQuery): string {
+  const banner = page.note ? renderDegradedNote(page.note) : "";
   if (page.facts.length === 0) {
-    return `<div class="empty">∅ no facts match</div>`;
+    return `${banner}<div class="empty">∅ no facts match</div>`;
   }
   const cards = page.facts.map(renderCard);
   if (page.hasMore) {
@@ -155,7 +221,17 @@ export function renderFacts(page: FactsPage, query: DashQuery): string {
         `hx-trigger="revealed">… ${page.total - nextOffset} more · load …</button>`,
     );
   }
-  return cards.join("\n");
+  return banner + cards.join("\n");
+}
+
+/**
+ * Degradation banner. The engine degrades hybrid to keyword-only when no
+ * embeddings or no API key are available and says so — the dashboard must
+ * repeat it, or a semantic search would look like a semantic search while
+ * ranking by BM25.
+ */
+export function renderDegradedNote(note: string): string {
+  return `<div class="degraded">⚠ ${escapeHtml(stripMatchMarkers(note))}</div>`;
 }
 
 /** The detail fragment: full view of one fact in the right pane. */

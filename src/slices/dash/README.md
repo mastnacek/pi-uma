@@ -17,10 +17,10 @@ library — **no new npm dependencies** (HTMX is vendored in `assets/`).
 | File | Role |
 | --- | --- |
 | `index.ts` | Lifecycle + browser glue; exposes start/stop on `state.dash` |
-| `server.ts` | `node:http` routing, token gate, static assets |
-| `data.ts` | CLI adapter + pure normalize/filter/page helpers. Scope chips map onto the CLI (`--scope global`, bare `list` = project); the "all" chip merges both stores, because a bare `list` returns the project store only |
+| `server.ts` | `node:http` routing, token gate, static assets, bounded `POST /frag/translate` |
+| `data.ts` | CLI adapter + pure normalize/filter/page helpers. Scope chips map onto the CLI (`--scope global|project`, bare `list` = project); the "all" chip merges both stores, because a bare `list` returns the project store only |
 | `page.ts` | Full HTML shell (grid layout, chips, keyboard script) |
-| `fragments.ts` | Pure HTML fragment renderers + escaping boundary |
+| `fragments.ts` | Pure HTML fragment renderers + escaping boundary + the per-card translation control and degraded banner |
 | `assets/htmx.min.js` | Vendored HTMX 2.0.6 (MIT) — no CDN, works offline |
 | `assets/dash.css` | The whole TUI theme (design tokens) |
 
@@ -43,5 +43,26 @@ library — **no new npm dependencies** (HTMX is vendored in `assets/`).
    `/uma dash [stop]` through `state.dash`, wired by the composition root.
 7. **Scope chips are real CLI scopes.** `uma list` defaults to the current
    project, so the "all" chip merges `list` + `list --scope global` (deduped by
-   id); search already covers both stores. Also note `uma search` caps at 10
-   hits by default — the dashboard inherits the engine's default.
+   id); `search` covers both stores by default. Type/scope also go to the CLI
+   **before** the result cap (`--type`, `--scope project|global`), because
+   filtering the returned top-N in code could report "no facts match" while
+   matches exist past the cap. Code-side filtering stays as a safety net.
+8. **Search is the engine's own hybrid mode.** `-n 50` lifts the engine's
+   10-hit default so the list can page; no `--mode` is passed, so hybrid
+   (BM25 + stored vectors, RRF) is what runs. That means one live OpenRouter
+   embedding call per search (~1.2 s here, vs 77 ms keyword-only), which is why
+   the search box debounces at 800 ms instead of 300 ms.
+9. **Degradation is shown, never swallowed.** `uma search` reports
+   `degraded` + `note` when hybrid falls back to keyword-only; the note is
+   rendered as a banner above the cards. The engine's rule is explicit: a
+   caller who asked for hybrid ranking must not silently receive BM25.
+10. **Display translation is per card, display-only, and optional.** The 🌐 CS
+   toggle on a card is a CSS checkbox: HTMX fills `.trans` once
+   (POST `/frag/translate`), and unchecking reveals the original with **no**
+   second request and **no** model call (the request carries no `checked`
+   field). Two translations per card (title, excerpt) in parallel, because the
+   shape of the card must survive translation; text travels in the request
+   body so the translation is of exactly what is on screen. Nothing is cached
+   and nothing is stored: the original text always remains in the DOM, and a
+   failure shows the original plus the reason. Facts stay byte-identical to
+   what the engine returned.

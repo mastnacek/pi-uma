@@ -13,9 +13,29 @@
  */
 
 import { exec } from "node:child_process";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../../shared/types.js";
+import {
+  translateTextForDisplay,
+  type DisplayTranslationEnv,
+} from "../../shared/translate_client.js";
 import { startDashServer, type DashServer } from "./server.ts";
+
+/**
+ * Builds the translation environment ONCE per `/uma dash` invocation from the
+ * command's context, keeping only model access — no UI, no session manager and
+ * no abort signal captured from a finished turn. Nothing else in this slice
+ * touches the context.
+ */
+function translationEnvFrom(ctx: unknown): DisplayTranslationEnv | undefined {
+  const source = ctx as Partial<ExtensionContext> | undefined;
+  if (!source?.model || !source.modelRegistry) return undefined;
+  return {
+    agentDir: (source as { agentDir?: string }).agentDir,
+    model: source.model,
+    modelRegistry: source.modelRegistry,
+  };
+}
 
 /** Best-effort browser open; failure just means the operator visits the URL. */
 function openBrowser(url: string): void {
@@ -43,8 +63,13 @@ export function registerDash(_pi: ExtensionAPI, state: ExtensionState): () => vo
   // composition root is the only multi-slice importer (VSA).
   state.dash = {
     /** Idempotent: re-opens the browser on the already-running server. */
-    start: async (cwd: string): Promise<string> => {
-      if (!dash) dash = await startDashServer(cwd);
+    start: async (cwd: string, ctx?: unknown): Promise<string> => {
+      if (!dash) {
+        const env = translationEnvFrom(ctx);
+        dash = await startDashServer(cwd, {
+          translate: env ? (text) => translateTextForDisplay(env, text) : undefined,
+        });
+      }
       openBrowser(dash.url);
       return dash.url;
     },
