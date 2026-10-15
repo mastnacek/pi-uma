@@ -66,7 +66,11 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       }
     }
 
-    // 2. Operator toggle for recall gate (default off — S3 stays paused unless reopened).
+    // 2. Recall gate (default off — S3 stays paused unless reopened).
+    //    Only user prompts carry recallable text; 1.2.0 split the event into
+    //    a union (user prompt | custom trigger message), so narrow before
+    //    touching `.prompt` — a custom event has no prompt field at all.
+    if (event.messageType !== "user") return undefined;
     if (!state.config.recallGate) return undefined;
     if (isCommand(event.prompt)) return undefined;
 
