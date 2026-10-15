@@ -234,3 +234,21 @@ test("anti-echo: without an exclusion set the message carries the injected ids",
   const result = buildRecallMessage(verdict([fact]), "en");
   assert.deepEqual(result?.message?.details.ids, [fact.id]);
 });
+
+test("anti-echo backfill: the budget fills with the next-best new facts in rank order", () => {
+  const six = ["a", "b", "c", "d", "e", "f"].map((n, i) => ({
+    ...fact,
+    id: `01${n.toUpperCase()}`,
+    title: `Fact ${n}`,
+    snippet: `Snippet ${n}…`,
+    score: 1 - i * 0.1,
+  }));
+  // a and b are already in context; the budget (3) fills with c, d, e —
+  // the next-best NEW facts in rank order, never the injected a/b.
+  const result = buildRecallMessage(verdict(six), "en", new Set(["01A", "01B"]));
+  assert.ok(result);
+  assert.deepEqual(result.message?.details.ids, ["01C", "01D", "01E"]);
+  const content = String(result.message?.content);
+  assert.ok(content.includes("Fact c") && content.includes("Fact e"));
+  assert.ok(!content.includes("Fact a") && !content.includes("Fact b") && !content.includes("Fact f"));
+});

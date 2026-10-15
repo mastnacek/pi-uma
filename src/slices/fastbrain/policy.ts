@@ -44,6 +44,13 @@ export function formatScope(scope: ScopeWire): string {
 }
 
 /**
+ * Injection budget: facts injected into the context per turn, regardless of
+ * how many the deeper recall window returned. The window exists to fill the
+ * budget despite anti-echo filtering — not to grow the per-turn footprint.
+ */
+const MAX_INJECTED = 3;
+
+/**
  * Pure decision: what should the hook do with a verdict?
  * No trigger or no facts → nothing is injected.
  *
@@ -51,8 +58,10 @@ export function formatScope(scope: ScopeWire): string {
  * anti-echo): a fact the model already holds is pure token waste — the
  * injected message persists in the transcript — so it is filtered out, and
  * a verdict whose facts are ALL already in context injects nothing. The
- * message details carry the injected ids so session_start can restore the
- * exclusion set after reload/resume without a second gate run.
+ * engine's window is wider than the budget, so after filtering the budget
+ * fills with the next-best NEW facts in rank order; the message details
+ * carry the injected ids so session_start can restore the exclusion set
+ * after reload/resume without a second gate run.
  */
 export function buildRecallMessage(
   verdict: RecallVerdict,
@@ -63,8 +72,9 @@ export function buildRecallMessage(
   const facts = exclude
     ? verdict.facts.filter((fact) => !exclude.has(fact.id))
     : verdict.facts;
-  if (facts.length === 0) return undefined;
-  const lines = facts.map(
+  const budget = facts.slice(0, MAX_INJECTED);
+  if (budget.length === 0) return undefined;
+  const lines = budget.map(
     (fact) =>
       `- [${fact.fact_type}] ${stripMatchMarkers(fact.title)} (${formatScope(fact.scope)}): ${stripMatchMarkers(fact.snippet)}`,
   );
@@ -78,7 +88,7 @@ export function buildRecallMessage(
       customType: "uma-recall",
       content,
       display: false,
-      details: { judge: verdict.judged_by, count: facts.length, ids: facts.map((f) => f.id) },
+      details: { judge: verdict.judged_by, count: budget.length, ids: budget.map((f) => f.id) },
     },
   };
 }

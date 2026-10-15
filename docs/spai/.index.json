@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-15 11:51:12",
+  "lastUpdated": "2026-10-15 11:52:32",
   "records": [
     {
       "id": "SPAI-001",
@@ -843,8 +843,8 @@
       "id": "SPAI-048",
       "title": "Anti-echo: recall injection deduplicates against facts already injected in the session — buildRecallMessage filters injected IDs (details.ids), session_start rebuilds the set from the branch's uma-recall entries (survives reload/resume), session_before_compact clears it (post-compaction re-injection becomes useful). Turns with nothing new stay out of the transcript",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-15 11:51:12",
       "tags": [
         "recall",
@@ -853,7 +853,7 @@
       ],
       "priority": "medium",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-048-anti-echo-recall-injection-deduplicates-against-fa.md"
     }
   ]

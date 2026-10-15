@@ -31,6 +31,15 @@ import { RECALL_GATE_ENTRY_TYPE, registerRecallEntryRenderer } from "./entry_ren
 /** Upper bound on the whole gate: a triage that outlives this is skipped. */
 const GATE_TIMEOUT_MS = 15_000;
 
+/**
+ * Deeper recall window (SPAI-048): the engine returns this many facts, the
+ * anti-echo filter drops what the session already injected, and the
+ * injection budget (MAX_INJECTED in policy.ts) fills with the next-best new
+ * facts in rank order. Roughly twice the injection budget — enough slack
+ * for a session that keeps touching the same decisions, cheap on offline BM25.
+ */
+const RECALL_WINDOW = 6;
+
 /** Prompts that are commands, not questions — never gated. */
 function isCommand(prompt: string): boolean {
   return prompt.trim().startsWith("/") || prompt.trim().startsWith("!");
@@ -104,10 +113,17 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
     const lang = state.config.lang;
     try {
       const binPath = findUmaBinary(ctx.cwd ?? process.cwd());
+      // Deeper recall window (SPAI-048): the engine returns the top RECALL_WINDOW
+      // facts, the anti-echo filter removes what the session already holds, and
+      // the injection budget (MAX_INJECTED in policy) fills with the next-best
+      // new facts in rank order. Widening the FIRST search is free (offline
+      // BM25); re-searching after dedup would pay a second call for what the
+      // first already ranked.
       const judgeArgs =
-        state.config.fastbrainJudge === "jev"
-          ? ["recall", "check", "--judge", "jev", "--json", event.prompt]
-          : ["recall", "check", "--json", event.prompt];
+        (state.config.fastbrainJudge === "jev"
+          ? ["recall", "check", "--judge", "jev", "--json"]
+          : ["recall", "check", "--json"])
+          .concat(["--max", String(RECALL_WINDOW), event.prompt]);
 
       // Session cwd, not the process start dir: the engine scopes recall
       // search to the git-root project name of the cwd it is given. When pi
