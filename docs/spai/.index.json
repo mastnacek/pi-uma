@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-10-15 20:51:43",
+  "lastUpdated": "2026-10-15 21:19:40",
   "records": [
     {
       "id": "SPAI-001",
@@ -860,8 +860,8 @@
       "id": "SPAI-049",
       "title": "Replace patternToRegex with real ast-grep matching in the immune path",
       "type": "Todo",
-      "status": "todo",
-      "symbol": ".",
+      "status": "done",
+      "symbol": "x",
       "timestamp": "2026-10-15 20:26:01",
       "tags": [
         "contracts",
@@ -870,7 +870,7 @@
       ],
       "priority": "high",
       "project": "pi-uma",
-      "projectPath": "D:\\01_programovani\\pi\\plugins\\pi-uma",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-uma",
       "file": "2026-10-15-SPAI-049-replace-patterntoregex-with-real-ast-grep-matching.md"
     },
     {
