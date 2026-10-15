@@ -31,7 +31,7 @@ import {
 } from "./policy.js";
 
 /** Upper bound on the whole gate: a triage that outlives this is skipped. */
-const GATE_TIMEOUT_MS = 8_000;
+const GATE_TIMEOUT_MS = 15_000;
 
 /** Prompts that are commands, not questions — never gated. */
 function isCommand(prompt: string): boolean {
