@@ -56,7 +56,7 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
     // 1. System prompt enhancement (abendum / append toggle)
     if (state.config.appendPrompt && event.systemPromptOptions?.sections) {
       try {
-        const rules = await fetchActiveRules(process.cwd());
+        const rules = await fetchActiveRules(ctx.cwd ?? process.cwd());
         const rulesText = formatRulesForSystemPrompt(rules);
         if (rulesText) {
           event.systemPromptOptions.sections.uma_rules = rulesText;
@@ -76,13 +76,19 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
 
     const lang = state.config.lang;
     try {
-      const binPath = findUmaBinary(process.cwd());
+      const binPath = findUmaBinary(ctx.cwd ?? process.cwd());
       const judgeArgs =
         state.config.fastbrainJudge === "jev"
           ? ["recall", "check", "--judge", "jev", "--json", event.prompt]
           : ["recall", "check", "--json", event.prompt];
 
-      const output = await withTimeout(runUma(binPath, judgeArgs, process.cwd()), GATE_TIMEOUT_MS);
+      // Session cwd, not the process start dir: the engine scopes recall
+      // search to the git-root project name of the cwd it is given. When pi
+      // is launched outside a git repo (e.g. a workspace root), process.cwd()
+      // makes current_project None and the engine drops the project filter
+      // entirely — every project's facts became recallable and unrelated
+      // memories leaked into unrelated sessions.
+      const output = await withTimeout(runUma(binPath, judgeArgs, ctx.cwd ?? process.cwd()), GATE_TIMEOUT_MS);
       if (!output) {
         ctx.ui.notify("🧠 recall gate timed out — memory skipped this turn", "warning");
         return undefined;
