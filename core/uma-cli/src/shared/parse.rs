@@ -42,11 +42,13 @@ pub fn parse_as_of(input: &str) -> Result<DateTime<Utc>> {
 
     if let Some(inner) = trimmed.strip_prefix('+') {
         let Some(days) = inner.strip_suffix('d') else {
-            bail!("Invalid relative time '{trimmed}'. Use +Nd, e.g. +30d for thirty days from now.");
+            bail!(
+                "Invalid relative time '{trimmed}'. Use +Nd, e.g. +30d for thirty days from now."
+            );
         };
-        let days: i64 = days
-            .parse()
-            .map_err(|_| anyhow::anyhow!("Invalid relative time '{trimmed}'. Use +Nd, e.g. +30d."))?;
+        let days: i64 = days.parse().map_err(|_| {
+            anyhow::anyhow!("Invalid relative time '{trimmed}'. Use +Nd, e.g. +30d.")
+        })?;
         return Ok(Utc::now() + Duration::days(days));
     }
 

@@ -103,6 +103,28 @@ function missingBinaryError(binPath: string): Error {
   );
 }
 
+/** Telemetry timeout for fire-and-forget plasticity updates: these must never
+ *  delay a consent decision or a recall injection they bookkeep for, and the
+ *  child is reaped (runUma's timeoutMs) instead of orphaned (SPAI-052). */
+const PLASTICITY_TIMEOUT_MS = 5_000;
+
+/**
+ * Plasticity telemetry (SPAI-050): fire-and-forget synaptic-fitness update
+ * after an observable outcome — `reinforce` when an event confirmed the fact
+ * (operator upheld a rule, recall activated it into the session), `frustrate`
+ * when an event contradicted it (operator overrode a rule). Pure bookkeeping
+ * of plasticity counters, never semantic content: any failure is swallowed —
+ * telemetry that cannot run must not break the event it observes.
+ */
+export function updatePlasticity(
+  cwd: string,
+  id: string,
+  kind: "reinforce" | "frustrate",
+): void {
+  const binPath = findUmaBinary(cwd);
+  void runUma(binPath, ["plasticity", kind, id], cwd, PLASTICITY_TIMEOUT_MS).catch(() => {});
+}
+
 /**
  * Runs the CLI with a payload on STDIN. Used for secret scanning: passing the
  * text as an argv element hit the Windows ~32KB command-line limit (and could

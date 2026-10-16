@@ -142,10 +142,7 @@ fn check_route(args: CheckArgs) -> Result<()> {
 
 /// Resolves a routed dir_name back to its real scope (`global` is Global,
 /// everything else is the project of that name).
-fn scope_by_dir_name(
-    summaries: &[uma_core::store::ScopeSummary],
-    dir_name: &str,
-) -> Option<Scope> {
+fn scope_by_dir_name(summaries: &[uma_core::store::ScopeSummary], dir_name: &str) -> Option<Scope> {
     summaries
         .iter()
         .find(|summary| summary.scope.dir_name() == dir_name)
@@ -153,11 +150,7 @@ fn scope_by_dir_name(
 }
 
 /// Recalls facts inside the winning scope as the delegate's priming slice.
-fn recall_context_slice(
-    prompt: &str,
-    scope: &Scope,
-    max: usize,
-) -> Result<Vec<serde_json::Value>> {
+fn recall_context_slice(prompt: &str, scope: &Scope, max: usize) -> Result<Vec<serde_json::Value>> {
     let query: String = prompt
         .split(|c: char| !c.is_alphanumeric())
         .filter(|word| word.chars().count() > 2)

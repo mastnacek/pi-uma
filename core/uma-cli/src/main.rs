@@ -91,6 +91,9 @@ enum Commands {
 
     /// Procedural muscle memory: run operator-curated routines (dry-run unless --confirm)
     Muscle(slices::muscle::MuscleArgs),
+
+    /// Synaptic fitness bookkeeping: reinforce or frustrate facts after observable outcomes
+    Plasticity(slices::plasticity::PlasticityArgs),
 }
 
 fn main() -> Result<()> {
@@ -122,5 +125,6 @@ fn main() -> Result<()> {
         Commands::Skeptic(args) => slices::skeptic::run(args),
         Commands::Humility(args) => slices::humility::run(args),
         Commands::Muscle(args) => slices::muscle::run(args),
+        Commands::Plasticity(args) => slices::plasticity::run(args),
     }
 }

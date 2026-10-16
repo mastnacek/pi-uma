@@ -106,11 +106,15 @@ impl Fact {
             .unwrap_or(1.0)
     }
 
-    /// Computes the effective retrieval-priority weight at the given timestamp.
+    /// Computes the effective retention-review weight at the given timestamp.
     ///
     /// Decayed fitness boosted by the saliency multiplier, so a fact tagged
-    /// as a painful regression ranks higher without becoming decay-immune.
-    /// Bounded to [0.0, 1.0].
+    /// as a painful regression is prioritized for doctor/dream retention
+    /// review without becoming decay-immune. Bounded to [0.0, 1.0].
+    ///
+    /// SPAI-051: presented as RETENTION telemetry, never as a retrieval-
+    /// priority number — search ranking deliberately does not consume this
+    /// (see Saliency::effective_multiplier for the feedback-loop rationale).
     pub fn effective_weight(&self, now: DateTime<Utc>) -> f64 {
         let multiplier = self
             .saliency

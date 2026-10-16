@@ -2,7 +2,7 @@
 type: Todo
 title: "Wire plasticity reinforce and frustrate to observable outcomes, or remove the machinery"
 timestamp: 2026-10-15 20:26:01
-status: todo
+status: done
 source: pi-spai
 tags: [plasticity, review]
 facets:

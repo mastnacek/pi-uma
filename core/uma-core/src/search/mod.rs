@@ -303,4 +303,55 @@ mod tests {
         let outcome = combine(Vec::new(), Ok(Vec::new()), 10);
         assert!(!outcome.is_degraded());
     }
+
+    #[test]
+    fn test_no_project_degrades_to_global_only_instead_of_leaking_all_projects() {
+        // SPAI-046: cwd outside any git repo resolves current_project to None.
+        // The old branch dropped the scope filter here, making every project's
+        // facts recallable across sessions. The fix must degrade to GLOBAL-ONLY.
+        let dir = tempdir().unwrap();
+        let indexer = Indexer::open(dir.path().join("index.db")).unwrap();
+        indexer
+            .index_fact(&fact("Global handbook entry", "Shared global knowledge."), None)
+            .unwrap();
+        indexer
+            .index_fact(
+            &Fact::new(
+                Scope::Project("other_project".to_string()),
+                FactType::Decision,
+                "Other project secret".to_string(),
+                "Must never leak without a project context.".to_string(),
+            ),
+            None,
+            )
+            .unwrap();
+
+        let opts = SearchOptions {
+            query: "secret",
+            scope: None,
+            current_project: None, // no git repo — must degrade, not leak
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: Vec::new(),
+            limit: 10,
+        };
+        let hits = search_keyword(indexer.connection(), &opts).unwrap();
+        assert!(
+            hits.iter().all(|h| h.scope == Scope::Global),
+            "project facts must not be recallable without a project context"
+        );
+        assert!(
+            !hits.iter().any(|h| h.project_name == "other_project"),
+            "the leaked project fact must be filtered out"
+        );
+
+        // The explicit global scope must behave identically.
+        let global_only = SearchOptions {
+            scope: Some(&Scope::Global),
+            ..opts
+        };
+        let hits_global = search_keyword(indexer.connection(), &global_only).unwrap();
+        assert_eq!(hits_global.len(), hits.len());
+    }
 }

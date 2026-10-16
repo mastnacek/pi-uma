@@ -24,6 +24,18 @@ export function registerConsolidateTool(pi: ExtensionAPI, _state: ExtensionState
       includeDeprecated: Type.Optional(
         Type.Boolean({ description: "Also analyse deprecated facts (default false)." })
       ),
+      judge: Type.Optional(
+        Type.Union(
+          [
+            Type.Literal("off"),
+            Type.Literal("jev"),
+          ],
+          {
+            description:
+              "Relationship judge (SPAI-054): 'off' keeps deterministic lexical heuristics (default); 'jev' refines borderline pairs via the Jev router — non-deterministic, network-dependent, degrades to lexical on failure.",
+          }
+        )
+      ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const args = ["consolidate", "--json"];
@@ -31,6 +43,7 @@ export function registerConsolidateTool(pi: ExtensionAPI, _state: ExtensionState
       if (params.type) args.push("--type", params.type);
       if (typeof params.threshold === "number") args.push("--threshold", String(params.threshold));
       if (params.includeDeprecated) args.push("--include-deprecated");
+      if (params.judge === "jev") args.push("--judge", "jev");
       return executeUma(ctx.cwd, args, '{"scanned":0,"duplicate_groups":[],"contradictions":[]}');
     },
   });

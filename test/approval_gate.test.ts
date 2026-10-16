@@ -79,9 +79,13 @@ test("isBypassingBashCommand catches quoted, uma-cli and every memory-writing su
   assert.equal(isBypassingBashCommand("uma staging approve 01ABC"), true);
   assert.equal(isBypassingBashCommand("uma skill new --name x"), true);
   assert.equal(isBypassingBashCommand("uma muscle new r --template '[]'"), true);
+  // SPAI-050: plasticity fitness writes are model-invisible mutations.
+  assert.equal(isBypassingBashCommand("uma plasticity reinforce rule-01"), true);
+  assert.equal(isBypassingBashCommand("uma plasticity frustrate rule-01"), true);
   assert.equal(isBypassingBashCommand("uma mcp serve --allow-writes"), true);
   // Read-only invocations stay allowed.
   assert.equal(isBypassingBashCommand("uma staging list"), false);
+  assert.equal(isBypassingBashCommand("uma plasticity status"), false);
   assert.equal(isBypassingBashCommand("uma mcp serve"), false);
   assert.equal(isBypassingBashCommand("uma list --json"), false);
 });

@@ -72,8 +72,15 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         Some(Scope::Global) => sql.push_str(" AND scope = 'global'"),
         Some(Scope::Project(_)) => sql.push_str(" AND project_name = ?"),
         None => {
-            if opts.current_project.is_some() {
+            if let Some(cp) = opts.current_project {
                 sql.push_str(" AND (project_name = ? OR scope = 'global')");
+            } else {
+                // SPAI-046: cwd outside any git repo — degrade to GLOBAL-ONLY.
+                // The old branch dropped the filter here, making every
+                // project's facts recallable (cross-session leak, observed in
+                // OpenMes). No repo means no project to scope to, so only the
+                // global store is searched.
+                sql.push_str(" AND scope = 'global'");
             }
         }
     }

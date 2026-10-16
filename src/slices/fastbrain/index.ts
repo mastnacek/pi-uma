@@ -19,6 +19,7 @@ import {
   findUmaBinary,
   fetchActiveRules,
   formatRulesForSystemPrompt,
+  updatePlasticity,
 } from "../../shared/client.js";
 import {
   buildRecallMessage,
@@ -157,7 +158,17 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       // the judge degraded, which must never hide behind silence.
       const degraded = isDegradedNote(verdict.note);
       if (newCount > 0 && message) {
-        for (const id of message.message.details.ids) injected.add(id);
+        const newIds: string[] = [];
+        for (const id of message.message.details.ids) {
+          if (!injected.has(id)) newIds.push(id);
+          injected.add(id);
+        }
+        // Activation heartbeat (SPAI-050): an injected fact was genuinely
+        // activated into a live session — reinforce it so the decay clock
+        // reflects real usage. Once per session per fact (the anti-echo
+        // exclusion bounds this), fire-and-forget, engine-side read-only
+        // recall stays untouched (MCP read-only invariant preserved).
+        for (const id of newIds) updatePlasticity(ctx.cwd ?? process.cwd(), id, "reinforce");
         pi.appendEntry(RECALL_GATE_ENTRY_TYPE, {
           prompt: event.prompt, verdict, lang, injectedCount: newCount,
         });

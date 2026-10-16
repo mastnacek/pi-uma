@@ -11,7 +11,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../shared/types.js";
-import { runUma, findUmaBinary } from "../shared/client.js";
+import { runUma, findUmaBinary, updatePlasticity } from "../shared/client.js";
 import { stringsFor } from "../shared/i18n.js";
 import { translateOutputForDisplay, completeForDisplay } from "../shared/translate_client.js";
 import { appendImmuneDecision } from "../shared/decision_log.js";
@@ -191,6 +191,14 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
               ? `${s.immuneDialogTitle}\n${text}\n${recommendation}`
               : `${s.immuneDialogTitle}\n${text}`;
             const choice = await ctx.ui.select(title, [s.dialogProceed, s.dialogBlock]);
+            // Plasticity wiring (SPAI-050): the consent outcome is an honest,
+            // observable Hebbian signal for the matched RULE fact — the
+            // operator upheld the rule (blocked the edit) → reinforce; the
+            // operator overrode it (proceeded) → frustrate. Fire-and-forget
+            // telemetry: a failure never affects the decision itself.
+            if (matched) {
+              updatePlasticity(ctx.cwd ?? process.cwd(), matched.id, choice === s.dialogProceed ? "frustrate" : "reinforce");
+            }
             // The decision log (SPAI-047): evidence for evidence-based mode
             // tuning. Advisory — a logging failure never affects the call.
             void appendImmuneDecision({

@@ -2,7 +2,7 @@
 type: Todo
 title: "Decide whether search ranking consumes effective_weight"
 timestamp: 2026-10-15 20:26:01
-status: todo
+status: done
 source: pi-spai
 tags: [search, plasticity, review]
 facets:

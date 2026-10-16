@@ -118,7 +118,8 @@ impl Plasticity {
 pub struct Saliency {
     /// Emotional / operational shock level (1: low .. 5: critical / traumatic regression).
     pub shock_level: u8,
-    /// Saliency multiplier for retrieval priority.
+    /// Saliency multiplier for retention-review priority (SPAI-051: never a
+    /// retrieval-priority number — search ranking does not consume this).
     pub multiplier: f64,
     /// If true, the fact is completely immune to temporal decay.
     pub immune_to_decay: bool,
@@ -135,13 +136,22 @@ impl Default for Saliency {
 }
 
 impl Saliency {
-    /// The retrieval multiplier actually in effect.
+    /// The retention-review multiplier actually in effect.
     ///
-    /// Both saliency fields are now read: an explicit `multiplier` (when it
+    /// Both saliency fields are read: an explicit `multiplier` (when it
     /// differs from the default 1.0) wins; otherwise the value derives from
-    /// `shock_level`, so a fact tagged as a painful regression is ranked up
-    /// without the author having to set two fields consistently. Bounded to
-    /// [0.0, 2.0] so saliency can boost but never dominate completely.
+    /// `shock_level`, so a fact tagged as a painful regression is prioritized
+    /// for retention REVIEW without the author having to set two fields
+    /// consistently. Bounded to [0.0, 2.0] so saliency can boost but never
+    /// dominate completely.
+    ///
+    /// SPAI-051: search ranking deliberately does NOT consume this. The
+    /// multiplier weights `effective_weight`, which drives doctor/dream
+    /// retention review — where decay is advice, never suppression. Blending
+    /// it into BM25/RRF while reinforcement follows recall would create a
+    /// recall→reinforce→rank→recall feedback loop: favored facts get richer,
+    /// unfavored facts sink below retrieval and rot invisibly — defeating
+    /// zombie detection, whose purpose is to surface stale facts for review.
     pub fn effective_multiplier(&self) -> f64 {
         let base = if (self.multiplier - 1.0).abs() > f64::EPSILON {
             self.multiplier

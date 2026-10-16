@@ -114,7 +114,11 @@ fn fact_coverage(files: &[String]) -> Result<usize> {
         .iter()
         .flat_map(|f| {
             let p = std::path::Path::new(f);
-            let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+            let stem = p
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_string();
             [f.replace('\\', "/"), stem]
         })
         .filter(|t| !t.is_empty())

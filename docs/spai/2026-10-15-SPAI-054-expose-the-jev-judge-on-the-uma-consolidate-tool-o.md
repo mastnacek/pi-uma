@@ -2,7 +2,7 @@
 type: Todo
 title: "Expose the jev judge on the uma_consolidate tool, or document lexical-only as intended"
 timestamp: 2026-10-15 20:26:01
-status: todo
+status: done
 source: pi-spai
 tags: [consolidate, review]
 facets:

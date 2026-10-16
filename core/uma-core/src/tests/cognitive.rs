@@ -109,7 +109,7 @@ fn test_frustration_never_raises_effective_weight() {
 }
 
 #[test]
-fn test_saliency_multiplier_boosts_retrieval_weight_only() {
+fn test_saliency_multiplier_boosts_retention_review_weight_only() {
     let now = chrono::Utc::now();
     let mut fact = Fact::new(
         Scope::Global,
@@ -126,7 +126,7 @@ fn test_saliency_multiplier_boosts_retrieval_weight_only() {
     });
     assert!((fact.decayed_weight(now) - 0.4).abs() < 1e-9);
 
-    // shock 5 derives multiplier 1.8: retrieval weight is boosted, bounded by 1.
+    // shock 5 derives multiplier 1.8: retention-review weight is boosted, bounded by 1.
     fact.saliency = Some(Saliency {
         shock_level: 5,
         multiplier: 1.0,
@@ -135,7 +135,7 @@ fn test_saliency_multiplier_boosts_retrieval_weight_only() {
     let boosted = fact.effective_weight(now);
     assert!(
         boosted > fact.decayed_weight(now),
-        "saliency must boost retrieval"
+        "saliency must boost retention-review weight"
     );
     assert!(boosted <= 1.0);
     // Zombie detection uses the decay-only signal, so the boost cannot hide rot.

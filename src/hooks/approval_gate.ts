@@ -24,6 +24,10 @@ function subcommandMutatesMemory(tokens: string[]): boolean {
   if (sub === "staging" && second === "approve") return true;
   if (sub === "skill" && second === "new") return true;
   if (sub === "muscle" && second === "new") return true;
+  // SPAI-050: plasticity writes fitness telemetry — a model must not be able
+  // to inflate or vent a rule's weight behind the operator's back via bash.
+  // The plugin's own triggers go through runUma directly, not the bash tool.
+  if (sub === "plasticity" && (second === "reinforce" || second === "frustrate")) return true;
   if (sub === "mcp" && second === "serve" && tokens.some((t) => t === "--allow-writes")) return true;
   return false;
 }

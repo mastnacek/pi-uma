@@ -68,7 +68,8 @@ fn check_intent(args: CheckArgs) -> Result<()> {
         _ => Judge::Offline,
     };
 
-    let critique = consult_skeptic(&input, judge).map_err(|e| anyhow::anyhow!("Skeptic consult failed: {e}"))?;
+    let critique = consult_skeptic(&input, judge)
+        .map_err(|e| anyhow::anyhow!("Skeptic consult failed: {e}"))?;
 
     if args.json {
         println!(
@@ -123,7 +124,11 @@ fn gather_pain_proxies(files: &[String]) -> Result<(usize, usize)> {
 /// Counts active correction facts mentioning the file's path or stem (both scopes).
 fn correction_mentions(path: &std::path::Path) -> Result<usize> {
     let needle = path.to_string_lossy().replace('\\', "/");
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_string();
 
     let mut count = 0usize;
     for facts in project_and_global_corrections()? {
@@ -141,13 +146,19 @@ fn project_and_global_corrections() -> Result<Vec<Vec<Fact>>> {
     let mut out = Vec::new();
     if let Some(project) = Store::current_project_name() {
         if let Ok(store) = Store::project(project.clone()) {
-            if let Ok(facts) = store.list(&uma_core::domain::Scope::Project(project), Some(&FactType::Correction)) {
+            if let Ok(facts) = store.list(
+                &uma_core::domain::Scope::Project(project),
+                Some(&FactType::Correction),
+            ) {
                 out.push(facts);
             }
         }
     }
     if let Ok(global) = Store::global() {
-        if let Ok(facts) = global.list(&uma_core::domain::Scope::Global, Some(&FactType::Correction)) {
+        if let Ok(facts) = global.list(
+            &uma_core::domain::Scope::Global,
+            Some(&FactType::Correction),
+        ) {
             out.push(facts);
         }
     }
@@ -157,7 +168,13 @@ fn project_and_global_corrections() -> Result<Vec<Vec<Fact>>> {
 /// Counts reverts of the file in git history (same heuristic as `uma risk pain`).
 fn git_reverts(path: &std::path::Path, max_commits: usize) -> Result<usize> {
     let output = std::process::Command::new("git")
-        .args(["log", "--oneline", &format!("-n {max_commits}"), "--", &path.to_string_lossy()])
+        .args([
+            "log",
+            "--oneline",
+            &format!("-n {max_commits}"),
+            "--",
+            &path.to_string_lossy(),
+        ])
         .output()
         .context("git log failed")?;
     let log = String::from_utf8_lossy(&output.stdout).to_lowercase();
@@ -215,6 +232,9 @@ mod tests {
 
     #[test]
     fn test_risk_level_parses() {
-        assert_eq!(uma_core::council::RiskLevel::as_str(uma_core::council::RiskLevel::Dangerous), "dangerous");
+        assert_eq!(
+            uma_core::council::RiskLevel::as_str(uma_core::council::RiskLevel::Dangerous),
+            "dangerous"
+        );
     }
 }
