@@ -9,11 +9,11 @@ use serde::Deserialize;
 use crate::domain::{Contract, ContractSeverity, Fact, FactId};
 use crate::store::Store;
 
+use super::harness::{self, safe_title_of};
 use super::{
     find_ast_grep, infer_language, pattern_blind_spot, CheckOptions, ContractCheckReport,
     ContractViolation, ExportReport, UnverifiableRule,
 };
-use super::harness::{self, safe_title_of};
 
 /// Generates the YAML representation of a single ast-grep rule.
 pub fn rule_to_yaml(fact_id: &FactId, title: &str, contract: &Contract) -> String {

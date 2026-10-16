@@ -88,11 +88,9 @@ pub struct ExportReport {
 pub fn pattern_blind_spot(pattern: &str) -> Option<&'static str> {
     static RE_STRING: OnceLock<Regex> = OnceLock::new();
     static RE_PATH: OnceLock<Regex> = OnceLock::new();
-    let re_string = RE_STRING.get_or_init(|| {
-        Regex::new(r#""[^"\n]*\$[A-Z]|'[^'\n]*\$[A-Z]"#).expect("static regex")
-    });
-    let re_path = RE_PATH
-        .get_or_init(|| Regex::new(r#"::\s*\$+\{?[A-Z]"#).expect("static regex"));
+    let re_string = RE_STRING
+        .get_or_init(|| Regex::new(r#""[^"\n]*\$[A-Z]|'[^'\n]*\$[A-Z]"#).expect("static regex"));
+    let re_path = RE_PATH.get_or_init(|| Regex::new(r#"::\s*\$+\{?[A-Z]"#).expect("static regex"));
 
     if re_string.is_match(pattern) {
         return Some("metavariable inside a string literal never matches (string contents are atomic tokens)");
