@@ -37,7 +37,7 @@ pub fn search_semantic(
         Some(Scope::Global) => sql.push_str(" AND scope = 'global'"),
         Some(Scope::Project(_)) => sql.push_str(" AND project_name = ?"),
         None => {
-            if let Some(cp) = opts.current_project {
+            if let Some(_cp) = opts.current_project {
                 sql.push_str(" AND (project_name = ? OR scope = 'global')");
             } else {
                 // SPAI-046: cwd outside any git repo — degrade to GLOBAL-ONLY

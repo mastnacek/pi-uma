@@ -12,13 +12,17 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use crate::domain::{Contract, ContractSeverity};
+use regex::Regex;
 
+mod harness;
 mod ops;
 #[cfg(test)]
 mod tests;
 
+pub use harness::safe_title_of;
 pub use ops::{check_contracts, export_contracts, rule_to_yaml};
 
 /// One rule violation found by `check_contracts`.
@@ -33,12 +37,24 @@ pub struct ContractViolation {
     pub snippet: String,
 }
 
+/// One contract rule that real ast-grep can never match (SPAI-055).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnverifiableRule {
+    pub fact_id: String,
+    pub reason: String,
+}
+
 /// Overall report returned by [`check_contracts`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContractCheckReport {
     pub engine: String,
     pub rules_checked: usize,
     pub violations: Vec<ContractViolation>,
+    /// Rules whose pattern real ast-grep can never match (SPAI-055). They
+    /// produce no violations by construction, so a report carrying them is
+    /// NOT clean — the contracts were not verified.
+    #[serde(default)]
+    pub unverifiable: Vec<UnverifiableRule>,
     pub clean: bool,
     pub notes: Option<String>,
 }
@@ -49,6 +65,47 @@ pub struct ExportReport {
     pub contracts_exported: usize,
     pub target_dir: PathBuf,
     pub test_harness: Option<PathBuf>,
+    /// Blind-spot rules skipped at export time (SPAI-055).
+    #[serde(default)]
+    pub unverifiable: Vec<UnverifiableRule>,
+}
+
+/// Detects the two structural blind spots of a bare ast-grep `pattern:` rule
+/// (SPAI-055) — shapes that are syntactically valid but silently match
+/// NOTHING under real ast-grep:
+///
+/// 1. A metavariable inside a string literal: string contents are an atomic
+///    token, so `from "../commands/$$$B"` never matches `"../commands/x.ts"`.
+/// 2. A metavariable directly after `::`: scoped paths are RIGHT-NESTED nodes
+///    (scoped_identifier(scoped_identifier, ::, id)), so the metavariable
+///    binds only ONE trailing segment — `use crate::slices::$$$REST;` misses
+///    `use crate::slices::doctor::checks::inspect_index;` entirely.
+///
+/// Both shipped VSA contract patterns hit these spots: `uma contracts check`
+/// and the generated CI harness silently verified nothing for them while
+/// reporting clean. Callers must surface such rules as UNVERIFIABLE instead
+/// of trusting an empty findings list.
+pub fn pattern_blind_spot(pattern: &str) -> Option<&'static str> {
+    static RE_STRING: OnceLock<Regex> = OnceLock::new();
+    static RE_PATH: OnceLock<Regex> = OnceLock::new();
+    let re_string = RE_STRING.get_or_init(|| {
+        Regex::new(r#""[^"\n]*\$[A-Z]|'[^'\n]*\$[A-Z]"#).expect("static regex")
+    });
+    let re_path = RE_PATH
+        .get_or_init(|| Regex::new(r#"::\s*\$+\{?[A-Z]"#).expect("static regex"));
+
+    if re_string.is_match(pattern) {
+        return Some("metavariable inside a string literal never matches (string contents are atomic tokens)");
+    }
+    // Path-anchored blind spot. Verified empirically (ast-grep 0.45): the
+    // STATEMENT form `use crate::slices::$$$REST;` matches only shallow
+    // imports, but the BARE-PATH form `crate::slices::$$$REST` matches deep
+    // paths via subtree matching. Statement patterns contain whitespace;
+    // bare paths do not — so only flag the former.
+    if re_path.is_match(pattern) && pattern.chars().any(char::is_whitespace) {
+        return Some("metavariable after '::' binds a single path segment only (scoped paths are right-nested)");
+    }
+    None
 }
 
 /// Options for running a contract check.

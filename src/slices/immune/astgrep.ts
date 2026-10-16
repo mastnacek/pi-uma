@@ -166,7 +166,12 @@ function patternBlindSpot(pattern: string): string | undefined {
   if (/"[^"\n]*\$[A-Z]|'[^'\n]*\$[A-Z]/.test(pattern)) {
     return "metavariable inside a string literal never matches (strings are atomic)";
   }
-  if (/::\s*\$+\{?[A-Z]/.test(pattern)) {
+  // Path-anchored blind spot. Verified empirically (ast-grep 0.45): the
+  // STATEMENT form `use crate::slices::$$$REST;` matches only shallow
+  // imports, but the BARE-PATH form `crate::slices::$$$REST` matches deep
+  // paths via subtree matching. Statement patterns contain whitespace;
+  // bare paths do not — so only flag the former.
+  if (/::\s*\$+\{?[A-Z]/.test(pattern) && /\s/.test(pattern)) {
     return "metavariable after '::' binds a single path segment only";
   }
   return undefined;

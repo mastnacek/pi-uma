@@ -312,17 +312,20 @@ mod tests {
         let dir = tempdir().unwrap();
         let indexer = Indexer::open(dir.path().join("index.db")).unwrap();
         indexer
-            .index_fact(&fact("Global handbook entry", "Shared global knowledge."), None)
+            .index_fact(
+                &fact("Global handbook entry", "Shared global knowledge."),
+                None,
+            )
             .unwrap();
         indexer
             .index_fact(
-            &Fact::new(
-                Scope::Project("other_project".to_string()),
-                FactType::Decision,
-                "Other project secret".to_string(),
-                "Must never leak without a project context.".to_string(),
-            ),
-            None,
+                &Fact::new(
+                    Scope::Project("other_project".to_string()),
+                    FactType::Decision,
+                    "Other project secret".to_string(),
+                    "Must never leak without a project context.".to_string(),
+                ),
+                None,
             )
             .unwrap();
 

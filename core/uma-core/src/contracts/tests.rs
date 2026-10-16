@@ -105,3 +105,25 @@ fn test_infer_language() {
     contract.rule.language = Some("go".to_string());
     assert_eq!(infer_language(&contract, None), "Go");
 }
+
+#[test]
+fn test_pattern_blind_spot_detects_the_two_shapes() {
+    use super::pattern_blind_spot;
+
+    // Blind spot 1: metavariable after '::' binds one segment only.
+    assert!(pattern_blind_spot("use crate::slices::$$$REST;").is_some());
+    assert!(pattern_blind_spot("use crate::slices::$REST;").is_some());
+    // Blind spot 2: metavariable inside a string literal (atomic token).
+    assert!(pattern_blind_spot(r#"import { $$$A } from "../commands/$$$B";"#).is_some());
+    assert!(pattern_blind_spot(r#"open('.uma/$PATH','w')"#).is_some());
+
+    // Verifiable patterns stay untouched.
+    assert!(pattern_blind_spot("$EXPR.unwrap()").is_none());
+    assert!(pattern_blind_spot("use crate::shared::format::print_fact;").is_none());
+    // '::' followed by a CONCRETE segment (not a metavariable) is fine.
+    assert!(pattern_blind_spot("std::fmt::format($ARGS)").is_none());
+    // SPAI-055 refinement (verified against ast-grep 0.45): the BARE-PATH form
+    // matches deep imports via subtree matching, so it is verifiable — only
+    // the whitespace-anchored STATEMENT form is blind.
+    assert!(pattern_blind_spot("crate::slices::$$$REST").is_none());
+}

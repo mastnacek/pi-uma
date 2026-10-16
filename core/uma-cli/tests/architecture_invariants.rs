@@ -26,7 +26,7 @@ fn enforce_memory_architecture_invariants() {
 
     assert!(
         report.clean,
-        "Architecture invariants violated: {:?}",
-        report.violations
+        "Architecture invariants violated: {:?}\nUNVERIFIABLE rules (blind-spot patterns, SPAI-055): {:?}",
+        report.violations, report.unverifiable
     );
 }
