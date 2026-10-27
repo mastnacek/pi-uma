@@ -5,13 +5,19 @@ All notable changes to Universal Memory Architecture (UMA) are documented in thi
 ## [0.17.0] - 2026-10-27
 
 ### Added
-- Term capping and selection controls for recall queries:
-  - `UMA_RECALL_MAX_TERMS`: configurable term limit (default 12; 0 = no limit / all terms).
-  - `UMA_RECALL_TERM_PICK`: term selection mode `"head"` (default, first N terms) or `"rare"` (selects N terms with lowest SQLite FTS5 document frequency / highest IDF while preserving original prompt order).
-- SQLite FTS5 indexer `term_doc_count` helper for term frequency lookups.
+- Extended recall query term capping: `UMA_RECALL_MAX_TERMS` env switch (default 32, 0 = no limit / uncapped).
+  - Raised default max terms from 12 to 32 using "head" selection, significantly reducing keyword starvation for longer conversational prompts.
+  - Benchmark measurements across 106 scenarios (2 runs, jitter ±1):
+    - `head12`: 99/100
+    - `head20`: 101/101
+    - `head32`: 102/100 (negatives 42/42)
+    - `head0`: 102/101 (negatives 42/42)
+    - `rare16`: 102/101
+    - `rare12`: 100
+  - The experimental "rare" IDF mode brought no measurable benefit over "head" and caused regressions on domain queries (lost NSF-H2-p2 twice), so it was dropped in favor of clean 32-term head selection.
 
 ### Fixed
-- Query builder hyphen handling: replaced internal hyphens with spaces (`fail-closed` -> `fail closed`) so FTS5 does not treat hyphens as binary NOT operators.
+- Query builder hyphen handling: replaced internal hyphens with spaces (`fail-closed` -> `fail closed`) so SQLite FTS5 does not interpret hyphens as binary NOT / exclusion operators.
 
 ## [0.16.1] - 2026-10-27
 

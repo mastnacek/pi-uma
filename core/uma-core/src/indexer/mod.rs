@@ -58,22 +58,6 @@ impl Indexer {
         Ok(count)
     }
 
-    /// How many indexed facts contain the given term (0 if none or not in index).
-    /// Used for IDF / rarity scoring.
-    pub fn term_doc_count(&self, term: &str) -> i64 {
-        let clean = term.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
-        if clean.is_empty() {
-            return 0;
-        }
-        self.conn
-            .query_row(
-                "SELECT COUNT(*) FROM facts_fts WHERE facts_fts MATCH ?1",
-                [&format!("\"{}\"", clean)],
-                |row| row.get::<_, i64>(0),
-            )
-            .unwrap_or(0)
-    }
-
     /// Initializes the FTS5 keyword, vector storage, and persistent known_roots schemas.
     ///
     /// The FTS index is a rebuildable cache, so when the column layout changes

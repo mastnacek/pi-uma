@@ -56,7 +56,10 @@ fn parse_then_dry_run_combined_stays_under_the_sla() -> Result<()> {
     let report = run_routine(&routine, dir.path(), false)?;
     let elapsed = start.elapsed();
 
-    assert!(elapsed < SLA, "cold parse+dry-run took {elapsed:?}, SLA is {SLA:?}");
+    assert!(
+        elapsed < SLA,
+        "cold parse+dry-run took {elapsed:?}, SLA is {SLA:?}"
+    );
     assert_eq!(report.steps_total, 3);
     Ok(())
 }
