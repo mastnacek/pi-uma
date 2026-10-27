@@ -17,7 +17,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 /// The default fast triage router model on OpenRouter.
-pub const DEFAULT_ROUTER_MODEL: &str = "typesafe/jev-router";
+pub const DEFAULT_ROUTER_MODEL: &str = "~typesafe/jev-latest";
 
 /// The default semantic judge model on OpenRouter (low temperature, minimal reasoning).
 pub const DEFAULT_JUDGE_MODEL: &str = "google/gemini-3.5-flash-lite";
@@ -133,20 +133,44 @@ pub(crate) fn complete_raw(
         .context("OpenRouter returned no choices")
 }
 
-/// Router completion for fast triage (e.g. recall gate).
-pub(crate) fn complete_router(
-    schema_name: &str,
-    schema: serde_json::Value,
-    user_payload: String,
-) -> Result<String> {
-    complete_raw(
-        &router_model(),
-        schema_name,
-        schema,
-        user_payload,
-        None,
-        None,
-    )
+/// System One Decisions completion (for Jev models returning calibrated decisions/probabilities).
+pub(crate) fn complete_decisions(
+    model: &str,
+    state: &str,
+    questions: serde_json::Value,
+) -> Result<serde_json::Value> {
+    let key = api_key()?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .context("Failed to build HTTP client")?;
+
+    let body = json!({
+        "model": model,
+        "state": state,
+        "questions": questions,
+    });
+
+    let url = std::env::var("OPENROUTER_DECISIONS_URL")
+        .unwrap_or_else(|_| "https://openrouter.ai/api/alpha/decisions".to_string());
+
+    let response = client
+        .post(&url)
+        .bearer_auth(&key)
+        .json(&body)
+        .send()
+        .context("OpenRouter decisions request failed")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let detail = response.text().unwrap_or_default();
+        anyhow::bail!("OpenRouter decisions returned {status}: {}", truncate(&detail, 200));
+    }
+
+    let parsed: serde_json::Value = response
+        .json()
+        .context("OpenRouter decisions returned invalid JSON")?;
+    Ok(parsed)
 }
 
 /// Semantic judge completion with low temperature and minimal reasoning.

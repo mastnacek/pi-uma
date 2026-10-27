@@ -71,13 +71,54 @@ fn test_offline_verdict_is_deterministic() -> anyhow::Result<()> {
     let args = parse(&["recall", "check", "again like last time with pnpm"])?;
     match args.command {
         RecallCommand::Check(check) => {
-            let verdict = fastbrain::judge_recall_need(&check.prompt.join(" "), Judge::Offline)
+            let verdict = fastbrain::judge_recall_need(&check.prompt.join(" "), Judge::Offline, None)
                 .map_err(|f| anyhow::anyhow!("{f}"))?;
             assert!(verdict.answer.search);
             assert_eq!(verdict.judged_by, fastbrain::Backend::Offline);
         }
     }
     Ok(())
+}
+
+#[test]
+fn test_check_parses_min_prob() -> Result<(), clap::Error> {
+    let args = parse(&[
+        "recall",
+        "check",
+        "how",
+        "--judge",
+        "jev",
+        "--min-prob",
+        "0.7",
+    ])?;
+    match args.command {
+        RecallCommand::Check(check) => {
+            assert_eq!(check.judge, "jev");
+            assert_eq!(check.min_prob, Some(0.7));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn test_resolve_min_prob_precedence() {
+    // Explicit takes precedence
+    assert_eq!(fastbrain::resolve_min_prob(Some(0.8)), 0.8);
+
+    // Default when no env var or explicit
+    unsafe {
+        std::env::remove_var("UMA_RECALL_MIN_PROB");
+    }
+    assert_eq!(fastbrain::resolve_min_prob(None), 0.5);
+
+    // Env var used when no explicit value
+    unsafe {
+        std::env::set_var("UMA_RECALL_MIN_PROB", "0.65");
+    }
+    assert_eq!(fastbrain::resolve_min_prob(None), 0.65);
+    unsafe {
+        std::env::remove_var("UMA_RECALL_MIN_PROB");
+    }
 }
 
 #[test]

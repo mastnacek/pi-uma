@@ -10,6 +10,7 @@ export interface RecallVerdict {
   search: boolean;
   judged_by: string;
   fact_types: string[];
+  probability?: number[];
   recalled: number;
   facts: RecallFact[];
   note: string | null;

@@ -14,8 +14,6 @@
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use std::str::FromStr as _;
-use uma_core::domain::FactType;
 use uma_core::fastbrain::{self, Judge};
 use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
@@ -42,6 +40,10 @@ pub struct CheckArgs {
     /// Which judge to use: off (default), jev, or always
     #[arg(long = "judge", default_value = "off", value_parser = ["off", "jev", "always"])]
     pub judge: String,
+
+    /// Minimum probability threshold for memory recall trigger (default 0.5, env UMA_RECALL_MIN_PROB)
+    #[arg(long = "min-prob")]
+    pub min_prob: Option<f64>,
 
     /// Maximum facts to recall
     #[arg(long = "max", default_value_t = 3)]
@@ -78,6 +80,7 @@ struct RecallVerdict {
     search: bool,
     judged_by: String,
     fact_types: Vec<String>,
+    probability: Vec<f64>,
     recalled: usize,
     facts: Vec<serde_json::Value>,
     note: Option<String>,
@@ -92,7 +95,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
     if args.judge == "always" {
         // Forced search without type filters: deterministic baseline for evaluation
         // and scenarios, separating retrieval errors from judge classification errors.
-        let (facts, search_notes) = recall_facts(&prompt, &[], args.max, &args.exclude)?;
+        let (facts, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
         let note = if search_notes.is_empty() {
             None
         } else {
@@ -103,6 +106,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
                 search: true,
                 judged_by: "always".to_string(),
                 fact_types: Vec::new(),
+                probability: Vec::new(),
                 recalled: facts.len(),
                 facts,
                 note,
@@ -113,7 +117,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
 
     // judge_recall_need already degrades Jev to offline with a note when the
     // transport fails, so one call covers both transports and their failure.
-    let verdict = fastbrain::judge_recall_need(&prompt, judge_from_name(&args.judge))
+    let verdict = fastbrain::judge_recall_need(&prompt, judge_from_name(&args.judge), args.min_prob)
         .map_err(|failure| anyhow::anyhow!("Recall check failed: {failure}"))?;
     let need = &verdict.answer;
 
@@ -124,6 +128,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
                 search: false,
                 judged_by: verdict.judged_by.as_str().to_string(),
                 fact_types: Vec::new(),
+                probability: need.probability.clone(),
                 recalled: 0,
                 facts: Vec::new(),
                 note: verdict.notes,
@@ -132,7 +137,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
         );
     }
 
-    let (facts, search_notes) = recall_facts(&prompt, &need.fact_types, args.max, &args.exclude)?;
+    let (facts, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
     // Merge provenance (judge note) with the search's degradation notes so a
     // relaxed recall is visible in the verdict, not silently presented as a
     // precise match.
@@ -147,6 +152,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
             search: true,
             judged_by: verdict.judged_by.as_str().to_string(),
             fact_types: need.fact_types.clone(),
+            probability: need.probability.clone(),
             recalled: facts.len(),
             facts,
             note,
@@ -235,59 +241,36 @@ struct RawCandidate {
     degraded_note: Option<String>,
 }
 
-/// Recalls facts for the trigger: collects candidates across all judge types
-/// simultaneously, ranks them globally by score, and applies quality thresholds.
+/// Recalls facts for the trigger: collects candidates across all fact types,
+/// ranks them globally by score, and applies quality thresholds.
 fn recall_facts(
     prompt: &str,
-    fact_types: &[String],
     max: usize,
     exclude: &[String],
 ) -> Result<(Vec<serde_json::Value>, Vec<String>)> {
     let query = recall_query(prompt);
-    let subtypes: Vec<FactType> = fact_types
-        .iter()
-        .filter_map(|name| FactType::from_str(name).ok())
-        .collect();
-
-    let filters: Vec<Option<FactType>> = if subtypes.is_empty() {
-        vec![None]
-    } else {
-        subtypes.into_iter().map(Some).collect()
-    };
-
     let mut raw_candidates: Vec<RawCandidate> = Vec::new();
     let candidate_limit = max.max(5);
 
-    // Collect candidates across all judge types simultaneously instead of filling
-    // slots type-by-type.
-    for filter in filters {
-        let outcome = Store::search_all(
-            &query,
-            None,
-            filter.as_ref(),
-            SearchMode::Keyword,
-            false,
-            None,
-            exclude,
-            candidate_limit,
-        )?;
-        let degraded_note = outcome.note();
-        for hit in outcome.hits {
-            if let Some(existing) = raw_candidates.iter_mut().find(|c| c.hit.id == hit.id) {
-                if hit.score > existing.hit.score {
-                    existing.hit = hit;
-                    existing.degraded_note = degraded_note.clone();
-                }
-            } else {
-                raw_candidates.push(RawCandidate {
-                    hit,
-                    degraded_note: degraded_note.clone(),
-                });
-            }
-        }
+    let outcome = Store::search_all(
+        &query,
+        None,
+        None,
+        SearchMode::Keyword,
+        false,
+        None,
+        exclude,
+        candidate_limit,
+    )?;
+    let degraded_note = outcome.note();
+    for hit in outcome.hits {
+        raw_candidates.push(RawCandidate {
+            hit,
+            degraded_note: degraded_note.clone(),
+        });
     }
 
-    // Sort all candidates across types globally by score descending.
+    // Sort all candidates globally by score descending.
     raw_candidates.sort_by(|a, b| {
         b.hit
             .score

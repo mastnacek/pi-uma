@@ -11,11 +11,11 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::json;
 
-use super::transport::{complete_router, router_model};
+use super::transport::{complete_decisions, router_model};
 // Re-exported: dream.rs and the council transports reach these through jev.
 pub(crate) use super::transport::{complete, model_name, truncate};
 
-use super::{Backend, DistilledDraft, Judgment, RecallNeed, Relationship};
+use super::{resolve_min_prob, Backend, DistilledDraft, Judgment, RecallNeed, Relationship};
 
 /// Parses the model's JSON answer into a relationship.
 fn parse_relationship(content: &str) -> Result<Relationship> {
@@ -28,19 +28,18 @@ fn parse_relationship(content: &str) -> Result<Relationship> {
     Ok(answer.relationship)
 }
 
-/// Parses the model's JSON answer into a recall verdict.
-fn parse_recall(content: &str) -> Result<RecallNeed> {
-    #[derive(Deserialize)]
-    struct Answer {
-        search: bool,
-        #[serde(default)]
-        fact_types: Vec<String>,
-    }
-    let answer: Answer = serde_json::from_str(content.trim())
-        .with_context(|| format!("Unparsable classifier answer: {}", truncate(content, 120)))?;
+/// Parses the model's Decisions API answer into a recall verdict.
+pub(crate) fn parse_decisions_recall(resp: &serde_json::Value, threshold: f64) -> Result<RecallNeed> {
+    let noul = resp["answers"]["needs_memory"]["noul"]
+        .as_f64()
+        .context("Missing or non-numeric 'answers.needs_memory.noul' in decisions response")?;
+
+    let search = !noul.is_nan() && noul >= threshold;
+
     Ok(RecallNeed {
-        search: answer.search,
-        fact_types: answer.fact_types,
+        search,
+        fact_types: Vec::new(),
+        probability: vec![noul],
         notes: None,
     })
 }
@@ -79,39 +78,27 @@ pub fn relationship(text_a: &str, text_b: &str) -> Result<Judgment<Relationship>
     })
 }
 
-/// Decides whether a user message needs memory recall, semantically.
-pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>> {
-    let content = complete_router(
-        "recall_need",
-        json!({
-            "type": "object",
-            "properties": {
-                "search": { "type": "boolean" },
-                "fact_types": {
-                    "type": "array",
-                    "items": { "type": "string", "enum": [
-                        "decision", "pattern", "preference", "skill", "fact", "note"
-                    ] },
-                },
-            },
-            "required": ["search", "fact_types"],
-            "additionalProperties": false,
-        }),
-        format!(
-            "A user message to a coding agent. Decide whether answering it may depend on \
-             remembered project decisions, patterns, preferences, or skills — and if so, \
-             which fact types are worth searching.\n\
-             DEFAULT TO search=false. Only set true when the message clearly references \
-             implementation specifics, past decisions, project conventions, or asks \
-             'why/how' about the project itself. Casual chat, thanks, approvals \
-             ('looks good', 'commit it'), simple commands, and questions about the current \
-             file contents do NOT need memory.\n\nMessage: {message}"
-        ),
-    )?;
+/// Decides whether a user message needs memory recall using the Decisions API.
+pub fn recall_need(message: &str, min_prob: Option<f64>) -> Result<Judgment<RecallNeed>> {
+    let threshold = resolve_min_prob(min_prob);
+    let questions = json!({
+        "needs_memory": {
+            "type": "noul",
+            "instructions": "Decide whether answering this user message to a coding agent may depend on remembered project decisions, past agreements, architecture patterns, user preferences, or project-specific conventions.",
+            "criteria": {
+                "true": "The message references past decisions, project conventions, architectural choices, 'why/how' about this codebase, prior work, or custom rules.",
+                "false": "Casual greetings, thanks, general coding knowledge without project specifics, simple file reading/editing commands, or questions answerable purely from the immediate prompt."
+            }
+        }
+    });
+
+    let resp = complete_decisions(&router_model(), message, questions)?;
+    let answer = parse_decisions_recall(&resp, threshold)?;
+    let confidence = answer.probability.first().copied().unwrap_or(0.8);
 
     Ok(Judgment {
-        answer: parse_recall(&content)?,
-        confidence: 0.8,
+        answer,
+        confidence,
         judged_by: Backend::Jev,
         notes: Some(router_model()),
     })
@@ -188,12 +175,24 @@ mod tests {
 
     #[test]
     fn test_parse_recall_answer() {
-        let need = parse_recall(r#"{"search": true, "fact_types": ["decision"]}"#).unwrap();
+        let json = serde_json::json!({
+            "answers": {
+                "needs_memory": {
+                    "type": "noul",
+                    "noul": 0.85
+                }
+            }
+        });
+        let need = parse_decisions_recall(&json, 0.5).unwrap();
         assert!(need.search);
-        assert_eq!(need.fact_types, vec!["decision"]);
+        assert_eq!(need.probability, vec![0.85]);
 
-        let need = parse_recall(r#"{"search": false, "fact_types": []}"#).unwrap();
-        assert!(!need.search);
+        let need_low = parse_decisions_recall(&json, 0.9).unwrap();
+        assert!(!need_low.search);
+        assert_eq!(need_low.probability, vec![0.85]);
+
+        let json_invalid = serde_json::json!({ "answers": {} });
+        assert!(parse_decisions_recall(&json_invalid, 0.5).is_err());
     }
 
     /// Live Jev transport verification: the OpenRouter `typesafe/jev-router`
@@ -209,13 +208,13 @@ mod tests {
         }
 
         // recall_need: a plain greeting must not trigger memory search.
-        let greeting = recall_need("hello, how are you").expect("live recall call");
+        let greeting = recall_need("hello, how are you", None).expect("live recall call");
         assert_eq!(greeting.judged_by, Backend::Jev);
         assert!(!greeting.answer.search, "greeting must not trigger recall");
 
         // recall_need: a project-convention question must trigger it.
         let project_q =
-            recall_need("why did we adopt vertical slice architecture for this repository?")
+            recall_need("why did we adopt vertical slice architecture for this repository?", None)
                 .expect("live recall call");
         assert!(
             project_q.answer.search,

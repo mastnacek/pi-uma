@@ -142,6 +142,7 @@ pub fn recall_need(message: &str) -> Result<Judgment<RecallNeed>, String> {
         answer: RecallNeed {
             search,
             fact_types,
+            probability: Vec::new(),
             notes: None,
         },
         confidence: if hits_recall_marker { 0.8 } else { 0.5 },

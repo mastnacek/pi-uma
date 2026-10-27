@@ -120,16 +120,32 @@ pub fn judge_relationship(
     }
 }
 
+/// Resolves the minimum probability threshold for memory recall:
+/// explicit CLI flag > UMA_RECALL_MIN_PROB env var > default 0.5.
+pub fn resolve_min_prob(explicit: Option<f64>) -> f64 {
+    explicit
+        .or_else(|| {
+            std::env::var("UMA_RECALL_MIN_PROB")
+                .ok()
+                .and_then(|v| v.parse::<f64>().ok())
+        })
+        .unwrap_or(0.5)
+}
+
 /// Given a user message, decides whether memory recall is worth a search and
 /// which fact types to search — the S3 recall gate's contract.
 ///
 /// Offline is marker-based and cheap; Jev is semantic. Either way the answer
 /// is advisory: the caller (Pi plugin) still respects the operator's S3
 /// on/off decision.
-pub fn judge_recall_need(message: &str, judge: Judge) -> Result<Judgment<RecallNeed>, String> {
+pub fn judge_recall_need(
+    message: &str,
+    judge: Judge,
+    min_prob: Option<f64>,
+) -> Result<Judgment<RecallNeed>, String> {
     match judge {
         Judge::Offline => offline::recall_need(message),
-        Judge::Jev => match jev::recall_need(message) {
+        Judge::Jev => match jev::recall_need(message, min_prob) {
             Ok(judgment) => Ok(judgment),
             Err(failure) => {
                 let mut degraded = offline::recall_need(message)?;
@@ -149,6 +165,8 @@ pub struct RecallNeed {
     pub search: bool,
     /// Which fact types to search, most relevant first.
     pub fact_types: Vec<String>,
+    /// Probabilities from the judge evaluation.
+    pub probability: Vec<f64>,
     pub notes: Option<String>,
 }
 
