@@ -20,6 +20,21 @@ test("a prompt starting with a dash stays a positional argument", () => {
   assert.deepEqual(args.slice(-2), ["--", "- fix the list"]);
 });
 
+test("bilingual recall args carry alt-prompt when supplied", () => {
+  const args = buildRecallArgs("jev-relevance", "how does it work?", ["01A"], "jak to funguje?");
+  assert.equal(args.includes("--alt-prompt"), true);
+  const altIndex = args.indexOf("--alt-prompt");
+  assert.equal(args[altIndex + 1], "jak to funguje?");
+  assert.deepEqual(args.slice(-4), ["--exclude", "01A", "--", "how does it work?"]);
+});
+
+test("bilingual recall args omit alt-prompt when absent or blank", () => {
+  const args1 = buildRecallArgs("jev-relevance", "how does it work?", ["01A"]);
+  assert.equal(args1.includes("--alt-prompt"), false);
+  const args2 = buildRecallArgs("jev-relevance", "how does it work?", ["01A"], "   ");
+  assert.equal(args2.includes("--alt-prompt"), false);
+});
+
 const verdict = (facts: RecallVerdict["facts"]): RecallVerdict => ({
   search: true,
   judged_by: "jev",

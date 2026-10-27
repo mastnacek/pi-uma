@@ -1,81 +1,43 @@
 use anyhow::Result;
 use uma_core::fastbrain;
-use uma_core::search::{SearchHit, SearchMode};
-use uma_core::store::Store;
 
 use super::{
-    candidate_passes_threshold, compute_match_metrics, emit, get_fact_body, query_unique_terms,
-    recall_facts, recall_query, resolve_min_coverage, resolve_per_term_min, CheckArgs,
-    MatchMetrics, RawCandidate, RecallThresholdMode, RecallVerdict,
+    emit, get_fact_body_preview, is_bilingual_enabled, merge_candidate_pools,
+    retrieve_candidate_pool, CheckArgs, RecallVerdict,
 };
-
-/// Reads a preview of the fact body (~400 characters) for relevance evaluation.
-fn get_fact_body_preview(hit: &SearchHit) -> String {
-    get_fact_body(hit).trim().chars().take(400).collect()
-}
 
 /// Executes recall check in `jev-relevance` mode:
 /// 1. Retrieval as `--judge always` (threshold 12, relative threshold, domains), pool of up to 8 candidates.
-/// 2. Single Decisions API request to evaluate relevance of each candidate.
+///    If bilingual is enabled and --alt-prompt is given, retrieves pools for both and merges by id (max score).
+/// 2. Single Decisions API request to evaluate relevance of each candidate against primary prompt.
 /// 3. Filter candidates with `p >= threshold` (env `UMA_RELEVANCE_MIN_PROB` and `--min-prob`, default 0.5),
 ///    sorted by p descending, max `--max`. Add "relevance": p to the JSON of each fact.
-/// 4. Failure/timeout 5s -> return results as `--judge always` with note "relevance judge degraded".
+/// 4. Failure/timeout 5s -> return results from candidate pool with note "relevance judge degraded".
 pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
     let prompt = args.prompt.join(" ");
-    let query = recall_query(&prompt);
-    let query_terms = query_unique_terms(&query);
-    let mode = RecallThresholdMode::from_env();
-    let per_term_min = resolve_per_term_min();
-    let min_coverage = resolve_min_coverage();
 
     // Retrieve pool of candidates using BM25 and domain filtering
-    let outcome = Store::search_all(
-        &query,
-        None,
-        None,
-        SearchMode::Keyword,
-        false,
-        None,
-        &args.exclude,
-        16,
-    )?;
-
-    let degraded_note = outcome.note();
-    let mut raw_candidates: Vec<RawCandidate> = outcome
-        .hits
-        .into_iter()
-        .map(|hit| RawCandidate {
-            hit,
-            degraded_note: degraded_note.clone(),
-        })
-        .collect();
-
-    raw_candidates.sort_by(|a, b| {
-        b.hit
-            .score
-            .partial_cmp(&a.hit.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    let best_score = raw_candidates.first().map(|c| c.hit.score).unwrap_or(0.0);
-
-    let mut candidate_pool: Vec<(RawCandidate, MatchMetrics)> = Vec::new();
-    for c in raw_candidates {
-        if candidate_pool.len() >= 8 {
-            break;
-        }
-        let metrics = compute_match_metrics(&c.hit, &query_terms);
-        if candidate_passes_threshold(
-            c.hit.score,
-            best_score,
-            &metrics,
-            mode,
-            per_term_min,
-            min_coverage,
-        ) {
-            candidate_pool.push((c, metrics));
-        }
-    }
+    let (cands_primary, note_primary) = retrieve_candidate_pool(&prompt, &args.exclude, 8)?;
+    let (candidate_pool, degraded_note) = if is_bilingual_enabled()
+        && args
+            .alt_prompt
+            .as_deref()
+            .map(|s: &str| !s.trim().is_empty())
+            .unwrap_or(false)
+    {
+        let alt_text = args.alt_prompt.as_deref().unwrap().trim();
+        let (cands_alt, note_alt) = retrieve_candidate_pool(alt_text, &args.exclude, 8)?;
+        let merged = merge_candidate_pools(cands_primary, cands_alt, 8);
+        let note = match (note_primary, note_alt) {
+            (Some(n1), Some(n2)) if n1 == n2 => Some(n1),
+            (Some(n1), Some(n2)) => Some(format!("{n1}; {n2}")),
+            (Some(n), None) | (None, Some(n)) => Some(n),
+            (None, None) => None,
+        };
+        (merged, note)
+    } else {
+        (cands_primary, note_primary)
+    };
 
     if candidate_pool.is_empty() {
         return emit(
@@ -94,7 +56,7 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
 
     let rel_cands: Vec<fastbrain::relevance::CandidateForRelevance> = candidate_pool
         .iter()
-        .map(|(c, _)| fastbrain::relevance::CandidateForRelevance {
+        .map(|c| fastbrain::relevance::CandidateForRelevance {
             id: c.hit.id.to_string(),
             title: c.hit.title.clone(),
             body_preview: get_fact_body_preview(&c.hit),
@@ -105,19 +67,29 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
 
     match relevance_res {
         Err(_) => {
-            // Failure/timeout -> return results as --judge always with note "relevance judge degraded"
-            let (facts, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
-            let note = if search_notes.is_empty() {
-                Some("relevance judge degraded".to_string())
-            } else {
-                Some(format!(
-                    "relevance judge degraded; {}",
-                    search_notes.join("; ")
-                ))
+            // Failure/timeout -> return results from candidate pool with note "relevance judge degraded"
+            let facts: Vec<serde_json::Value> = candidate_pool
+                .iter()
+                .take(args.max)
+                .map(|cand| {
+                    serde_json::json!({
+                        "id": cand.hit.id,
+                        "title": cand.hit.title,
+                        "fact_type": cand.hit.fact_type,
+                        "scope": cand.hit.scope,
+                        "score": cand.hit.score,
+                        "snippet": cand.hit.snippet,
+                        "tags": cand.hit.tags,
+                    })
+                })
+                .collect();
+            let note = match degraded_note {
+                Some(n) => Some(format!("relevance judge degraded; {n}")),
+                None => Some("relevance judge degraded".to_string()),
             };
             emit(
                 &RecallVerdict {
-                    search: true,
+                    search: !facts.is_empty(),
                     judged_by: "jev-relevance".to_string(),
                     fact_types: Vec::new(),
                     probability: Vec::new(),
@@ -136,7 +108,7 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                 search_notes.push(note);
             }
 
-            for ((cand, metrics), &p) in candidate_pool.iter().zip(probs.iter()) {
+            for (cand, &p) in candidate_pool.iter().zip(probs.iter()) {
                 if p >= threshold {
                     retained.push((
                         p,
@@ -149,16 +121,12 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                             "snippet": cand.hit.snippet,
                             "tags": cand.hit.tags,
                             "relevance": p,
-                            "query_terms": metrics.query_terms,
-                            "per_term": metrics.per_term,
-                            "coverage": metrics.coverage,
                         }),
                     ));
                 }
             }
 
             retained.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
             retained.truncate(args.max);
 
             let facts: Vec<serde_json::Value> = retained.into_iter().map(|(_, f)| f).collect();

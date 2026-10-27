@@ -40,10 +40,15 @@ export function buildRecallArgs(
   judge: "off" | "jev" | "jev-relevance",
   prompt: string,
   excludeIds: readonly string[],
+  altPrompt?: string,
 ): string[] {
   // `--` ends option parsing: a prompt such as "- fix the list" would
   // otherwise be rejected by the engine as an unknown flag.
-  return ["recall", "check", "--judge", judge, "--json", "--max", "3"]
+  const args = ["recall", "check", "--judge", judge, "--json", "--max", "3"];
+  if (altPrompt && altPrompt.trim().length > 0) {
+    args.push("--alt-prompt", altPrompt.trim());
+  }
+  return args
     .concat(excludeIds.flatMap((id) => ["--exclude", id]))
     .concat(["--", prompt]);
 }

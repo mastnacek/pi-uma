@@ -118,10 +118,40 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       // reorders the survivors — the plugin-side filter in
       // buildRecallMessage stays as defense in depth for data drift.
       const injected = state.injectedFactIds ?? (state.injectedFactIds = new Set<string>());
+
+      // Bilingual lookup: find in ctx.sessionManager.getEntries() the last
+      // custom entry with customType "pi-prompt-translate-state" whose
+      // data.english == event.prompt, and send its data.source as --alt-prompt.
+      let altPrompt: string | undefined;
+      if (process.env.UMA_RECALL_BILINGUAL !== "0") {
+        try {
+          const entries = ctx.sessionManager.getEntries();
+          for (let i = entries.length - 1; i >= 0; i--) {
+            const entry = entries[i] as {
+              type?: string;
+              customType?: string;
+              data?: { english?: string; source?: string };
+            };
+            if (
+              entry.customType === "pi-prompt-translate-state" &&
+              entry.data?.english === event.prompt &&
+              typeof entry.data?.source === "string" &&
+              entry.data.source.trim().length > 0
+            ) {
+              altPrompt = entry.data.source.trim();
+              break;
+            }
+          }
+        } catch {
+          // fail quiet
+        }
+      }
+
       const judgeArgs = buildRecallArgs(
         state.config.fastbrainJudge,
         event.prompt,
         Array.from(injected).slice(-MAX_EXCLUDE_IDS),
+        altPrompt,
       );
 
       // Session cwd, not the process start dir: the engine scopes recall

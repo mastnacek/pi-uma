@@ -15,8 +15,7 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use uma_core::fastbrain::{self, Judge};
-use uma_core::search::{SearchHit, SearchMode};
-use uma_core::store::Store;
+use uma_core::search::SearchHit;
 
 mod priming;
 mod threshold;
@@ -57,6 +56,10 @@ pub struct CheckArgs {
     /// injected). Repeatable.
     #[arg(long = "exclude", value_name = "ID")]
     pub exclude: Vec<String>,
+
+    /// Alternative prompt for bilingual candidate retrieval (e.g. original language before translation)
+    #[arg(long = "alt-prompt")]
+    pub alt_prompt: Option<String>,
 
     /// Emit the verdict and recalled facts as JSON
     #[arg(long = "json")]
@@ -102,7 +105,12 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
     if args.judge == "always" {
         // Forced search without type filters: deterministic baseline for evaluation
         // and scenarios, separating retrieval errors from judge classification errors.
-        let (facts, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
+        let (facts, search_notes) = recall_facts_with_alt(
+            &prompt,
+            args.alt_prompt.as_deref(),
+            args.max,
+            &args.exclude,
+        )?;
         let note = if search_notes.is_empty() {
             None
         } else {
@@ -145,7 +153,12 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
         );
     }
 
-    let (facts, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
+    let (facts, search_notes) = recall_facts_with_alt(
+        &prompt,
+        args.alt_prompt.as_deref(),
+        args.max,
+        &args.exclude,
+    )?;
     // Merge provenance (judge note) with the search's degradation notes so a
     // relaxed recall is visible in the verdict, not silently presented as a
     // precise match.
@@ -252,103 +265,57 @@ pub fn passes_recall_threshold(score: f64, best_score: f64) -> bool {
 
 pub(crate) struct RawCandidate {
     pub(crate) hit: SearchHit,
-    pub(crate) degraded_note: Option<String>,
 }
 
 /// Recalls facts for the trigger: collects candidates across all fact types,
 /// ranks them globally by score, and applies quality thresholds.
-pub(crate) fn recall_facts(
+/// If bilingual retrieval is enabled and alt_prompt is given, pools both
+/// and merges them before returning.
+pub(crate) fn recall_facts_with_alt(
     prompt: &str,
+    alt_prompt: Option<&str>,
     max: usize,
     exclude: &[String],
 ) -> Result<(Vec<serde_json::Value>, Vec<String>)> {
-    let query = recall_query(prompt);
-    let query_terms = query_unique_terms(&query);
-    let mode = RecallThresholdMode::from_env();
-    let per_term_min = resolve_per_term_min();
-    let min_coverage = resolve_min_coverage();
-    let mut raw_candidates: Vec<RawCandidate> = Vec::new();
-    let candidate_limit = max.max(5);
-
-    let outcome = Store::search_all(
-        &query,
-        None,
-        None,
-        SearchMode::Keyword,
-        false,
-        None,
-        exclude,
-        candidate_limit,
-    )?;
-    let degraded_note = outcome.note();
-    for hit in outcome.hits {
-        raw_candidates.push(RawCandidate {
-            hit,
-            degraded_note: degraded_note.clone(),
-        });
-    }
-
-    // Sort all candidates globally by score descending.
-    raw_candidates.sort_by(|a, b| {
-        b.hit
-            .score
-            .partial_cmp(&a.hit.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    let best_score = raw_candidates.first().map(|c| c.hit.score).unwrap_or(0.0);
+    let (cands_primary, note_primary) = retrieve_candidate_pool(prompt, exclude, max)?;
+    let (candidate_pool, note) = if is_bilingual_enabled()
+        && alt_prompt.map(|s| !s.trim().is_empty()).unwrap_or(false)
+    {
+        let alt_text = alt_prompt.unwrap().trim();
+        let (cands_alt, note_alt) = retrieve_candidate_pool(alt_text, exclude, max)?;
+        let merged = merge_candidate_pools(cands_primary, cands_alt, max);
+        let combined_note = match (note_primary, note_alt) {
+            (Some(n1), Some(n2)) if n1 == n2 => Some(n1),
+            (Some(n1), Some(n2)) => Some(format!("{n1}; {n2}")),
+            (Some(n), None) | (None, Some(n)) => Some(n),
+            (None, None) => None,
+        };
+        (merged, combined_note)
+    } else {
+        (cands_primary, note_primary)
+    };
 
     let mut facts = Vec::new();
-    let mut notes: Vec<String> = Vec::new();
-
-    // Filter direct candidates by threshold: score > 0, >= MIN_ABSOLUTE_SCORE,
-    // and >= ~50% of the best score. Relaxed (OR) results are only inserted if
-    // they pass this threshold.
-    for candidate in raw_candidates {
-        if facts.len() >= max {
-            break;
-        }
-        let metrics = compute_match_metrics(&candidate.hit, &query_terms);
-        if candidate_passes_threshold(
-            candidate.hit.score,
-            best_score,
-            &metrics,
-            mode,
-            per_term_min,
-            min_coverage,
-        ) {
-            if let Some(note) = candidate.degraded_note {
-                if !notes.contains(&note) {
-                    notes.push(note);
-                }
-            }
-            facts.push(serde_json::json!({
-                "id": candidate.hit.id,
-                "title": candidate.hit.title,
-                "fact_type": candidate.hit.fact_type,
-                "scope": candidate.hit.scope,
-                "score": candidate.hit.score,
-                "snippet": candidate.hit.snippet,
-                "tags": candidate.hit.tags,
-                "query_terms": metrics.query_terms,
-                "per_term": metrics.per_term,
-                "coverage": metrics.coverage,
-            }));
-        }
+    let mut notes = Vec::new();
+    if let Some(n) = note {
+        notes.push(n);
     }
 
-    // Priming (Proposal 05, Pillar II): Spreading activation across association
-    // graphs produced spurious / irrelevant neighbors in practice (e.g. recall
-    // scenario benchmarks showed ~0 of 8 primed facts were relevant: queries about
-    // frameworks pulled "Project anchor: faktura-scanner", bin/uma.exe pulled
-    // LotusScript items).
-    // The priming implementation remains in `priming.rs` for future graph exploration,
-    // but is explicitly disabled in the recall check pipeline to eliminate noise.
-    let _ = (best_score, exclude);
-    // facts = priming::prime_neighbors(facts, best_score, max, &mut notes, exclude);
-    facts.truncate(max);
+    for c in candidate_pool {
+        facts.push(serde_json::json!({
+            "id": c.hit.id,
+            "title": c.hit.title,
+            "fact_type": c.hit.fact_type,
+            "scope": c.hit.scope,
+            "score": c.hit.score,
+            "snippet": c.hit.snippet,
+            "tags": c.hit.tags,
+        }));
+    }
+
     Ok((facts, notes))
 }
+
 
 /// Builds the search query from the prompt: meaningful words only, capped, so
 /// BM25 keeps signal instead of matching everything vaguely.

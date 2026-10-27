@@ -42,6 +42,26 @@ fn test_check_parses_message_and_flags() -> Result<(), clap::Error> {
 }
 
 #[test]
+fn test_check_parses_alt_prompt() -> Result<(), clap::Error> {
+    let args = parse(&[
+        "recall",
+        "check",
+        "how",
+        "--judge",
+        "jev-relevance",
+        "--alt-prompt",
+        "jak to funguje",
+    ])?;
+    match args.command {
+        RecallCommand::Check(check) => {
+            assert_eq!(check.judge, "jev-relevance");
+            assert_eq!(check.alt_prompt, Some("jak to funguje".to_string()));
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn test_check_parses_judge_always() -> Result<(), clap::Error> {
     let args = parse(&["recall", "check", "test", "prompt", "--judge", "always"])?;
     match args.command {

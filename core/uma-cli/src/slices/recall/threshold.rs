@@ -1,66 +1,59 @@
-//! Recall threshold modes, match metrics, and query-length-independent scoring.
-//!
-//! Provides threshold modes for A/B testing:
-//! - `absolute`: raw BM25 >= 12.0 (v0.13 baseline)
-//! - `per-term`: raw BM25 / min(|Q|, 8) >= threshold (default 2.75)
-//! - `coverage`: fraction of query terms appearing as prefix in fact >= threshold (default 0.5)
-//! - `per-term+coverage`: both per-term and coverage must pass
+//! Recall scoring thresholds, dynamic floor, project boost, and candidate pooling.
 
-use uma_core::search::SearchHit;
+use anyhow::Result;
+use std::collections::HashMap;
+use uma_core::domain::FactId;
+use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
 
-use super::{MIN_ABSOLUTE_SCORE, RELATIVE_SCORE_RATIO};
+use super::{recall_query, RawCandidate, MIN_ABSOLUTE_SCORE, RELATIVE_SCORE_RATIO};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RecallThresholdMode {
-    Absolute,
-    PerTerm,
-    Coverage,
-    PerTermAndCoverage,
+/// Check if bilingual candidate retrieval is enabled (env `UMA_RECALL_BILINGUAL`, default 1).
+pub fn is_bilingual_enabled() -> bool {
+    is_bilingual_enabled_from(std::env::var("UMA_RECALL_BILINGUAL").ok().as_deref())
 }
 
-impl RecallThresholdMode {
-    pub fn from_str_opt(val: Option<&str>) -> Self {
-        match val.map(|s| s.trim().to_lowercase()).as_deref() {
-            Some("per-term") | Some("per_term") => Self::PerTerm,
-            Some("coverage") => Self::Coverage,
-            Some("per-term+coverage") | Some("per_term+coverage") => Self::PerTermAndCoverage,
-            _ => Self::Absolute,
-        }
+pub fn is_bilingual_enabled_from(val: Option<&str>) -> bool {
+    val.map(|v| v.trim() != "0").unwrap_or(true)
+}
+
+/// Check if dynamic floor is enabled (env `UMA_RECALL_DYNAMIC_FLOOR`, default 0).
+/// When enabled: if no candidate reaches 12.0, but the best has >= 6.0,
+/// the top 2 candidates meeting relative 50% enter the pool.
+pub fn is_dynamic_floor_enabled() -> bool {
+    is_dynamic_floor_enabled_from(std::env::var("UMA_RECALL_DYNAMIC_FLOOR").ok().as_deref())
+}
+
+pub fn is_dynamic_floor_enabled_from(val: Option<&str>) -> bool {
+    val.map(|v| v.trim() == "1").unwrap_or(false)
+}
+
+/// Multiplier for BM25 scores of facts from the current project before thresholds
+/// (env `UMA_RECALL_PROJECT_BOOST`, default 1.0).
+pub fn resolve_project_boost() -> f64 {
+    resolve_project_boost_from(std::env::var("UMA_RECALL_PROJECT_BOOST").ok().as_deref())
+}
+
+pub fn resolve_project_boost_from(val: Option<&str>) -> f64 {
+    val.and_then(|v| v.trim().parse::<f64>().ok())
+        .unwrap_or(1.0)
+}
+
+/// Evaluates whether a score passes the recall quality gate:
+/// 1. Must be strictly positive (> 0.0)
+/// 2. Must meet or exceed the absolute minimum threshold (`MIN_ABSOLUTE_SCORE`)
+/// 3. Must meet or exceed the relative score threshold (~50% of `best_score`)
+pub fn passes_recall_threshold(score: f64, best_score: f64) -> bool {
+    if score.is_nan() || score <= 0.0 {
+        return false;
     }
-
-    pub fn from_env() -> Self {
-        match std::env::var("UMA_RECALL_THRESHOLD_MODE") {
-            Ok(ref val) => Self::from_str_opt(Some(val)),
-            Err(_) => Self::Absolute,
-        }
+    if score < MIN_ABSOLUTE_SCORE {
+        return false;
     }
-}
-
-pub fn resolve_per_term_min() -> f64 {
-    std::env::var("UMA_RECALL_PER_TERM_MIN")
-        .ok()
-        .and_then(|v| v.trim().parse::<f64>().ok())
-        .unwrap_or(2.75)
-}
-
-pub fn resolve_min_coverage() -> f64 {
-    std::env::var("UMA_RECALL_MIN_COVERAGE")
-        .ok()
-        .and_then(|v| v.trim().parse::<f64>().ok())
-        .unwrap_or(0.5)
-}
-
-/// Extracts unique lowercased terms from the query string.
-pub fn query_unique_terms(query: &str) -> Vec<String> {
-    let mut terms: Vec<String> = Vec::new();
-    for word in query.split(|c: char| !c.is_alphanumeric()) {
-        let lower = word.to_lowercase();
-        if !lower.is_empty() && !terms.contains(&lower) {
-            terms.push(lower);
-        }
+    if score < best_score * RELATIVE_SCORE_RATIO {
+        return false;
     }
-    terms
+    true
 }
 
 /// Reads the body of a fact from disk, store, or falls back to hit snippet.
@@ -78,237 +71,187 @@ pub fn get_fact_body(hit: &SearchHit) -> String {
     hit.snippet.clone()
 }
 
-/// Assembles all searchable text of a fact (title, description, tags, body).
-pub fn get_fact_text_for_coverage(hit: &SearchHit) -> String {
-    let mut parts = vec![hit.title.clone()];
-    if let Some(ref desc) = hit.description {
-        parts.push(desc.clone());
-    }
-    parts.extend(hit.tags.clone());
-    parts.push(get_fact_body(hit));
-    parts.join(" ")
+/// Formats a preview of the fact body (~400 characters) for relevance evaluation.
+pub fn get_fact_body_preview(hit: &SearchHit) -> String {
+    get_fact_body(hit).trim().chars().take(400).collect()
 }
 
-/// Calculates the fraction of query terms appearing (as word prefix) in the fact text.
-pub fn compute_coverage(fact_text: &str, query_terms: &[String]) -> f64 {
-    if query_terms.is_empty() {
-        return 0.0;
-    }
-    let fact_words: Vec<String> = fact_text
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| !w.is_empty())
-        .map(|w| w.to_lowercase())
+/// Recalls a pool of candidates for a single prompt string, applying project boost,
+/// sorting, and absolute + relative thresholds (with dynamic floor if enabled).
+pub(crate) fn retrieve_candidate_pool(
+    prompt: &str,
+    exclude: &[String],
+    max_candidates: usize,
+) -> Result<(Vec<RawCandidate>, Option<String>)> {
+    let query = recall_query(prompt);
+    let outcome = Store::search_all(
+        &query,
+        None,
+        None,
+        SearchMode::Keyword,
+        false,
+        None,
+        exclude,
+        16,
+    )?;
+
+    let degraded_note = outcome.note();
+    let mut raw_candidates: Vec<RawCandidate> = outcome
+        .hits
+        .into_iter()
+        .map(|hit| RawCandidate { hit })
         .collect();
 
-    let covered = query_terms
-        .iter()
-        .filter(|q_term| fact_words.iter().any(|w| w.starts_with(q_term.as_str())))
-        .count();
-
-    (covered as f64) / (query_terms.len() as f64)
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MatchMetrics {
-    pub query_terms: usize,
-    pub per_term: f64,
-    pub coverage: f64,
-}
-
-/// Computes query match metrics for calibration and threshold evaluation.
-pub fn compute_match_metrics(hit: &SearchHit, query_terms: &[String]) -> MatchMetrics {
-    let q_len = query_terms.len();
-    let eff_q = q_len.min(8).max(1);
-    let raw_per_term = if hit.score <= 0.0 || hit.score.is_nan() {
-        0.0
-    } else {
-        hit.score / eff_q as f64
-    };
-    let per_term = (raw_per_term * 1000.0).round() / 1000.0;
-
-    let fact_text = get_fact_text_for_coverage(hit);
-    let raw_coverage = compute_coverage(&fact_text, query_terms);
-    let coverage = (raw_coverage * 1000.0).round() / 1000.0;
-
-    MatchMetrics {
-        query_terms: q_len,
-        per_term,
-        coverage,
-    }
-}
-
-/// Evaluates whether a candidate passes the selected recall threshold mode.
-pub fn candidate_passes_threshold(
-    score: f64,
-    best_score: f64,
-    metrics: &MatchMetrics,
-    mode: RecallThresholdMode,
-    per_term_min: f64,
-    min_coverage: f64,
-) -> bool {
-    if score.is_nan() || score <= 0.0 {
-        return false;
-    }
-    if score < best_score * RELATIVE_SCORE_RATIO {
-        return false;
-    }
-    match mode {
-        RecallThresholdMode::Absolute => score >= MIN_ABSOLUTE_SCORE,
-        RecallThresholdMode::PerTerm => metrics.per_term >= per_term_min,
-        RecallThresholdMode::Coverage => metrics.coverage >= min_coverage,
-        RecallThresholdMode::PerTermAndCoverage => {
-            metrics.per_term >= per_term_min && metrics.coverage >= min_coverage
+    // Project boost: multiplies BM25 score of facts from current project before thresholds
+    let boost = resolve_project_boost();
+    if (boost - 1.0).abs() > f64::EPSILON {
+        if let Some(cp) = Store::current_project_name() {
+            for candidate in &mut raw_candidates {
+                if candidate.hit.project_name == cp {
+                    candidate.hit.score *= boost;
+                }
+            }
         }
     }
+
+    raw_candidates.sort_by(|a, b| {
+        b.hit
+            .score
+            .partial_cmp(&a.hit.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let best_score = raw_candidates.first().map(|c| c.hit.score).unwrap_or(0.0);
+    let mut pool: Vec<RawCandidate> = Vec::new();
+
+    if best_score >= MIN_ABSOLUTE_SCORE {
+        for c in raw_candidates {
+            if pool.len() >= max_candidates {
+                break;
+            }
+            if passes_recall_threshold(c.hit.score, best_score) {
+                pool.push(c);
+            }
+        }
+    } else if is_dynamic_floor_enabled() && best_score >= 6.0 {
+        // Dynamic floor: when no candidate exceeds 12, but best has >= 6.0,
+        // let top 2 candidates meeting relative 50% into the pool.
+        for c in raw_candidates {
+            if pool.len() >= 2.min(max_candidates) {
+                break;
+            }
+            if c.hit.score >= best_score * RELATIVE_SCORE_RATIO {
+                pool.push(c);
+            }
+        }
+    }
+
+    Ok((pool, degraded_note))
+}
+
+/// Merges primary and alternative candidate pools by fact ID, taking the maximum score,
+/// and returns up to `limit` candidates sorted by score descending.
+pub(crate) fn merge_candidate_pools(
+    primary: Vec<RawCandidate>,
+    alt: Vec<RawCandidate>,
+    limit: usize,
+) -> Vec<RawCandidate> {
+    let mut map: HashMap<FactId, RawCandidate> = HashMap::new();
+    for c in primary {
+        map.insert(c.hit.id, c);
+    }
+    for c in alt {
+        match map.get_mut(&c.hit.id) {
+            Some(existing) => {
+                if c.hit.score > existing.hit.score {
+                    *existing = c;
+                }
+            }
+            None => {
+                map.insert(c.hit.id, c);
+            }
+        }
+    }
+
+    let mut merged: Vec<RawCandidate> = map.into_values().collect();
+    merged.sort_by(|a, b| {
+        b.hit
+            .score
+            .partial_cmp(&a.hit.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    merged.truncate(limit);
+    merged
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uma_core::domain::{FactId, FactStatus, FactType, Scope};
 
-    fn make_hit(title: &str, body: &str, score: f64) -> SearchHit {
-        SearchHit {
-            id: FactId::new(),
-            title: title.to_string(),
-            description: None,
-            fact_type: FactType::Decision,
-            scope: Scope::Global,
-            project_name: "global".to_string(),
-            status: FactStatus::Stable,
-            supersedes: None,
-            score,
-            snippet: body.to_string(),
-            tags: vec![],
-            file_path: None,
-        }
+    #[test]
+    fn test_bilingual_enabled_default() {
+        assert!(is_bilingual_enabled_from(None));
+        assert!(!is_bilingual_enabled_from(Some("0")));
+        assert!(is_bilingual_enabled_from(Some("1")));
     }
 
     #[test]
-    fn test_threshold_mode_parsing() {
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(None),
-            RecallThresholdMode::Absolute
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("unknown")),
-            RecallThresholdMode::Absolute
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("absolute")),
-            RecallThresholdMode::Absolute
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("per-term")),
-            RecallThresholdMode::PerTerm
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("per_term")),
-            RecallThresholdMode::PerTerm
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("coverage")),
-            RecallThresholdMode::Coverage
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("per-term+coverage")),
-            RecallThresholdMode::PerTermAndCoverage
-        );
-        assert_eq!(
-            RecallThresholdMode::from_str_opt(Some("per_term+coverage")),
-            RecallThresholdMode::PerTermAndCoverage
-        );
+    fn test_dynamic_floor_default() {
+        assert!(!is_dynamic_floor_enabled_from(None));
+        assert!(is_dynamic_floor_enabled_from(Some("1")));
+        assert!(!is_dynamic_floor_enabled_from(Some("0")));
     }
 
     #[test]
-    fn test_query_unique_terms() {
-        let terms = query_unique_terms("Which Domino version does plugin target Domino?");
-        assert_eq!(
-            terms,
-            vec!["which", "domino", "version", "does", "plugin", "target"]
-        );
+    fn test_project_boost_default() {
+        assert!((resolve_project_boost_from(None) - 1.0).abs() < f64::EPSILON);
+        assert!((resolve_project_boost_from(Some("1.25")) - 1.25).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn test_compute_coverage_prefix_matching() {
-        let terms = vec![
-            "domino".to_string(),
-            "target".to_string(),
-            "export".to_string(),
-        ];
-        // "domino" matches "domino", "target" matches "targets", "export" matches "exportdxl"
-        let text = "IBM Domino server targets the exportdxl line of agents";
-        assert_eq!(compute_coverage(text, &terms), 1.0);
-
-        let partial_text = "IBM Domino server";
-        assert_eq!(
-            (compute_coverage(partial_text, &terms) * 1000.0).round() / 1000.0,
-            0.333
-        );
+    fn test_passes_recall_threshold() {
+        assert!(passes_recall_threshold(15.0, 20.0));
+        assert!(passes_recall_threshold(12.0, 15.0));
+        assert!(!passes_recall_threshold(11.9, 15.0));
+        assert!(!passes_recall_threshold(12.0, 25.0)); // 12.0 < 25.0 * 0.5 (12.5)
     }
 
     #[test]
-    fn test_candidate_passes_threshold_modes() {
-        let hit = make_hit("Domino targets", "exporting pipeline", 11.05);
-        let q_terms = vec![
-            "domino".to_string(),
-            "version".to_string(),
-            "plugin".to_string(),
-            "target".to_string(),
-        ];
-        let metrics = compute_match_metrics(&hit, &q_terms);
-        assert_eq!(metrics.query_terms, 4);
-        assert_eq!(metrics.per_term, 2.763); // 11.05 / 4 = 2.7625 -> 2.763
-        assert_eq!(metrics.coverage, 0.5); // domino, target match -> 2/4 = 0.5
+    fn test_merge_candidate_pools() {
+        let id1 = FactId::new();
+        let id2 = FactId::new();
+        let id3 = FactId::new();
 
-        // Absolute mode (12.0) fails 11.05
-        assert!(!candidate_passes_threshold(
-            hit.score,
-            11.05,
-            &metrics,
-            RecallThresholdMode::Absolute,
-            2.75,
-            0.5
-        ));
+        let make_cand = |id: FactId, score: f64| RawCandidate {
+            hit: SearchHit {
+                id,
+                title: "Test".to_string(),
+                description: None,
+                fact_type: uma_core::domain::FactType::Decision,
+                scope: uma_core::domain::Scope::Global,
+                project_name: "global".to_string(),
+                status: uma_core::domain::FactStatus::Stable,
+                supersedes: None,
+                score,
+                snippet: "Snippet".to_string(),
+                tags: vec![],
+                file_path: None,
+            },
+        };
 
-        // PerTerm mode (2.75) passes 2.763
-        assert!(candidate_passes_threshold(
-            hit.score,
-            11.05,
-            &metrics,
-            RecallThresholdMode::PerTerm,
-            2.75,
-            0.5
-        ));
+        let primary = vec![make_cand(id1.clone(), 15.0), make_cand(id2.clone(), 10.0)];
+        let alt = vec![make_cand(id2.clone(), 18.0), make_cand(id3.clone(), 14.0)];
 
-        // Coverage mode (0.5) passes 0.5
-        assert!(candidate_passes_threshold(
-            hit.score,
-            11.05,
-            &metrics,
-            RecallThresholdMode::Coverage,
-            2.75,
-            0.5
-        ));
-
-        // PerTermAndCoverage passes both
-        assert!(candidate_passes_threshold(
-            hit.score,
-            11.05,
-            &metrics,
-            RecallThresholdMode::PerTermAndCoverage,
-            2.75,
-            0.5
-        ));
-
-        // Relative 50% cutoff still holds even in per-term mode
-        assert!(!candidate_passes_threshold(
-            hit.score,
-            25.0, // 11.05 < 25.0 * 0.5 (12.5)
-            &metrics,
-            RecallThresholdMode::PerTerm,
-            2.75,
-            0.5
-        ));
+        let merged = merge_candidate_pools(primary, alt, 8);
+        assert_eq!(merged.len(), 3);
+        // id2 should have max score (18.0) and be first
+        assert_eq!(merged[0].hit.id, id2);
+        assert_eq!(merged[0].hit.score, 18.0);
+        // id1 should be second (15.0)
+        assert_eq!(merged[1].hit.id, id1);
+        assert_eq!(merged[1].hit.score, 15.0);
+        // id3 should be third (14.0)
+        assert_eq!(merged[2].hit.id, id3);
+        assert_eq!(merged[2].hit.score, 14.0);
     }
 }
