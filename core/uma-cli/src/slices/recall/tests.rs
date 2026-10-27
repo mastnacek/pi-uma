@@ -43,9 +43,7 @@ fn test_check_parses_message_and_flags() -> Result<(), clap::Error> {
 
 #[test]
 fn test_check_parses_judge_always() -> Result<(), clap::Error> {
-    let args = parse(&[
-        "recall", "check", "test", "prompt", "--judge", "always",
-    ])?;
+    let args = parse(&["recall", "check", "test", "prompt", "--judge", "always"])?;
     match args.command {
         RecallCommand::Check(check) => {
             assert_eq!(check.judge, "always");
