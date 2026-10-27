@@ -4,23 +4,14 @@ use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
 
 use super::{
-    emit, passes_recall_threshold, recall_facts, recall_query, CheckArgs, RawCandidate,
-    RecallVerdict,
+    candidate_passes_threshold, compute_match_metrics, emit, get_fact_body,
+    query_unique_terms, recall_facts, recall_query, resolve_min_coverage, resolve_per_term_min,
+    CheckArgs, MatchMetrics, RawCandidate, RecallThresholdMode, RecallVerdict,
 };
 
 /// Reads a preview of the fact body (~400 characters) for relevance evaluation.
 fn get_fact_body_preview(hit: &SearchHit) -> String {
-    if let Some(ref path) = hit.file_path {
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if let Ok(fact) = uma_core::serialization::markdown_to_fact(&content) {
-                return fact.body.trim().chars().take(400).collect();
-            }
-        }
-    }
-    if let Ok(fact) = Store::find_by_id(&hit.id) {
-        return fact.body.trim().chars().take(400).collect();
-    }
-    hit.snippet.chars().take(400).collect()
+    get_fact_body(hit).trim().chars().take(400).collect()
 }
 
 /// Executes recall check in `jev-relevance` mode:
@@ -32,6 +23,10 @@ fn get_fact_body_preview(hit: &SearchHit) -> String {
 pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
     let prompt = args.prompt.join(" ");
     let query = recall_query(&prompt);
+    let query_terms = query_unique_terms(&query);
+    let mode = RecallThresholdMode::from_env();
+    let per_term_min = resolve_per_term_min();
+    let min_coverage = resolve_min_coverage();
 
     // Retrieve pool of candidates using BM25 and domain filtering
     let outcome = Store::search_all(
@@ -64,13 +59,21 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
 
     let best_score = raw_candidates.first().map(|c| c.hit.score).unwrap_or(0.0);
 
-    let mut candidate_pool: Vec<RawCandidate> = Vec::new();
+    let mut candidate_pool: Vec<(RawCandidate, MatchMetrics)> = Vec::new();
     for c in raw_candidates {
         if candidate_pool.len() >= 8 {
             break;
         }
-        if passes_recall_threshold(c.hit.score, best_score) {
-            candidate_pool.push(c);
+        let metrics = compute_match_metrics(&c.hit, &query_terms);
+        if candidate_passes_threshold(
+            c.hit.score,
+            best_score,
+            &metrics,
+            mode,
+            per_term_min,
+            min_coverage,
+        ) {
+            candidate_pool.push((c, metrics));
         }
     }
 
@@ -91,7 +94,7 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
 
     let rel_cands: Vec<fastbrain::relevance::CandidateForRelevance> = candidate_pool
         .iter()
-        .map(|c| fastbrain::relevance::CandidateForRelevance {
+        .map(|(c, _)| fastbrain::relevance::CandidateForRelevance {
             id: c.hit.id.to_string(),
             title: c.hit.title.clone(),
             body_preview: get_fact_body_preview(&c.hit),
@@ -133,7 +136,7 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                 search_notes.push(note);
             }
 
-            for (cand, &p) in candidate_pool.iter().zip(probs.iter()) {
+            for ((cand, metrics), &p) in candidate_pool.iter().zip(probs.iter()) {
                 if p >= threshold {
                     retained.push((
                         p,
@@ -146,6 +149,9 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                             "snippet": cand.hit.snippet,
                             "tags": cand.hit.tags,
                             "relevance": p,
+                            "query_terms": metrics.query_terms,
+                            "per_term": metrics.per_term,
+                            "coverage": metrics.coverage,
                         }),
                     ));
                 }

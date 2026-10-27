@@ -19,6 +19,9 @@ use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
 
 mod priming;
+mod threshold;
+
+pub use threshold::*;
 
 #[derive(Args, Debug, Clone)]
 pub struct RecallArgs {
@@ -260,6 +263,10 @@ pub(crate) fn recall_facts(
     exclude: &[String],
 ) -> Result<(Vec<serde_json::Value>, Vec<String>)> {
     let query = recall_query(prompt);
+    let query_terms = query_unique_terms(&query);
+    let mode = RecallThresholdMode::from_env();
+    let per_term_min = resolve_per_term_min();
+    let min_coverage = resolve_min_coverage();
     let mut raw_candidates: Vec<RawCandidate> = Vec::new();
     let candidate_limit = max.max(5);
 
@@ -301,7 +308,15 @@ pub(crate) fn recall_facts(
         if facts.len() >= max {
             break;
         }
-        if passes_recall_threshold(candidate.hit.score, best_score) {
+        let metrics = compute_match_metrics(&candidate.hit, &query_terms);
+        if candidate_passes_threshold(
+            candidate.hit.score,
+            best_score,
+            &metrics,
+            mode,
+            per_term_min,
+            min_coverage,
+        ) {
             if let Some(note) = candidate.degraded_note {
                 if !notes.contains(&note) {
                     notes.push(note);
@@ -315,6 +330,9 @@ pub(crate) fn recall_facts(
                 "score": candidate.hit.score,
                 "snippet": candidate.hit.snippet,
                 "tags": candidate.hit.tags,
+                "query_terms": metrics.query_terms,
+                "per_term": metrics.per_term,
+                "coverage": metrics.coverage,
             }));
         }
     }
