@@ -298,7 +298,14 @@ fn test_search_excludes_ids_from_competition() -> anyhow::Result<()> {
         ("Fresh Two", "FTS5 index rebuild recipe."),
     ]
     .iter()
-    .map(|(title, body)| Fact::new(Scope::Global, FactType::Note, title.to_string(), body.to_string()))
+    .map(|(title, body)| {
+        Fact::new(
+            Scope::Global,
+            FactType::Note,
+            title.to_string(),
+            body.to_string(),
+        )
+    })
     .collect();
     for fact in &facts {
         indexer.index_fact(fact, None)?;
@@ -321,8 +328,13 @@ fn test_search_excludes_ids_from_competition() -> anyhow::Result<()> {
     let hits = crate::search::search_keyword(indexer.connection(), &opts(3))?;
     assert_eq!(hits.len(), 2);
     let titles: Vec<&str> = hits.iter().map(|h| h.title.as_str()).collect();
-    assert!(titles.contains(&"Fresh One") && titles.contains(&"Fresh Two"), "{titles:?}");
-    assert!(!hits.iter().any(|h| h.id == facts[0].id || h.id == facts[1].id));
+    assert!(
+        titles.contains(&"Fresh One") && titles.contains(&"Fresh Two"),
+        "{titles:?}"
+    );
+    assert!(!hits
+        .iter()
+        .any(|h| h.id == facts[0].id || h.id == facts[1].id));
 
     // The limit applies to the ELIGIBLE set: a window of 1 still returns
     // exactly one eligible fact, not an excluded one.

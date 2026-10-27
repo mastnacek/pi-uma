@@ -48,8 +48,8 @@ fn run_set(args: SetDomainsArgs) -> Result<()> {
     let mut updated_count = 0;
 
     for id_str in &args.ids {
-        let fact_id = FactId::from_str(id_str)
-            .with_context(|| format!("Invalid FactId: {id_str}"))?;
+        let fact_id =
+            FactId::from_str(id_str).with_context(|| format!("Invalid FactId: {id_str}"))?;
 
         let (mut fact, path) = find_fact_file(&fact_id)?;
 
@@ -65,10 +65,15 @@ fn run_set(args: SetDomainsArgs) -> Result<()> {
             .with_context(|| format!("Failed to write temporary file {:?}", tmp_path))?;
         if let Err(e) = std::fs::rename(&tmp_path, &path) {
             let _ = std::fs::remove_file(&tmp_path);
-            return Err(e).with_context(|| format!("Failed to rename {:?} to {:?}", tmp_path, path));
+            return Err(e)
+                .with_context(|| format!("Failed to rename {:?} to {:?}", tmp_path, path));
         }
 
-        println!("Updated domains for {fact_id} ({:?}) -> [{}]", path, fact.domains.join(", "));
+        println!(
+            "Updated domains for {fact_id} ({:?}) -> [{}]",
+            path,
+            fact.domains.join(", ")
+        );
         updated_count += 1;
     }
 
@@ -83,7 +88,10 @@ fn find_fact_file(fact_id: &FactId) -> Result<(Fact, PathBuf)> {
     // 1. Try central indexer's recorded file_path
     if let Ok(indexer) = Store::central_indexer() {
         let query = "SELECT file_path FROM facts_fts WHERE id = ?";
-        if let Ok(path_str) = indexer.connection().query_row(query, [fact_id.to_string()], |r| r.get::<_, String>(0)) {
+        if let Ok(path_str) = indexer
+            .connection()
+            .query_row(query, [fact_id.to_string()], |r| r.get::<_, String>(0))
+        {
             let path = PathBuf::from(path_str);
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
@@ -116,7 +124,9 @@ fn find_fact_file(fact_id: &FactId) -> Result<(Fact, PathBuf)> {
     if let Some(project_name) = Store::current_project_name() {
         if let Ok(project_store) = Store::project(project_name) {
             for entry in WalkDir::new(&project_store.root).into_iter().flatten() {
-                if entry.file_type().is_file() && entry.path().extension().is_some_and(|e| e == "md") {
+                if entry.file_type().is_file()
+                    && entry.path().extension().is_some_and(|e| e == "md")
+                {
                     if let Ok(content) = std::fs::read_to_string(entry.path()) {
                         if let Ok(fact) = markdown_to_fact(&content) {
                             if fact.id == *fact_id {
@@ -145,7 +155,13 @@ mod tests {
 
     #[test]
     fn test_domains_set_args_parsing() {
-        let args = CliTest::parse_from(["uma", "set", "--domain", "domino", "01M5WQXK7VFFRTTS1CGKD77WN6"]);
+        let args = CliTest::parse_from([
+            "uma",
+            "set",
+            "--domain",
+            "domino",
+            "01M5WQXK7VFFRTTS1CGKD77WN6",
+        ]);
         match args.cmd {
             DomainsCommands::Set(set_args) => {
                 assert_eq!(set_args.domain, "domino");

@@ -142,7 +142,11 @@ fn readers_proceed_while_a_writer_is_mid_flight() -> Result<()> {
     for reader in readers {
         reader.join().expect("reader panicked");
     }
-    assert_eq!(read_errors.load(Ordering::SeqCst), 0, "reader errors during writes");
+    assert_eq!(
+        read_errors.load(Ordering::SeqCst),
+        0,
+        "reader errors during writes"
+    );
 
     Ok(())
 }
