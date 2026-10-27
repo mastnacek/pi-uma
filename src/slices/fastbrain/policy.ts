@@ -30,6 +30,22 @@ export interface RecallFact {
   tags: string[];
 }
 
+/**
+ * CLI arguments for one recall-gate check. Every engine judge is passed
+ * explicitly: omitting `--judge` makes the engine fall back to the offline
+ * marker judge, which silently disabled jev-relevance when only "jev" was
+ * mapped here.
+ */
+export function buildRecallArgs(
+  judge: "off" | "jev" | "jev-relevance",
+  prompt: string,
+  excludeIds: readonly string[],
+): string[] {
+  return ["recall", "check", "--judge", judge, "--json", "--max", "3"]
+    .concat(excludeIds.flatMap((id) => ["--exclude", id]))
+    .concat([prompt]);
+}
+
 /** The injected message's shape (BeforeAgentStartEventResult["message"]). */
 export interface RecallMessage {
   customType: string;

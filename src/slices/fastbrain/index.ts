@@ -22,6 +22,7 @@ import {
   updatePlasticity,
 } from "../../shared/client.js";
 import {
+  buildRecallArgs,
   buildRecallMessage,
   formatGateOneLiner,
   isDegradedNote,
@@ -117,14 +118,11 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       // reorders the survivors — the plugin-side filter in
       // buildRecallMessage stays as defense in depth for data drift.
       const injected = state.injectedFactIds ?? (state.injectedFactIds = new Set<string>());
-      const excludeArgs = Array.from(injected)
-        .slice(-MAX_EXCLUDE_IDS)
-        .flatMap((id) => ["--exclude", id]);
-      const judgeArgs =
-        (state.config.fastbrainJudge === "jev"
-          ? ["recall", "check", "--judge", "jev", "--json"]
-          : ["recall", "check", "--json"])
-          .concat(["--max", "3"], excludeArgs, [event.prompt]);
+      const judgeArgs = buildRecallArgs(
+        state.config.fastbrainJudge,
+        event.prompt,
+        Array.from(injected).slice(-MAX_EXCLUDE_IDS),
+      );
 
       // Session cwd, not the process start dir: the engine scopes recall
       // search to the git-root project name of the cwd it is given. When pi

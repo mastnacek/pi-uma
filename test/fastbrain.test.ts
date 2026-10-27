@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildRecallMessage, type RecallVerdict } from "../src/slices/fastbrain/policy.ts";
+import { buildRecallArgs, buildRecallMessage, type RecallVerdict } from "../src/slices/fastbrain/policy.ts";
+
+test("every configured judge reaches the engine explicitly", () => {
+  for (const judge of ["off", "jev", "jev-relevance"] as const) {
+    const args = buildRecallArgs(judge, "why VSA?", []);
+    assert.deepEqual(args.slice(0, 4), ["recall", "check", "--judge", judge]);
+    assert.equal(args.at(-1), "why VSA?");
+  }
+});
+
+test("recall args carry anti-echo exclusions before the prompt", () => {
+  const args = buildRecallArgs("jev-relevance", "prompt", ["01A", "01B"]);
+  assert.deepEqual(args.slice(-5), ["--exclude", "01A", "--exclude", "01B", "prompt"]);
+});
 
 const verdict = (facts: RecallVerdict["facts"]): RecallVerdict => ({
   search: true,
