@@ -2,6 +2,13 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.1] - 2026-10-27
+
+### Fixed
+- Approval gate: shell wrappers no longer hide a memory write. `bash -c "uma write …"` (live finding: it created a fact without the approval modal), `sh -lc`, `cmd /c`, `cmd.exe /K`, `powershell -Command`, `pwsh -c` and nested wrappers are unwrapped token by token and their body is judged exactly like a bare command (UMA-binary scan and store-path scan both).
+- Approval gate: cmd.exe builtins (`copy`, `move`, `del`, `xcopy`, `robocopy`, …) and PowerShell cmdlets/aliases (`Set-Content`, `Add-Content`, `Out-File`, `Copy-Item`, `Remove-Item`, `New-Item`, …) now count as file-mutating utilities, so `cmd /c copy nul .uma/x.md` and `powershell -Command "Set-Content .uma/x.md y"` are blocked.
+- Tests: the `loadConfig` isolation test no longer depends on the operator's real `~/.pi/agent/uma.json` (it failed once `appendPrompt` was enabled globally).
+
 ## [0.17.0] - 2026-10-27
 
 ### Added
