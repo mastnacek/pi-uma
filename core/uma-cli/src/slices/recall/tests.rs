@@ -153,13 +153,28 @@ fn test_passes_recall_threshold_relative_50_percent_cutoff() {
 
 #[test]
 fn test_priming_subject_to_same_threshold() {
-    // Primed neighbors with raw activation (e.g. 0.50) must not bypass the absolute minimum.
+    // Neighbor scores are scaled: neighbor_score = hit_score * activation.
+    let best = 24.7;
+
+    // Strong hit (24.7) with 0.5 activation gives neighbor_score = 12.35.
+    // 12.35 >= MIN_ABSOLUTE_SCORE (8.0) and >= 50% of 24.7 -> passes!
+    let strong_neighbor = best * 0.5;
     assert!(
-        !passes_recall_threshold(0.50, 24.7),
-        "primed neighbor with score 0.50 must be discarded by threshold"
+        passes_recall_threshold(strong_neighbor, best),
+        "strong neighbor scaled score 12.35 should pass threshold"
     );
+
+    // Hit with lower score (12.0) with 0.5 activation gives neighbor_score = 6.0.
+    // 6.0 < MIN_ABSOLUTE_SCORE (8.0) -> fails!
+    let weak_neighbor = 12.0 * 0.5;
     assert!(
-        !passes_recall_threshold(0.50, 8.0),
-        "primed neighbor with score 0.50 is below MIN_ABSOLUTE_SCORE"
+        !passes_recall_threshold(weak_neighbor, best),
+        "weak neighbor score 6.0 is below MIN_ABSOLUTE_SCORE"
+    );
+
+    // Raw activation alone (0.5) without scaling fails absolute minimum.
+    assert!(
+        !passes_recall_threshold(0.5, best),
+        "raw unscaled activation 0.5 is below MIN_ABSOLUTE_SCORE"
     );
 }

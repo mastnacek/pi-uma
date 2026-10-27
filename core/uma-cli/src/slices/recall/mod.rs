@@ -267,10 +267,7 @@ fn recall_facts(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let best_score = raw_candidates
-        .first()
-        .map(|c| c.hit.score)
-        .unwrap_or(0.0);
+    let best_score = raw_candidates.first().map(|c| c.hit.score).unwrap_or(0.0);
 
     let mut facts = Vec::new();
     let mut notes: Vec<String> = Vec::new();

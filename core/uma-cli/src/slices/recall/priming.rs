@@ -18,14 +18,18 @@ pub fn prime_neighbors(
         return facts;
     }
 
-    let hits: Vec<String> = facts
+    let hits_with_scores: Vec<(String, f64)> = facts
         .iter()
-        .filter_map(|f| f.get("id").and_then(|v| v.as_str()).map(String::from))
+        .filter_map(|f| {
+            let id = f.get("id").and_then(|v| v.as_str()).map(String::from)?;
+            let score = f.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            Some((id, score))
+        })
         .collect();
 
     // Load the facts behind the hits so the graph can be built.
     let mut hit_facts = Vec::new();
-    for id in &hits {
+    for (id, _) in &hits_with_scores {
         if let Ok(fact_id) = id.parse::<FactId>() {
             if let Ok(fact) = Store::find_by_id(&fact_id) {
                 hit_facts.push(fact);
@@ -36,16 +40,24 @@ pub fn prime_neighbors(
         return facts;
     }
 
-    // The graph MUST span the whole memory, not just the hits: an edge that
-    // exists only between the hits is already known, so spreading from them
-    // could never surface a new neighbor — which is exactly why this step used
-    // to be a no-op. Load every known root's facts (cheap for a personal store).
+    // The graph MUST span the active context (current project + global store),
+    // not foreign project stores from all_known_roots.
     let mut graph_facts: Vec<Fact> = Vec::new();
-    if let Ok(roots) = Store::all_known_roots() {
-        for root in roots {
-            if let Ok(all) = Store::new(root).list_all() {
-                graph_facts.extend(all);
-            }
+    let mut roots = Vec::new();
+    if let Ok(global) = Store::global_root_path() {
+        if global.exists() {
+            roots.push(global);
+        }
+    }
+    if let Ok(git_root) = Store::find_git_root() {
+        let project_uma = git_root.join(".uma");
+        if project_uma.exists() && !roots.contains(&project_uma) {
+            roots.push(project_uma);
+        }
+    }
+    for root in roots {
+        if let Ok(all) = Store::new(root).list_all() {
+            graph_facts.extend(all);
         }
     }
     for fact in &hit_facts {
@@ -55,10 +67,10 @@ pub fn prime_neighbors(
     }
 
     let graph = uma_core::priming::AssociationGraph::build(&graph_facts);
-    let mut seen: Vec<String> = hits.clone();
+    let mut seen: Vec<String> = hits_with_scores.iter().map(|(id, _)| id.clone()).collect();
     let mut primed_candidates: Vec<(f64, f64, Fact)> = Vec::new();
 
-    for hit_id in &hits {
+    for (hit_id, hit_score) in &hits_with_scores {
         for activated in graph.spread(hit_id, 0.5, 1) {
             if seen.contains(&activated.id) || activated.id == *hit_id {
                 continue;
@@ -66,23 +78,31 @@ pub fn prime_neighbors(
             if exclude.iter().any(|id| id == &activated.id) {
                 continue;
             }
-            let neighbor_score = activated.activation;
+            // Scale activation (0..1) by the source hit's score so neighbor scores
+            // are on the exact same scale as direct hits and pass the same quality gate.
+            let neighbor_score = hit_score * activated.activation;
             if !passes_recall_threshold(neighbor_score, best_score) {
                 continue;
             }
             if let Ok(fact_id) = activated.id.parse::<FactId>() {
                 if let Ok(neighbor) = Store::find_by_id(&fact_id) {
                     seen.push(activated.id.clone());
-                    primed_candidates.push((neighbor_score, activated.activation, neighbor));
+                    if let Some(existing) =
+                        primed_candidates.iter_mut().find(|(_, _, f)| f.id == neighbor.id)
+                    {
+                        if neighbor_score > existing.0 {
+                            existing.0 = neighbor_score;
+                            existing.1 = activated.activation;
+                        }
+                    } else {
+                        primed_candidates.push((neighbor_score, activated.activation, neighbor));
+                    }
                 }
             }
         }
     }
 
-    primed_candidates.sort_by(|a, b| {
-        b.0.partial_cmp(&a.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    primed_candidates.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let initial_count = facts.len();
     for (neighbor_score, activation, neighbor) in primed_candidates {

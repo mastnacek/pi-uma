@@ -6,13 +6,13 @@
  * presentation only.
  */
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { translateForDisplay } from "../slices/translate/index.js";
+import { translateForDisplay } from "../slices/translate/index.ts";
 
 export {
   DisplayTranslation,
   translateOutputForDisplay,
   completeForDisplay,
-} from "../slices/translate/index.js";
+} from "../slices/translate/index.ts";
 
 /**
  * The minimum a display translation needs: model access and the agent dir the

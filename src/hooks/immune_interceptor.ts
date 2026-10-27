@@ -10,11 +10,11 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { ExtensionState } from "../shared/types.js";
-import { runUma, findUmaBinary, updatePlasticity } from "../shared/client.js";
-import { stringsFor } from "../shared/i18n.js";
-import { translateOutputForDisplay, completeForDisplay } from "../shared/translate_client.js";
-import { appendImmuneDecision } from "../shared/decision_log.js";
+import type { ExtensionState } from "../shared/types.ts";
+import { runUma, findUmaBinary, updatePlasticity } from "../shared/client.ts";
+import { stringsFor } from "../shared/i18n.ts";
+import { translateOutputForDisplay, completeForDisplay } from "../shared/translate_client.ts";
+import { appendImmuneDecision } from "../shared/decision_log.ts";
 import {
   assessEdit,
   checkContractRules,
@@ -23,7 +23,7 @@ import {
   matchRule,
   type PainVerdict,
   type RuleL1,
-} from "../slices/immune/index.js";
+} from "../slices/immune/index.ts";
 import {
   buildRecommendationContext,
   formatRecommendation,
@@ -52,6 +52,7 @@ interface CachedRules {
 }
 
 let rulesCache: CachedRules | undefined;
+const pendingWarnings = new Map<string, string>();
 
 /**
  * Deadline wrapper for promises that do NOT own a spawned child (LLM calls
@@ -108,6 +109,7 @@ async function fetchRules(cwd: string): Promise<RuleL1[]> {
 /** Public reset for tests: caches must never leak between test cases. */
 export function resetImmuneCache(): void {
   rulesCache = undefined;
+  pendingWarnings.clear();
 }
 
 /**
@@ -133,7 +135,7 @@ async function recommendForRule(
 }
 
 export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionState): () => void {
-  const unsubscribe = pi.on("tool_call", async (event, ctx) => {
+  const unsubCall = pi.on("tool_call", async (event, ctx) => {
     const mode = state.config.immuneMode;
     if (mode === "off") return undefined;
 
@@ -196,8 +198,17 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
             // operator upheld the rule (blocked the edit) → reinforce; the
             // operator overrode it (proceeded) → frustrate. Fire-and-forget
             // telemetry: a failure never affects the decision itself.
+            // Frustrate only when verdict is contradicts/violates and the operator
+            // proceeds anyway. An edit that only touches or is unrelated must
+            // not erode the rule's weight.
             if (matched) {
-              updatePlasticity(ctx.cwd ?? process.cwd(), matched.id, choice === s.dialogProceed ? "frustrate" : "reinforce");
+              if (choice === s.dialogProceed) {
+                if (rec?.relation === "violates" || (rec?.relation as string) === "contradicts") {
+                  updatePlasticity(ctx.cwd ?? process.cwd(), matched.id, "frustrate");
+                }
+              } else {
+                updatePlasticity(ctx.cwd ?? process.cwd(), matched.id, "reinforce");
+              }
             }
             // The decision log (SPAI-047): evidence for evidence-based mode
             // tuning. Advisory — a logging failure never affects the call.
@@ -211,6 +222,15 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
             if (choice !== s.dialogProceed) {
               return { block: true, reason: action.message };
             }
+
+            // On "Yes, continue", store the warning so it reaches the model via tool_result
+            const jevVerdict = rec ? formatRecommendation(rec, "en") : undefined;
+            const fullWarning = jevVerdict ? `${action.message}\n${jevVerdict}` : action.message;
+            if (pendingWarnings.size > 50) {
+              const firstKey = pendingWarnings.keys().next().value;
+              if (firstKey) pendingWarnings.delete(firstKey);
+            }
+            pendingWarnings.set(event.toolCallId, fullWarning);
           }
           return undefined;
         }
@@ -224,5 +244,28 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
     }
     return undefined;
   });
-  return unsubscribe;
+
+  const unsubResult = pi.on("tool_result", async (event, _ctx) => {
+    const warning = pendingWarnings.get(event.toolCallId);
+    if (!warning) return undefined;
+    pendingWarnings.delete(event.toolCallId);
+
+    const warningText = `\n[UMA Immune Advisory Warning]:\n${warning}`;
+    return {
+      content: [
+        ...event.content,
+        {
+          type: "text" as const,
+          text: warningText,
+        },
+      ],
+      structuredContent: event.structuredContent,
+      details: event.details,
+    };
+  });
+
+  return () => {
+    unsubCall();
+    unsubResult();
+  };
 }

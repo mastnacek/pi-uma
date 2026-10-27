@@ -10,9 +10,9 @@
 import type { Api, AssistantMessage, Context, Model } from "@earendil-works/pi-ai";
 import { completeSimple } from "@earendil-works/pi-ai/compat";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { resolveTranslateModel } from "./model.js";
+import { resolveTranslateModel } from "./model.ts";
 
-import { buildTranslateContext } from "./prompt.js";
+import { buildTranslateContext } from "./prompt.ts";
 export { buildTranslateContext };
 
 export interface DisplayTranslationResult {
@@ -171,14 +171,19 @@ export async function completeForDisplay(
  * "unavailable" without a why is undebuggable.
  */
 export class DisplayTranslation {
+  private readonly ctx: ExtensionContext;
+  private readonly onChange: () => void;
   private text?: string;
   private state: "idle" | "pending" | "done" | "failed" = "idle";
   private lastError?: string;
 
   constructor(
-    private readonly ctx: ExtensionContext,
-    private readonly onChange: () => void,
-  ) {}
+    ctx: ExtensionContext,
+    onChange: () => void,
+  ) {
+    this.ctx = ctx;
+    this.onChange = onChange;
+  }
 
   /** Fires the translation once; later calls are no-ops. */
   start(body: string): void {
