@@ -1,6 +1,5 @@
 //! Search entry point and index-cache maintenance.
 
-
 use crate::domain::{FactType, Scope};
 use crate::embeddings::EmbeddingClient;
 use crate::search::{
