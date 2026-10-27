@@ -4,9 +4,9 @@ use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
 
 use super::{
-    candidate_passes_threshold, compute_match_metrics, emit, get_fact_body,
-    query_unique_terms, recall_facts, recall_query, resolve_min_coverage, resolve_per_term_min,
-    CheckArgs, MatchMetrics, RawCandidate, RecallThresholdMode, RecallVerdict,
+    candidate_passes_threshold, compute_match_metrics, emit, get_fact_body, query_unique_terms,
+    recall_facts, recall_query, resolve_min_coverage, resolve_per_term_min, CheckArgs,
+    MatchMetrics, RawCandidate, RecallThresholdMode, RecallVerdict,
 };
 
 /// Reads a preview of the fact body (~400 characters) for relevance evaluation.

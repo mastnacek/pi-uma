@@ -231,7 +231,11 @@ mod tests {
 
     #[test]
     fn test_compute_coverage_prefix_matching() {
-        let terms = vec!["domino".to_string(), "target".to_string(), "export".to_string()];
+        let terms = vec![
+            "domino".to_string(),
+            "target".to_string(),
+            "export".to_string(),
+        ];
         // "domino" matches "domino", "target" matches "targets", "export" matches "exportdxl"
         let text = "IBM Domino server targets the exportdxl line of agents";
         assert_eq!(compute_coverage(text, &terms), 1.0);
