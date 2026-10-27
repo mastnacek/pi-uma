@@ -71,8 +71,9 @@ fn test_offline_verdict_is_deterministic() -> anyhow::Result<()> {
     let args = parse(&["recall", "check", "again like last time with pnpm"])?;
     match args.command {
         RecallCommand::Check(check) => {
-            let verdict = fastbrain::judge_recall_need(&check.prompt.join(" "), Judge::Offline, None)
-                .map_err(|f| anyhow::anyhow!("{f}"))?;
+            let verdict =
+                fastbrain::judge_recall_need(&check.prompt.join(" "), Judge::Offline, None)
+                    .map_err(|f| anyhow::anyhow!("{f}"))?;
             assert!(verdict.answer.search);
             assert_eq!(verdict.judged_by, fastbrain::Backend::Offline);
         }

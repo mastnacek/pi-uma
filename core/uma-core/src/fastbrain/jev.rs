@@ -29,7 +29,10 @@ fn parse_relationship(content: &str) -> Result<Relationship> {
 }
 
 /// Parses the model's Decisions API answer into a recall verdict.
-pub(crate) fn parse_decisions_recall(resp: &serde_json::Value, threshold: f64) -> Result<RecallNeed> {
+pub(crate) fn parse_decisions_recall(
+    resp: &serde_json::Value,
+    threshold: f64,
+) -> Result<RecallNeed> {
     let noul = resp["answers"]["needs_memory"]["noul"]
         .as_f64()
         .context("Missing or non-numeric 'answers.needs_memory.noul' in decisions response")?;
@@ -213,9 +216,11 @@ mod tests {
         assert!(!greeting.answer.search, "greeting must not trigger recall");
 
         // recall_need: a project-convention question must trigger it.
-        let project_q =
-            recall_need("why did we adopt vertical slice architecture for this repository?", None)
-                .expect("live recall call");
+        let project_q = recall_need(
+            "why did we adopt vertical slice architecture for this repository?",
+            None,
+        )
+        .expect("live recall call");
         assert!(
             project_q.answer.search,
             "convention question must trigger recall"

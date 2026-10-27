@@ -164,7 +164,10 @@ pub(crate) fn complete_decisions(
     if !response.status().is_success() {
         let status = response.status();
         let detail = response.text().unwrap_or_default();
-        anyhow::bail!("OpenRouter decisions returned {status}: {}", truncate(&detail, 200));
+        anyhow::bail!(
+            "OpenRouter decisions returned {status}: {}",
+            truncate(&detail, 200)
+        );
     }
 
     let parsed: serde_json::Value = response

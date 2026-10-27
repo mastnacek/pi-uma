@@ -117,8 +117,9 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
 
     // judge_recall_need already degrades Jev to offline with a note when the
     // transport fails, so one call covers both transports and their failure.
-    let verdict = fastbrain::judge_recall_need(&prompt, judge_from_name(&args.judge), args.min_prob)
-        .map_err(|failure| anyhow::anyhow!("Recall check failed: {failure}"))?;
+    let verdict =
+        fastbrain::judge_recall_need(&prompt, judge_from_name(&args.judge), args.min_prob)
+            .map_err(|failure| anyhow::anyhow!("Recall check failed: {failure}"))?;
     let need = &verdict.answer;
 
     // No trigger means no search at all: the whole point of the gate.
