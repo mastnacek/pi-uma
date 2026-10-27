@@ -65,6 +65,9 @@ enum Commands {
     /// File pain score from correction and git history (read-only)
     Risk(slices::risk::RiskArgs),
 
+    /// Manage domain tags on memory facts
+    Domains(slices::domains::DomainsArgs),
+
     /// Decide whether a message needs memory recall (read-only; S3 gate)
     Recall(slices::recall::RecallArgs),
 
@@ -116,6 +119,7 @@ fn main() -> Result<()> {
         Commands::Sync(args) => slices::sync::run(args),
         Commands::Scopes(args) => slices::scopes::run(args),
         Commands::Risk(args) => slices::risk::run(args),
+        Commands::Domains(args) => slices::domains::run(args),
         Commands::Recall(args) => slices::recall::run(args),
         Commands::Route(args) => slices::route::run(args),
         Commands::Secrets(args) => slices::secrets::run(args),
