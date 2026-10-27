@@ -117,7 +117,7 @@ fn test_passes_recall_threshold_discards_non_positive_and_nan() {
 
 #[test]
 fn test_passes_recall_threshold_discards_below_absolute_minimum() {
-    // Repro case: "plasticity half-life" returned 7.4, 6.8, 6.6 — all below absolute min (8.0).
+    // Repro case: "plasticity half-life" returned 7.4, 6.8, 6.6 — all below absolute min (12.0).
     let best = 7.4;
     assert!(!passes_recall_threshold(7.4, best));
     assert!(!passes_recall_threshold(6.8, best));
@@ -127,9 +127,27 @@ fn test_passes_recall_threshold_discards_below_absolute_minimum() {
     assert!(!passes_recall_threshold(1.38, 1.38));
     assert!(!passes_recall_threshold(0.00, 1.38));
 
-    // Valid hits at or above 8.0 pass when they match the best score.
-    assert!(passes_recall_threshold(8.0, 8.0));
-    assert!(passes_recall_threshold(8.44, 8.44));
+    // Regression test: false positives in negatives/traps score 9.8 and 9.9
+    // (live test: NEG-5 "Keep hook logic pure" 9.9, TRAP-1 time-theme-switcher 9.9) — must fail.
+    assert!(
+        !passes_recall_threshold(9.8, 9.8),
+        "9.8 must fail absolute threshold 12.0"
+    );
+    assert!(
+        !passes_recall_threshold(9.9, 9.9),
+        "9.9 (NEG-5 / TRAP-1 score) must fail absolute threshold 12.0"
+    );
+
+    // Valid hits at or above 12.0 pass when they match the best score.
+    // Regression test: lowest expected fact in scenarios scores 12.7 — must pass.
+    assert!(
+        passes_recall_threshold(12.0, 12.0),
+        "exact boundary 12.0 must pass"
+    );
+    assert!(
+        passes_recall_threshold(12.7, 12.7),
+        "12.7 (lowest expected fact score) must pass"
+    );
 }
 
 #[test]
@@ -149,16 +167,16 @@ fn test_passes_recall_threshold_relative_50_percent_cutoff() {
         "4.4 is ~17.8% of best, far below 50%"
     );
 
-    // Score above MIN_ABSOLUTE_SCORE (8.0) but below 50% of best (12.35) must be discarded.
+    // Score above MIN_ABSOLUTE_SCORE (12.0) but below 50% of best (12.35) must be discarded.
     assert!(
-        !passes_recall_threshold(10.0, best),
-        "10.0 is >= 8.0 but < 12.35 (50% of 24.7), must be discarded"
+        !passes_recall_threshold(12.1, best),
+        "12.1 is >= 12.0 but < 12.35 (50% of 24.7), must be discarded"
     );
 
     // Score at or above 50% of best is retained.
     assert!(
         passes_recall_threshold(13.0, best),
-        "13.0 is >= 8.0 and >= 12.35 (50% of 24.7), must be retained"
+        "13.0 is >= 12.0 and >= 12.35 (50% of 24.7), must be retained"
     );
 }
 
@@ -168,7 +186,7 @@ fn test_priming_subject_to_same_threshold() {
     let best = 24.7;
 
     // Strong hit (24.7) with 0.5 activation gives neighbor_score = 12.35.
-    // 12.35 >= MIN_ABSOLUTE_SCORE (8.0) and >= 50% of 24.7 -> passes!
+    // 12.35 >= MIN_ABSOLUTE_SCORE (12.0) and >= 50% of 24.7 -> passes!
     let strong_neighbor = best * 0.5;
     assert!(
         passes_recall_threshold(strong_neighbor, best),
@@ -176,7 +194,7 @@ fn test_priming_subject_to_same_threshold() {
     );
 
     // Hit with lower score (12.0) with 0.5 activation gives neighbor_score = 6.0.
-    // 6.0 < MIN_ABSOLUTE_SCORE (8.0) -> fails!
+    // 6.0 < MIN_ABSOLUTE_SCORE (12.0) -> fails!
     let weak_neighbor = 12.0 * 0.5;
     assert!(
         !passes_recall_threshold(weak_neighbor, best),

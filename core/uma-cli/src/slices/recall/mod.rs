@@ -195,10 +195,16 @@ fn emit(verdict: &RecallVerdict, json: bool) -> Result<()> {
 
 /// Minimum absolute score for a fact or primed neighbor to be recalled.
 ///
-/// Discards low-confidence hits (e.g. partial OR match noise with scores < 8.0,
-/// such as ~7.4 for unrelated multi-word queries) while preserving strong, high-signal
-/// matches (e.g. single-term exact matches at ~8.4+ and multi-term matches at ~17-25).
-pub const MIN_ABSOLUTE_SCORE: f64 = 8.0;
+/// Discards low-confidence hits, partial OR matches, and cross-topic trap noise
+/// while preserving strong, high-signal matches.
+///
+/// Scenario proof (`npm run scenarios -- --judge always`):
+/// - All 16 expected facts have score >= 12.7.
+/// - False positive sums in negatives/traps are 9.8 and 9.9 (live test: NEG-5
+///   "Keep hook logic pure" 9.9, TRAP-1 time-theme-switcher 9.9).
+/// - Threshold 12 holds 16/16 expected facts while reducing extra facts from 16 to 7.
+/// - Threshold 14 would lose 4 expected facts, so it cannot be higher.
+pub const MIN_ABSOLUTE_SCORE: f64 = 12.0;
 
 /// Relative score threshold ratio compared to the best hit in the candidate pool.
 ///
