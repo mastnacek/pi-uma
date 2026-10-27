@@ -4,52 +4,23 @@ use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
 
 use super::{
-    emit, recall_facts, recall_query, CheckArgs, RawCandidate, RecallVerdict,
+    emit, passes_recall_threshold, recall_facts, recall_query, CheckArgs, RawCandidate,
+    RecallVerdict,
 };
 
-/// Reads a preview of the fact (title + description if any + body preview ~400 characters)
-/// for relevance evaluation.
+/// Reads a preview of the fact body (~400 characters) for relevance evaluation.
 fn get_fact_body_preview(hit: &SearchHit) -> String {
-    let mode = std::env::var("UMA_RECALL_PREVIEW").unwrap_or_else(|_| "full".to_string());
-
-    let (desc, body) = if let Some(ref path) = hit.file_path {
+    if let Some(ref path) = hit.file_path {
         if let Ok(content) = std::fs::read_to_string(path) {
             if let Ok(fact) = uma_core::serialization::markdown_to_fact(&content) {
-                (fact.description, fact.body)
-            } else {
-                (hit.description.clone(), hit.snippet.clone())
+                return fact.body.trim().chars().take(400).collect();
             }
-        } else {
-            (hit.description.clone(), hit.snippet.clone())
         }
-    } else if let Ok(fact) = Store::find_by_id(&hit.id) {
-        (fact.description, fact.body)
-    } else {
-        (hit.description.clone(), hit.snippet.clone())
-    };
-
-    let body_prev: String = body.trim().chars().take(400).collect();
-    if mode == "body" {
-        return body_prev;
     }
-
-    let mut parts = Vec::new();
-    parts.push(format!("Title: {}", hit.title));
-    if let Some(d) = desc.as_ref().filter(|s| !s.trim().is_empty()) {
-        parts.push(format!("Description: {}", d.trim()));
+    if let Ok(fact) = Store::find_by_id(&hit.id) {
+        return fact.body.trim().chars().take(400).collect();
     }
-    parts.push(format!("Body: {}", body_prev));
-    parts.join("\n")
-}
-
-fn env_f64(key: &str) -> Option<f64> {
-    std::env::var(key).ok().and_then(|v| v.parse::<f64>().ok())
-}
-
-fn passes_pool_threshold(score: f64, best_score: f64) -> bool {
-    let min_score = env_f64("UMA_RELEVANCE_MIN_SCORE").unwrap_or(super::MIN_ABSOLUTE_SCORE);
-    let ratio = env_f64("UMA_RELEVANCE_REL_RATIO").unwrap_or(super::RELATIVE_SCORE_RATIO);
-    !score.is_nan() && score > 0.0 && score >= min_score && score >= best_score * ratio
+    hit.snippet.chars().take(400).collect()
 }
 
 /// Executes recall check in `jev-relevance` mode:
@@ -98,35 +69,8 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
         if candidate_pool.len() >= 8 {
             break;
         }
-        if passes_pool_threshold(c.hit.score, best_score) {
+        if passes_recall_threshold(c.hit.score, best_score) {
             candidate_pool.push(c);
-        }
-    }
-
-    // Hybrid pool: supplement with up to 4 semantic candidates (cosine similarity >= min_cos)
-    let semantic_enabled = std::env::var("UMA_RECALL_SEMANTIC")
-        .map(|v| v.trim() != "0")
-        .unwrap_or(true);
-    let min_cos = env_f64("UMA_RECALL_SEMANTIC_MIN_COS").unwrap_or(0.45);
-
-    if semantic_enabled {
-        if let Ok(sem_hits) = Store::search_semantic_pool(
-            &query,
-            &args.exclude,
-            8,
-            std::time::Duration::from_millis(1500),
-        ) {
-            for hit in sem_hits.into_iter().filter(|h| h.score >= min_cos).take(4) {
-                if candidate_pool.len() >= 8 {
-                    break;
-                }
-                if !candidate_pool.iter().any(|c| c.hit.id == hit.id) {
-                    candidate_pool.push(RawCandidate {
-                        hit,
-                        degraded_note: None,
-                    });
-                }
-            }
         }
     }
 
@@ -158,45 +102,19 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
 
     match relevance_res {
         Err(_) => {
-            // Failure/timeout -> return results using already loaded candidates without re-triggering search
-            let fallback_mode =
-                std::env::var("UMA_RECALL_FALLBACK").unwrap_or_else(|_| "cached".to_string());
-            let (facts, note) = if fallback_mode == "reissue" {
-                let (f, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
-                let n = if search_notes.is_empty() {
-                    Some("relevance judge degraded".to_string())
-                } else {
-                    Some(format!(
-                        "relevance judge degraded; {}",
-                        search_notes.join("; ")
-                    ))
-                };
-                (f, n)
+            // Failure/timeout -> return results as --judge always with note "relevance judge degraded"
+            let (facts, search_notes) = recall_facts(&prompt, args.max, &args.exclude)?;
+            let note = if search_notes.is_empty() {
+                Some("relevance judge degraded".to_string())
             } else {
-                let mut f = Vec::new();
-                for cand in candidate_pool.iter().take(args.max) {
-                    f.push(serde_json::json!({
-                        "id": cand.hit.id,
-                        "title": cand.hit.title,
-                        "fact_type": cand.hit.fact_type,
-                        "scope": cand.hit.scope,
-                        "score": cand.hit.score,
-                        "snippet": cand.hit.snippet,
-                        "tags": cand.hit.tags,
-                    }));
-                }
-                let mut search_notes = vec!["relevance judge degraded".to_string()];
-                if let Some(dn) = degraded_note {
-                    if !search_notes.contains(&dn) {
-                        search_notes.push(dn);
-                    }
-                }
-                (f, Some(search_notes.join("; ")))
+                Some(format!(
+                    "relevance judge degraded; {}",
+                    search_notes.join("; ")
+                ))
             };
-
             emit(
                 &RecallVerdict {
-                    search: !facts.is_empty(),
+                    search: true,
                     judged_by: "jev-relevance".to_string(),
                     fact_types: Vec::new(),
                     probability: Vec::new(),
@@ -258,47 +176,5 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                 args.json,
             )
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_passes_pool_threshold_default() {
-        let best = 20.0;
-        assert!(passes_pool_threshold(20.0, best));
-        assert!(passes_pool_threshold(12.0, best));
-        assert!(!passes_pool_threshold(11.9, best));
-        assert!(!passes_pool_threshold(9.9, best));
-
-        let best_high = 30.0;
-        // 50% of 30 is 15.0
-        assert!(!passes_pool_threshold(14.0, best_high));
-        assert!(passes_pool_threshold(15.0, best_high));
-    }
-
-    #[test]
-    fn test_get_fact_body_preview_formatting() {
-        let hit = SearchHit {
-            id: uma_core::domain::FactId::new(),
-            title: "Export agents order".to_string(),
-            description: Some("Order of execution".to_string()),
-            fact_type: uma_core::domain::FactType::Decision,
-            scope: uma_core::domain::Scope::Global,
-            project_name: "global".to_string(),
-            status: uma_core::domain::FactStatus::Stable,
-            supersedes: None,
-            score: 15.0,
-            snippet: "The pipeline runs ExportDXL first then sync.".to_string(),
-            tags: vec![],
-            file_path: None,
-        };
-
-        let preview = get_fact_body_preview(&hit);
-        assert!(preview.contains("Title: Export agents order"));
-        assert!(preview.contains("Description: Order of execution"));
-        assert!(preview.contains("Body: The pipeline runs ExportDXL first then sync."));
     }
 }
