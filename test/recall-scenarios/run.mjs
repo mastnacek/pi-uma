@@ -70,7 +70,8 @@ function score(c, verdict) {
     return { ...f, primed, label: bad ? `FORBIDDEN:${bad.group}` : good ? "expected" : primed ? "extra(primed)" : "extra" };
   });
   const stale = (c.must_include ?? [])
-    .filter((exp) => exp.id && facts.some((f) => f.id !== exp.id && matches(f, { title: exp.title })))
+    // Stale only when the exact ID is absent and the title fallback found its successor.
+    .filter((exp) => exp.id && !facts.some((f) => f.id === exp.id) && facts.some((f) => matches(f, { title: exp.title })))
     .map((exp) => exp.id);
 
   const leaked = labelled.filter((f) => f.label.startsWith("FORBIDDEN"));
