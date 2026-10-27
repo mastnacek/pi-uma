@@ -18,8 +18,10 @@ use uma_core::fastbrain::{self, Judge};
 use uma_core::search::SearchHit;
 
 mod priming;
+mod query;
 mod threshold;
 
+pub use query::*;
 pub use threshold::*;
 
 #[derive(Args, Debug, Clone)]
@@ -305,22 +307,6 @@ pub(crate) fn recall_facts_with_alt(
     }
 
     Ok((facts, notes))
-}
-
-/// Builds the search query from the prompt: meaningful words only, capped, so
-/// BM25 keeps signal instead of matching everything vaguely.
-pub(crate) fn recall_query(prompt: &str) -> String {
-    const NOISE: &[&str] = &[
-        "the", "and", "for", "with", "that", "this", "please", "could", "would", "does", "jak",
-        "pro", "nebo", "když", "aby", "tedy",
-    ];
-    prompt
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|word| word.chars().count() > 2 && !NOISE.contains(&word.to_lowercase().as_str()))
-        .take(12)
-        .map(str::to_string)
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 #[cfg(test)]

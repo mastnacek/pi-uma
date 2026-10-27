@@ -3,8 +3,10 @@
 use crate::domain::Scope;
 
 /// Builds a prefix-match FTS5 query from free-form user input.
+/// Replaces '-' inside terms with space so FTS5 does not interpret it as NOT.
 pub fn build_fts_query(query: &str) -> String {
-    let tokens: Vec<&str> = query.split_whitespace().collect();
+    let normalized = query.replace('-', " ");
+    let tokens: Vec<&str> = normalized.split_whitespace().collect();
     if tokens.is_empty() {
         return query.to_string();
     }
@@ -24,8 +26,10 @@ pub fn build_fts_query(query: &str) -> String {
 
 /// Builds an any-term (OR) FTS5 query: the relaxation for multi-token
 /// queries where the implicit-AND form matched nothing.
+/// Replaces '-' inside terms with space so FTS5 does not interpret it as NOT.
 pub fn build_fts_query_or(query: &str) -> String {
-    let tokens: Vec<&str> = query.split_whitespace().collect();
+    let normalized = query.replace('-', " ");
+    let tokens: Vec<&str> = normalized.split_whitespace().collect();
     if tokens.is_empty() {
         return query.to_string();
     }
@@ -46,6 +50,7 @@ pub fn build_fts_query_or(query: &str) -> String {
 /// Builds a quoted FTS5 query safe against syntax errors from special characters.
 pub fn build_safe_fts_query(query: &str) -> String {
     query
+        .replace('-', " ")
         .split_whitespace()
         .map(|t| format!("\"{}\"", t.replace('"', "")))
         .collect::<Vec<_>>()
@@ -59,5 +64,24 @@ pub fn parse_scope_str(s: &str) -> Scope {
         Scope::Project(name.to_string())
     } else {
         Scope::Project(s.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hyphen_replacement_prevents_fts5_not() {
+        assert_eq!(build_fts_query("fail-closed"), "fail* closed*");
+        assert_eq!(build_fts_query_or("fail-closed"), "fail* OR closed*");
+        assert_eq!(build_safe_fts_query("fail-closed"), "\"fail\" \"closed\"");
+    }
+
+    #[test]
+    fn test_unhyphenated_queries_unchanged() {
+        assert_eq!(build_fts_query("hello world"), "hello* world*");
+        assert_eq!(build_fts_query_or("hello world"), "hello* OR world*");
+        assert_eq!(build_safe_fts_query("hello world"), "\"hello\" \"world\"");
     }
 }
