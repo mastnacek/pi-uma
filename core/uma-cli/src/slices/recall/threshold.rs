@@ -1,4 +1,4 @@
-//! Recall scoring thresholds, dynamic floor, project boost, and candidate pooling.
+//! Recall scoring thresholds, candidate pooling, and bilingual merging.
 
 use anyhow::Result;
 use std::collections::HashMap;
@@ -15,28 +15,6 @@ pub fn is_bilingual_enabled() -> bool {
 
 pub fn is_bilingual_enabled_from(val: Option<&str>) -> bool {
     val.map(|v| v.trim() != "0").unwrap_or(true)
-}
-
-/// Check if dynamic floor is enabled (env `UMA_RECALL_DYNAMIC_FLOOR`, default 0).
-/// When enabled: if no candidate reaches 12.0, but the best has >= 6.0,
-/// the top 2 candidates meeting relative 50% enter the pool.
-pub fn is_dynamic_floor_enabled() -> bool {
-    is_dynamic_floor_enabled_from(std::env::var("UMA_RECALL_DYNAMIC_FLOOR").ok().as_deref())
-}
-
-pub fn is_dynamic_floor_enabled_from(val: Option<&str>) -> bool {
-    val.map(|v| v.trim() == "1").unwrap_or(false)
-}
-
-/// Multiplier for BM25 scores of facts from the current project before thresholds
-/// (env `UMA_RECALL_PROJECT_BOOST`, default 1.0).
-pub fn resolve_project_boost() -> f64 {
-    resolve_project_boost_from(std::env::var("UMA_RECALL_PROJECT_BOOST").ok().as_deref())
-}
-
-pub fn resolve_project_boost_from(val: Option<&str>) -> f64 {
-    val.and_then(|v| v.trim().parse::<f64>().ok())
-        .unwrap_or(1.0)
 }
 
 /// Evaluates whether a score passes the recall quality gate:
@@ -76,8 +54,8 @@ pub fn get_fact_body_preview(hit: &SearchHit) -> String {
     get_fact_body(hit).trim().chars().take(400).collect()
 }
 
-/// Recalls a pool of candidates for a single prompt string, applying project boost,
-/// sorting, and absolute + relative thresholds (with dynamic floor if enabled).
+/// Recalls a pool of candidates for a single prompt string, applying
+/// sorting and absolute + relative thresholds.
 pub(crate) fn retrieve_candidate_pool(
     prompt: &str,
     exclude: &[String],
@@ -102,18 +80,6 @@ pub(crate) fn retrieve_candidate_pool(
         .map(|hit| RawCandidate { hit })
         .collect();
 
-    // Project boost: multiplies BM25 score of facts from current project before thresholds
-    let boost = resolve_project_boost();
-    if (boost - 1.0).abs() > f64::EPSILON {
-        if let Some(cp) = Store::current_project_name() {
-            for candidate in &mut raw_candidates {
-                if candidate.hit.project_name == cp {
-                    candidate.hit.score *= boost;
-                }
-            }
-        }
-    }
-
     raw_candidates.sort_by(|a, b| {
         b.hit
             .score
@@ -130,17 +96,6 @@ pub(crate) fn retrieve_candidate_pool(
                 break;
             }
             if passes_recall_threshold(c.hit.score, best_score) {
-                pool.push(c);
-            }
-        }
-    } else if is_dynamic_floor_enabled() && best_score >= 6.0 {
-        // Dynamic floor: when no candidate exceeds 12, but best has >= 6.0,
-        // let top 2 candidates meeting relative 50% into the pool.
-        for c in raw_candidates {
-            if pool.len() >= 2.min(max_candidates) {
-                break;
-            }
-            if c.hit.score >= best_score * RELATIVE_SCORE_RATIO {
                 pool.push(c);
             }
         }
@@ -193,19 +148,6 @@ mod tests {
         assert!(is_bilingual_enabled_from(None));
         assert!(!is_bilingual_enabled_from(Some("0")));
         assert!(is_bilingual_enabled_from(Some("1")));
-    }
-
-    #[test]
-    fn test_dynamic_floor_default() {
-        assert!(!is_dynamic_floor_enabled_from(None));
-        assert!(is_dynamic_floor_enabled_from(Some("1")));
-        assert!(!is_dynamic_floor_enabled_from(Some("0")));
-    }
-
-    #[test]
-    fn test_project_boost_default() {
-        assert!((resolve_project_boost_from(None) - 1.0).abs() < f64::EPSILON);
-        assert!((resolve_project_boost_from(Some("1.25")) - 1.25).abs() < f64::EPSILON);
     }
 
     #[test]
