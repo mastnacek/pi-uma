@@ -137,11 +137,65 @@ function redirectWritesStore(tokens: string[]): boolean {
   return false;
 }
 
-/** Utilities whose execution can mutate any file they name. */
+/** Utilities whose execution can mutate any file they name. The Windows and
+ *  PowerShell spellings are listed too: the gate scans `cmd /c` and
+ *  `powershell -Command` bodies (see unwrapShell), so `copy nul .uma\x.md`
+ *  and `Set-Content .uma/x.md` must count as writes like `cp` and `tee`. */
 const MUTATING_UTILS = new Set([
   "tee", "cp", "mv", "rm", "del", "sed", "truncate", "dd",
   "install", "rsync", "python", "python3", "perl", "node",
+  // cmd.exe builtins
+  "copy", "move", "ren", "rename", "erase", "rd", "rmdir", "xcopy", "robocopy",
+  // PowerShell cmdlets (and their common aliases)
+  "set-content", "add-content", "out-file", "copy-item", "move-item", "remove-item",
+  "new-item", "clear-content", "rename-item", "sc", "ac", "cpi", "mi", "ri", "ni",
 ]);
+
+/** Shells whose `-c` (or `/c`, `-Command`) body is itself a command line. A
+ *  memory write hidden in that body must be judged exactly like a bare one:
+ *  `bash -c "uma write …"` created a fact without the approval modal before
+ *  the gate learned to look inside (live finding, 2026-10-27). */
+const SH_WRAPPERS = new Set(["bash", "sh", "zsh", "dash", "ksh", "fish"]);
+const CMD_WRAPPERS = new Set(["cmd"]);
+const PS_WRAPPERS = new Set(["powershell", "pwsh"]);
+
+/** Lower-case basename without a trailing `.exe`: `C:/Git/bin/bash.exe` → `bash`. */
+function executableName(token: string): string {
+  const base = token.replace(/\\/g, "/").split("/").pop()?.toLowerCase() ?? "";
+  return base.endsWith(".exe") ? base.slice(0, -4) : base;
+}
+
+/**
+ * Strips one shell-wrapper prefix: `bash -lc`, `cmd /c`, `powershell -Command`
+ * (any flag order; the body starts after the command flag). Returns the body
+ * tokens, or undefined when the segment is not a wrapper invocation. Quotes
+ * were already stripped per token by segments(), so the body is inline.
+ */
+function unwrapShell(tokens: string[]): string[] | undefined {
+  const name = executableName(tokens[0] ?? "");
+  let isBody: (flag: string) => boolean;
+  if (SH_WRAPPERS.has(name)) isBody = (f) => /^-[a-z]*c[a-z]*$/i.test(f);
+  else if (CMD_WRAPPERS.has(name)) isBody = (f) => /^\/[ck]$/i.test(f);
+  else if (PS_WRAPPERS.has(name)) isBody = (f) => /^-c(o(m(m(a(n(d)?)?)?)?)?)?$/i.test(f);
+  else return undefined;
+  for (let i = 1; i < tokens.length; i++) {
+    if (isBody(tokens[i])) return tokens.slice(i + 1);
+    if (!tokens[i].startsWith("-") && !tokens[i].startsWith("/")) break; // positional: a script file, not a body
+  }
+  return undefined;
+}
+
+/** The effective command line after env assignments, transparent wrappers and
+ *  any chain of shell wrappers (`sudo bash -c "cmd /c …"`). */
+function unwrapAll(tokens: string[]): string[] {
+  let rest = tokens.slice(commandIndexAfter(tokens, true));
+  for (let guard = 0; guard < 8; guard++) {
+    const body = unwrapShell(rest);
+    if (body === undefined) break;
+    rest = body.slice(commandIndexAfter(body, true));
+  }
+  return rest;
+}
 
 /** Wrappers that do not change what the effective command touches. Shared by
  *  the store-write scan and the UMA-binary scan so both see through them. */
@@ -167,9 +221,18 @@ function commandIndexAfter(tokens: string[], skipEnv: boolean): number {
 function utilityWritesStore(tokens: string[]): boolean {
   for (const skipEnv of [false, true]) {
     const cmdIdx = commandIndexAfter(tokens, skipEnv);
-    const cmd = tokens[cmdIdx]?.toLowerCase();
+    const cmd = executableName(tokens[cmdIdx] ?? "");
     if (cmd && MUTATING_UTILS.has(cmd)) {
       return tokens.some((t, idx) => idx !== cmdIdx && tokenTouchesStore(t));
+    }
+  }
+  // The same check on the body of a shell wrapper: `cmd /c copy nul .uma\x.md`,
+  // `powershell -Command "Set-Content .uma/x.md y"`, `bash -c "tee .uma/x"`.
+  const body = unwrapAll(tokens);
+  if (body !== tokens && body.length > 0) {
+    const cmd = executableName(body[0]);
+    if (MUTATING_UTILS.has(cmd)) {
+      return body.some((t, idx) => idx !== 0 && tokenTouchesStore(t));
     }
   }
   return false;
@@ -195,18 +258,15 @@ function commandWritesMemoryPath(command: string): boolean {
  */
 export function isBypassingBashCommand(command: string): boolean {
   for (const tokens of segments(command)) {
-    const rest = effectiveCommandForBinary(tokens);
+    // Wrapper-aware: env assignments, transparent wrappers and shell bodies
+    // (`bash -c`, `cmd /c`, `powershell -Command`) never make a different
+    // binary the real command.
+    const rest = unwrapAll(tokens);
     if (isUmaExecutable(rest[0] ?? "") && subcommandMutatesMemory(rest.slice(1))) {
       return true;
     }
   }
   return commandWritesMemoryPath(command);
-}
-
-/** Wrapper-aware effective command for the UMA-binary scan: env assignments
- *  and transparent wrappers never make a different binary the real command. */
-function effectiveCommandForBinary(tokens: string[]): string[] {
-  return tokens.slice(commandIndexAfter(tokens, true));
 }
 
 /**

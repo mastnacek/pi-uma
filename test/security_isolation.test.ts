@@ -87,6 +87,12 @@ test("sanitizeConfig normalizes casing and rejects invalid enum values", () => {
 
 test("loadConfig ignores sensitive gates from project .pi/uma.json", () => {
   const tmpProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), "uma-project-test-"));
+  // Isolate the operator's real ~/.pi/agent/uma.json: the assertion is about
+  // the PROJECT file being ignored, so the global file must be absent here
+  // (an operator with appendPrompt enabled globally broke this test).
+  const savedHome = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+  process.env.HOME = tmpProjectDir;
+  process.env.USERPROFILE = tmpProjectDir;
   try {
     const dotPiDir = path.join(tmpProjectDir, ".pi");
     fs.mkdirSync(dotPiDir, { recursive: true });
@@ -112,6 +118,8 @@ test("loadConfig ignores sensitive gates from project .pi/uma.json", () => {
     // Allowed key recallGate is accepted
     assert.equal(config.recallGate, true);
   } finally {
+    process.env.HOME = savedHome.HOME;
+    process.env.USERPROFILE = savedHome.USERPROFILE;
     fs.rmSync(tmpProjectDir, { recursive: true, force: true });
   }
 });

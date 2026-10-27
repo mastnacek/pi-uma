@@ -216,3 +216,33 @@ test("direct bash invocation of uma write or supersede is strictly blocked", () 
   assert.equal(evaluateApprovalGate(safeBash, ctx("tui", true), state(false)), undefined);
 });
 
+
+test("shell wrappers cannot hide a memory write (live bypass 2026-10-27)", () => {
+  // The exact spelling that created a fact without the modal.
+  assert.equal(
+    isBypassingBashCommand('bash -c "D:/01_programovani/pi/plugins/pi-uma/bin/uma.exe write --title bypass-test --body x --type note"'),
+    true,
+  );
+  assert.equal(isBypassingBashCommand("bash -c 'uma write --title a --body b'"), true);
+  assert.equal(isBypassingBashCommand("sh -lc \"uma supersede 01ABC --title t\""), true);
+  assert.equal(isBypassingBashCommand("sudo bash -c 'uma staging approve 01X'"), true);
+  assert.equal(isBypassingBashCommand("cmd /c uma.exe write --title a --body b"), true);
+  assert.equal(isBypassingBashCommand("cmd.exe /C \"uma-cli.exe write --title a\""), true);
+  assert.equal(isBypassingBashCommand("powershell -Command \"uma write --title a --body b\""), true);
+  assert.equal(isBypassingBashCommand("pwsh -NoProfile -c 'uma plasticity reinforce 01X'"), true);
+  // Nested wrappers.
+  assert.equal(isBypassingBashCommand("bash -c \"cmd /c uma write --title a\""), true);
+  // Shell-level store writes inside a wrapper body.
+  assert.equal(isBypassingBashCommand("powershell -Command \"Set-Content .uma/x.md 'y'\""), true);
+  assert.equal(isBypassingBashCommand("pwsh -c \"Out-File -FilePath .uma/x.md -InputObject y\""), true);
+  assert.equal(isBypassingBashCommand("cmd /c copy nul .uma\\x.md"), true);
+  assert.equal(isBypassingBashCommand("bash -c 'printf y | tee .uma/x.md'"), true);
+  assert.equal(isBypassingBashCommand("bash -c 'echo y > .uma/x.md'"), true);
+  // Read-only bodies and unrelated wrappers stay allowed.
+  assert.equal(isBypassingBashCommand("bash -c 'uma search leaf'"), false);
+  assert.equal(isBypassingBashCommand("cmd /c type .uma\\x.md"), false);
+  assert.equal(isBypassingBashCommand("powershell -Command \"Get-Content .uma/x.md\""), false);
+  assert.equal(isBypassingBashCommand("bash script.sh"), false);
+  assert.equal(isBypassingBashCommand("bash -c 'npm test'"), false);
+  assert.equal(isBypassingBashCommand("Set-Content src/app.js 'x'"), false);
+});
