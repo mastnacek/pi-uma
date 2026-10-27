@@ -72,6 +72,12 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
             "SPAI backlog item IDs; defaults to the predecessor's links if omitted — a revision never silently drops task references.",
         })
       ),
+      domains: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "Domain tags restricting recall to projects that declare matching domains; defaults to predecessor's domains if omitted.",
+        })
+      ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       // Resolve the predecessor so the modal shows its real type/scope/tags and
@@ -117,6 +123,7 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
         stale_after: params.staleAfter,
         since: params.since,
         spai: params.spai ?? predecessor?.spai,
+        domains: params.domains ?? predecessor?.domains,
         contract,
       };
 
@@ -160,6 +167,7 @@ export function registerSupersedeTool(pi: ExtensionAPI, state: ExtensionState): 
       if (scopeArg) args.push("--scope", scopeArg);
       if (approved.tags.length > 0) args.push("--tags", approved.tags.join(","));
       if (params.spai && params.spai.length > 0) args.push("--spai", params.spai.join(","));
+      if (approved.domains && approved.domains.length > 0) args.push("--domains", approved.domains.join(","));
       // Contract revision flags are authoured values, not modal-editable ones;
       // the modal renders the resulting contract (engine + severity) so the
       // operator still reviews it before approving.

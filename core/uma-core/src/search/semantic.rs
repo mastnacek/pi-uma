@@ -38,12 +38,26 @@ pub fn search_semantic(
         Some(Scope::Project(_)) => sql.push_str(" AND project_name = ?"),
         None => {
             if let Some(_cp) = opts.current_project {
-                sql.push_str(" AND (project_name = ? OR scope = 'global')");
+                if opts.project_domains.is_empty() {
+                    sql.push_str(
+                        " AND (project_name = ? OR (scope = 'global' AND (domains = '' OR domains IS NULL)))",
+                    );
+                } else {
+                    let domain_clauses = opts
+                        .project_domains
+                        .iter()
+                        .map(|_| "instr(' ' || lower(coalesce(domains, '')) || ' ', ?) > 0")
+                        .collect::<Vec<_>>()
+                        .join(" OR ");
+                    sql.push_str(&format!(
+                        " AND (project_name = ? OR (scope = 'global' AND (domains = '' OR domains IS NULL OR {domain_clauses})))"
+                    ));
+                }
             } else {
-                // SPAI-046: cwd outside any git repo — degrade to GLOBAL-ONLY
+                // SPAI-046: cwd outside any git repo — degrade to GLOBAL-ONLY without domains
                 // (see keyword.rs). The old branch dropped the filter here and
                 // leaked every project's facts into semantic recall.
-                sql.push_str(" AND scope = 'global'");
+                sql.push_str(" AND (scope = 'global' AND (domains = '' OR domains IS NULL))");
             }
         }
     }
@@ -58,6 +72,9 @@ pub fn search_semantic(
         None => {
             if let Some(cp) = opts.current_project {
                 params_vec.push(cp.to_string());
+                for d in &opts.project_domains {
+                    params_vec.push(format!(" {} ", d.trim().to_lowercase()));
+                }
             }
         }
         _ => {}

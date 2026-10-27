@@ -44,6 +44,11 @@ pub struct SupersedeArgs {
     #[arg(long = "spai", value_delimiter = ',')]
     pub spai: Vec<String>,
 
+    /// Domain tags restricting recall to projects that declare matching domains (comma-separated).
+    /// Defaults to predecessor's domains if empty.
+    #[arg(long = "domains", value_delimiter = ',')]
+    pub domains: Vec<String>,
+
     /// Invocation template (defaults to the predecessor's template).
     /// Without this, a revision of a `skill` fact would silently lose its
     /// template and the skill would stop being expandable.
@@ -173,6 +178,12 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
         args.spai
     };
 
+    let domains = if args.domains.is_empty() {
+        old_fact.domains.clone()
+    } else {
+        args.domains
+    };
+
     let body = match args.body {
         Some(b) => b,
         None => {
@@ -190,6 +201,7 @@ pub fn run(args: SupersedeArgs) -> Result<()> {
     new_fact.description = args.description;
     new_fact.tags = tags;
     new_fact.spai = spai;
+    new_fact.domains = domains;
     // Inherit like type/scope/tags: a revision must never silently drop the
     // invocation template, or the skill would stop being invokable.
     new_fact.template = args.template.or_else(|| old_fact.template.clone());

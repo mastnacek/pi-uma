@@ -72,6 +72,7 @@ pub struct SearchOptions<'a> {
     pub query: &'a str,
     pub scope: Option<&'a Scope>,
     pub current_project: Option<&'a str>,
+    pub project_domains: Vec<String>,
     pub fact_type: Option<&'a FactType>,
     pub include_deprecated: bool,
     pub as_of: Option<DateTime<Utc>>,
@@ -202,6 +203,7 @@ mod tests {
             query,
             scope: None,
             current_project: None,
+            project_domains: Vec::new(),
             fact_type: None,
             include_deprecated: false,
             as_of: None,
@@ -333,6 +335,7 @@ mod tests {
             query: "secret",
             scope: None,
             current_project: None, // no git repo — must degrade, not leak
+            project_domains: Vec::new(),
             fact_type: None,
             include_deprecated: false,
             as_of: None,

@@ -41,6 +41,9 @@ pub struct Fact {
     /// task state itself must never enter the fact space (decision 01M4WVY8NVB2WNKKZH3497Y8K9).
     #[serde(default)]
     pub spai: Vec<String>,
+    /// Domain tags restricting recall to projects that declare matching domains.
+    #[serde(default)]
+    pub domains: Vec<String>,
 }
 
 impl Fact {
@@ -69,6 +72,7 @@ impl Fact {
             tags: Vec::new(),
             links: Vec::new(),
             spai: Vec::new(),
+            domains: Vec::new(),
         }
     }
 

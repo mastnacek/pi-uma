@@ -200,5 +200,17 @@ pub fn build_frontmatter_yaml(fact: &Fact) -> Yaml {
         );
     }
 
+    if !fact.domains.is_empty() {
+        map.insert(
+            Yaml::String("domains".to_string()),
+            Yaml::Array(
+                fact.domains
+                    .iter()
+                    .map(|d| Yaml::String(d.clone()))
+                    .collect(),
+            ),
+        );
+    }
+
     Yaml::Hash(map)
 }

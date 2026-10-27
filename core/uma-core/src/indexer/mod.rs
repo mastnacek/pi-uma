@@ -13,7 +13,7 @@ mod tests;
 ///
 /// Public so health checks can report a mismatch between what a given
 /// `index.db` stores and what this build expects.
-pub const FTS_SCHEMA_VERSION: i64 = 2;
+pub const FTS_SCHEMA_VERSION: i64 = 3;
 
 pub struct Indexer {
     conn: Connection,
@@ -97,7 +97,9 @@ impl Indexer {
                 .query_map([], |r| r.get::<_, String>(1))?
                 .filter_map(|c| c.ok())
                 .collect();
-            !cols.is_empty() && cols.iter().any(|c| c == "description")
+            !cols.is_empty()
+                && cols.iter().any(|c| c == "description")
+                && cols.iter().any(|c| c == "domains")
         };
 
         if !has_expected_columns || current != FTS_SCHEMA_VERSION {
@@ -132,6 +134,7 @@ impl Indexer {
                     id UNINDEXED, scope, project_name, fact_type, title, description,
                     body, tags, status, supersedes UNINDEXED, file_path UNINDEXED,
                     since UNINDEXED, until UNINDEXED, stale_after UNINDEXED,
+                    domains UNINDEXED,
                     tokenize = 'porter unicode61'
                 );",
             )

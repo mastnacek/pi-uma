@@ -162,6 +162,8 @@ export interface FactSummary {
   tags: string[];
   /** SPAI backlog item IDs this fact is linked to (cross-reference only). */
   spai?: string[];
+  /** Domain tags restricting recall to projects that declare matching domains. */
+  domains?: string[];
   /** Executable AST contract, when the fact carries one. */
   contract?: ContractDefinition;
 }
@@ -182,6 +184,7 @@ export async function readFactJson(cwd: string, id: string): Promise<FactSummary
       scope: unknown;
       tags?: string[];
       spai?: string[];
+      domains?: string[];
       contract?: ContractDefinition;
     };
     return {
@@ -191,6 +194,7 @@ export async function readFactJson(cwd: string, id: string): Promise<FactSummary
       scope: scopeValue(raw.scope),
       tags: raw.tags ?? [],
       spai: raw.spai,
+      domains: raw.domains,
       contract: raw.contract,
     };
   } catch {

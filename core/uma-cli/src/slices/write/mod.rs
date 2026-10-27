@@ -38,6 +38,10 @@ pub struct WriteArgs {
     #[arg(long = "spai", value_delimiter = ',')]
     pub spai: Vec<String>,
 
+    /// Domain tags restricting recall to projects that declare matching domains (comma-separated, e.g. domino,lotus).
+    #[arg(long = "domains", value_delimiter = ',')]
+    pub domains: Vec<String>,
+
     /// Invocation template for `skill` facts (placeholders like {{tag}}).
     /// Stored as data only — UMA expands it elsewhere and never executes it.
     #[arg(long = "template")]
@@ -74,6 +78,7 @@ pub fn run(args: WriteArgs) -> Result<()> {
     fact.description = args.description;
     fact.tags = args.tags;
     fact.spai = args.spai;
+    fact.domains = args.domains;
     fact.template = args.template;
     if let Some(raw) = args.stale_after.as_deref() {
         fact.validity.stale_after = Some(parse_datetime_or_date(raw)?);

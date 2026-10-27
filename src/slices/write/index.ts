@@ -52,6 +52,12 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
             "SPAI backlog item IDs this fact is linked to (e.g. ['SPAI-035']). Cross-reference only — SPAI stays the work ledger, UMA the knowledge base.",
         })
       ),
+      domains: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            "Domain tags restricting recall to projects that declare matching domains (e.g. ['domino']).",
+        })
+      ),
     }),
     execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
       const initialProposal: MemoryProposal = {
@@ -64,6 +70,7 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
         stale_after: params.staleAfter,
         since: params.since,
         spai: params.spai,
+        domains: params.domains,
       };
 
       // Secret gate BEFORE the modal: a credential-carrying proposal must
@@ -114,6 +121,9 @@ export function registerWriteTool(pi: ExtensionAPI, state: ExtensionState): void
       }
       if (approvedProposal.spai && approvedProposal.spai.length > 0) {
         args.push("--spai", approvedProposal.spai.join(","));
+      }
+      if (approvedProposal.domains && approvedProposal.domains.length > 0) {
+        args.push("--domains", approvedProposal.domains.join(","));
       }
 
       return executeUma(ctx.cwd, args);

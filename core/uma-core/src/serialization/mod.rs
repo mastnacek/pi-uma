@@ -130,6 +130,15 @@ pub fn markdown_to_fact(content: &str) -> Result<Fact> {
                 .collect()
         })
         .unwrap_or_default();
+    // Parse domains list if present (UMA v0.12.0)
+    let domains = yaml["domains"]
+        .as_vec()
+        .map(|v| {
+            v.iter()
+                .filter_map(|y| y.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
 
     let id = FactId::from_str(id_str).context("Invalid FactId")?;
     let scope = parse_scope(scope_str).context("Invalid scope")?;
@@ -162,6 +171,7 @@ pub fn markdown_to_fact(content: &str) -> Result<Fact> {
         tags,
         links,
         spai,
+        domains,
     })
 }
 
@@ -256,5 +266,36 @@ mod tests {
         assert!(!md.contains("spai"), "empty spai must not be emitted");
         let parsed = markdown_to_fact(&md).expect("parse");
         assert!(parsed.spai.is_empty());
+    }
+
+    #[test]
+    fn test_domains_roundtrip() {
+        let mut fact = Fact::new(
+            Scope::Global,
+            FactType::Decision,
+            "Domain decision".to_string(),
+            "Body.".to_string(),
+        );
+        fact.domains = vec!["domino".to_string(), "lotus".to_string()];
+
+        let md = fact_to_markdown(&fact).expect("serialize");
+        assert!(md.contains("domino"), "frontmatter carries domains:\n{md}");
+
+        let parsed = markdown_to_fact(&md).expect("parse");
+        assert_eq!(parsed.domains, vec!["domino", "lotus"]);
+    }
+
+    #[test]
+    fn test_domains_absent_defaults_to_empty() {
+        let fact = Fact::new(
+            Scope::Global,
+            FactType::Note,
+            "Plain".to_string(),
+            "Body.".to_string(),
+        );
+        let md = fact_to_markdown(&fact).expect("serialize");
+        assert!(!md.contains("domains"), "empty domains must not be emitted");
+        let parsed = markdown_to_fact(&md).expect("parse");
+        assert!(parsed.domains.is_empty());
     }
 }

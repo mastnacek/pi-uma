@@ -159,6 +159,19 @@ impl Store {
         })
     }
 
+    /// Reads domains declared by the current project in `<git root>/.uma/domains.json`.
+    /// Returns an empty list if not in a git repo, file does not exist, or format is invalid.
+    pub fn current_project_domains() -> Vec<String> {
+        Self::find_git_root()
+            .ok()
+            .and_then(|git_root| {
+                let path = git_root.join(".uma").join("domains.json");
+                std::fs::read_to_string(path).ok()
+            })
+            .map(|content| parse_project_domains_str(&content))
+            .unwrap_or_default()
+    }
+
     /// Returns the path to the single centralized SQLite index database in the user profile.
     pub fn central_db_path() -> Result<PathBuf> {
         let proj_dirs = ProjectDirs::from("com", "uma", "uma")
@@ -185,5 +198,39 @@ impl Store {
             );
         }
         Ok(self.root.join(dir).join(format!("{}.md", id)))
+    }
+}
+
+pub(crate) fn parse_project_domains_str(content: &str) -> Vec<String> {
+    #[derive(serde::Deserialize)]
+    struct ProjectDomains {
+        #[serde(default)]
+        domains: Vec<String>,
+    }
+    serde_json::from_str::<ProjectDomains>(content)
+        .map(|pd| {
+            pd.domains
+                .into_iter()
+                .map(|d| d.trim().to_lowercase())
+                .filter(|d| !d.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_project_domains() {
+        let json = r#"{"domains":["domino", "  LOTUS  ", ""]}"#;
+        assert_eq!(
+            parse_project_domains_str(json),
+            vec!["domino".to_string(), "lotus".to_string()]
+        );
+
+        assert_eq!(parse_project_domains_str(r#"{}"#), Vec::<String>::new());
+        assert_eq!(parse_project_domains_str("garbage"), Vec::<String>::new());
     }
 }

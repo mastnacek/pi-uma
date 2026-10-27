@@ -19,6 +19,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 
+// Concurrency stress test for UMA indexer
 use anyhow::Result;
 use tempfile::tempdir;
 use uma_core::domain::{Fact, FactType, Scope};
@@ -39,6 +40,7 @@ fn search_options(query: &str) -> SearchOptions<'_> {
         query,
         scope: None,
         current_project: None,
+        project_domains: Vec::new(),
         fact_type: None,
         include_deprecated: false,
         as_of: None,

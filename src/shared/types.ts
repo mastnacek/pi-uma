@@ -47,6 +47,8 @@ export interface MemoryProposal {
   since?: string;
   /** SPAI backlog item IDs this fact is linked to (e.g. ["SPAI-035"]). Cross-reference only. */
   spai?: string[];
+  /** Domain tags restricting recall to projects that declare matching domains (e.g. ["domino"]). */
+  domains?: string[];
 }
 
 export interface ProposalResult {

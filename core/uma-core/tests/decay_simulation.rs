@@ -36,6 +36,7 @@ fn search_options(query: &str, as_of: Option<chrono::DateTime<Utc>>) -> SearchOp
         query,
         scope: None,
         current_project: None,
+        project_domains: Vec::new(),
         fact_type: None,
         include_deprecated: false,
         as_of,

@@ -37,6 +37,13 @@ impl Indexer {
             .stale_after
             .map(|s| s.to_rfc3339())
             .unwrap_or_default();
+        let domains_str = fact
+            .domains
+            .iter()
+            .map(|d| d.trim().to_lowercase())
+            .filter(|d| !d.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
 
         // One transaction per fact row: another client (MCP server, second
         // agent) must never observe a fact half-deleted, and a busy writer now
@@ -44,8 +51,8 @@ impl Indexer {
         let tx = self.conn.unchecked_transaction()?;
         tx.execute("DELETE FROM facts_fts WHERE id = ?1", params![id_str])?;
         tx.execute(
-                "INSERT INTO facts_fts (id, scope, project_name, fact_type, title, description, body, tags, status, supersedes, file_path, since, until, stale_after)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                "INSERT INTO facts_fts (id, scope, project_name, fact_type, title, description, body, tags, status, supersedes, file_path, since, until, stale_after, domains)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     id_str,
                     scope_str,
@@ -60,7 +67,8 @@ impl Indexer {
                     file_path_str,
                     fact.validity.since.to_rfc3339(),
                     until_str,
-                    stale_str
+                    stale_str,
+                    domains_str
                 ],
             )?;
         tx.commit()?;

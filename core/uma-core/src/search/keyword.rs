@@ -60,7 +60,7 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         "SELECT id, scope, project_name, fact_type, title, description,
                 snippet(facts_fts, 6, '[match]', '[/match]', '...', 16) AS snippet,
                 tags, status, supersedes, file_path, since, until, stale_after,
-                bm25(facts_fts, 0.0, 1.0, 1.0, 1.0, 10.0, 5.0, 2.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) AS rank
+                bm25(facts_fts, 0.0, 1.0, 1.0, 1.0, 10.0, 5.0, 2.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) AS rank
          FROM facts_fts WHERE facts_fts MATCH ?1",
     );
 
@@ -73,14 +73,28 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         Some(Scope::Project(_)) => sql.push_str(" AND project_name = ?"),
         None => {
             if let Some(_cp) = opts.current_project {
-                sql.push_str(" AND (project_name = ? OR scope = 'global')");
+                if opts.project_domains.is_empty() {
+                    sql.push_str(
+                        " AND (project_name = ? OR (scope = 'global' AND (domains = '' OR domains IS NULL)))",
+                    );
+                } else {
+                    let domain_clauses = opts
+                        .project_domains
+                        .iter()
+                        .map(|_| "instr(' ' || lower(coalesce(domains, '')) || ' ', ?) > 0")
+                        .collect::<Vec<_>>()
+                        .join(" OR ");
+                    sql.push_str(&format!(
+                        " AND (project_name = ? OR (scope = 'global' AND (domains = '' OR domains IS NULL OR {domain_clauses})))"
+                    ));
+                }
             } else {
-                // SPAI-046: cwd outside any git repo — degrade to GLOBAL-ONLY.
+                // SPAI-046: cwd outside any git repo — degrade to GLOBAL-ONLY without domains.
                 // The old branch dropped the filter here, making every
                 // project's facts recallable (cross-session leak, observed in
                 // OpenMes). No repo means no project to scope to, so only the
-                // global store is searched.
-                sql.push_str(" AND scope = 'global'");
+                // global store is searched, and domain-tagged facts stay hidden.
+                sql.push_str(" AND (scope = 'global' AND (domains = '' OR domains IS NULL))");
             }
         }
     }
@@ -111,6 +125,9 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         None => {
             if let Some(cp) = opts.current_project {
                 params_vec.push(cp.to_string());
+                for d in &opts.project_domains {
+                    params_vec.push(format!(" {} ", d.trim().to_lowercase()));
+                }
             }
         }
         _ => {}
@@ -215,4 +232,136 @@ fn run_search(conn: &Connection, opts: &SearchOptions, fts_query: &str) -> Resul
         }
     }
     Ok(hits)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::{Fact, FactType, Scope};
+    use crate::indexer::Indexer;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_domain_filtering_scenarios() -> Result<()> {
+        let dir = tempdir()?;
+        let indexer = Indexer::open(dir.path().join("index.db"))?;
+
+        let mut universal = Fact::new(
+            Scope::Global,
+            FactType::Decision,
+            "Universal Fact".to_string(),
+            "Applies everywhere without domain restriction.".to_string(),
+        );
+        universal.domains = Vec::new();
+
+        let mut domino_fact = Fact::new(
+            Scope::Global,
+            FactType::Decision,
+            "Lotus Domino Rule".to_string(),
+            "Specific to Domino runtime environment.".to_string(),
+        );
+        domino_fact.domains = vec!["domino".to_string()];
+
+        let proj_fact = Fact::new(
+            Scope::Project("my-proj".to_string()),
+            FactType::Decision,
+            "My Proj Internal".to_string(),
+            "Project private memory.".to_string(),
+        );
+
+        indexer.index_fact(&universal, None)?;
+        indexer.index_fact(&domino_fact, None)?;
+        indexer.index_fact(&proj_fact, None)?;
+
+        // 1. Outside git repo (no current_project, no scope):
+        // Only global facts WITHOUT domains are returned.
+        let opts_outside = SearchOptions {
+            query: "environment restriction",
+            scope: None,
+            current_project: None,
+            project_domains: Vec::new(),
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: Vec::new(),
+            limit: 10,
+        };
+        let hits = search_keyword_or(indexer.connection(), &opts_outside)?;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, universal.id);
+
+        // 2. Inside project WITHOUT domains (e.g. standard project):
+        // Domino fact is hidden, universal and own project facts appear.
+        let opts_no_domain = SearchOptions {
+            query: "Domino restriction",
+            scope: None,
+            current_project: Some("my-proj"),
+            project_domains: Vec::new(),
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: Vec::new(),
+            limit: 10,
+        };
+        let hits = search_keyword_or(indexer.connection(), &opts_no_domain)?;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, universal.id);
+
+        // 3. Inside project WITH domain "domino":
+        // Domino fact appears along with universal fact!
+        let opts_with_domain = SearchOptions {
+            query: "Domino restriction",
+            scope: None,
+            current_project: Some("my-proj"),
+            project_domains: vec!["domino".to_string()],
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: Vec::new(),
+            limit: 10,
+        };
+        let hits = search_keyword_or(indexer.connection(), &opts_with_domain)?;
+        assert_eq!(hits.len(), 2);
+        let ids: Vec<_> = hits.iter().map(|h| h.id).collect();
+        assert!(ids.contains(&universal.id));
+        assert!(ids.contains(&domino_fact.id));
+
+        // 4. Inside project WITH different domain "web":
+        // Domino fact is still hidden.
+        let opts_other_domain = SearchOptions {
+            query: "Domino restriction",
+            scope: None,
+            current_project: Some("my-proj"),
+            project_domains: vec!["web".to_string()],
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: Vec::new(),
+            limit: 10,
+        };
+        let hits = search_keyword_or(indexer.connection(), &opts_other_domain)?;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, universal.id);
+
+        // 5. Explicit scope Global:
+        // Returns both universal and domain-tagged global facts.
+        let opts_explicit_global = SearchOptions {
+            query: "Domino restriction",
+            scope: Some(&Scope::Global),
+            current_project: None,
+            project_domains: Vec::new(),
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: Vec::new(),
+            limit: 10,
+        };
+        let hits = search_keyword_or(indexer.connection(), &opts_explicit_global)?;
+        assert_eq!(hits.len(), 2);
+        let ids: Vec<_> = hits.iter().map(|h| h.id).collect();
+        assert!(ids.contains(&universal.id));
+        assert!(ids.contains(&domino_fact.id));
+
+        Ok(())
+    }
 }

@@ -132,6 +132,9 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
   if (proposal.spai && proposal.spai.length > 0) {
     chain.push(`${theme.fg("muted", "⚑ SPAI:")} ${theme.fg("dim", proposal.spai.join(", "))}`);
   }
+  if (proposal.domains && proposal.domains.length > 0) {
+    chain.push(`${theme.fg("muted", "🌐 domains:")} ${theme.fg("dim", proposal.domains.join(", "))}`);
+  }
   if (proposal.plasticity) {
     chain.push(
       `${theme.fg("muted", "⚡ fitness:")} ${theme.fg("success", `${proposal.plasticity.weight.toFixed(2)} [${proposal.plasticity.reinforcements}✓]`)}`,

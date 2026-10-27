@@ -36,11 +36,16 @@ impl Store {
             Some(_) => None,
             None => Self::current_project_name(),
         };
+        let project_domains = match scope {
+            Some(_) => Vec::new(),
+            None => Self::current_project_domains(),
+        };
 
         let opts = SearchOptions {
             query,
             scope,
             current_project: current_project.as_deref(),
+            project_domains,
             fact_type,
             include_deprecated,
             as_of,
