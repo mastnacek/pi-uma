@@ -124,7 +124,10 @@ pub fn judge_relationship(
 /// Resolves the minimum probability threshold for memory recall:
 /// explicit CLI flag > UMA_RECALL_MIN_PROB env var > default 0.5.
 pub fn resolve_min_prob(explicit: Option<f64>) -> f64 {
-    resolve_min_prob_from(explicit, std::env::var("UMA_RECALL_MIN_PROB").ok().as_deref())
+    resolve_min_prob_from(
+        explicit,
+        std::env::var("UMA_RECALL_MIN_PROB").ok().as_deref(),
+    )
 }
 
 /// Pure helper for resolving probability threshold with precedence.

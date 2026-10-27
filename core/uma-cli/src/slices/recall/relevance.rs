@@ -151,15 +151,11 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                 }
             }
 
-            retained.sort_by(|a, b| {
-                b.0.partial_cmp(&a.0)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            retained.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
             retained.truncate(args.max);
 
-            let facts: Vec<serde_json::Value> =
-                retained.into_iter().map(|(_, f)| f).collect();
+            let facts: Vec<serde_json::Value> = retained.into_iter().map(|(_, f)| f).collect();
             let search = !facts.is_empty();
             let note = if search_notes.is_empty() {
                 None

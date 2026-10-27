@@ -42,10 +42,7 @@ pub fn parse_decisions_relevance(
 
 /// Given a user message and a list of candidates, calls Decisions API to evaluate
 /// the relevance of each candidate.
-pub fn judge_relevance(
-    message: &str,
-    candidates: &[CandidateForRelevance],
-) -> Result<Vec<f64>> {
+pub fn judge_relevance(message: &str, candidates: &[CandidateForRelevance]) -> Result<Vec<f64>> {
     if candidates.is_empty() {
         return Ok(Vec::new());
     }
