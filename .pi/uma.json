@@ -1,6 +1,6 @@
 {
   "autoApprove": false,
   "recallGate": true,
-  "fastbrainJudge": "jev",
+  "fastbrainJudge": "jev-relevance",
   "immuneMode": "ask"
 }
