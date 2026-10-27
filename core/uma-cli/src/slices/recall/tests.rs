@@ -95,3 +95,71 @@ fn test_check_parses_repeated_excludes() -> Result<(), clap::Error> {
     }
     Ok(())
 }
+
+#[test]
+fn test_passes_recall_threshold_discards_non_positive_and_nan() {
+    assert!(!passes_recall_threshold(0.0, 20.0));
+    assert!(!passes_recall_threshold(-1.0, 20.0));
+    assert!(!passes_recall_threshold(f64::NAN, 20.0));
+    assert!(!passes_recall_threshold(-0.001, 10.0));
+}
+
+#[test]
+fn test_passes_recall_threshold_discards_below_absolute_minimum() {
+    // Repro case: "plasticity half-life" returned 7.4, 6.8, 6.6 — all below absolute min (8.0).
+    let best = 7.4;
+    assert!(!passes_recall_threshold(7.4, best));
+    assert!(!passes_recall_threshold(6.8, best));
+    assert!(!passes_recall_threshold(6.6, best));
+
+    // Repro case: "What are the principles for plugin architecture?" skill scores 1.38, 0.00.
+    assert!(!passes_recall_threshold(1.38, 1.38));
+    assert!(!passes_recall_threshold(0.00, 1.38));
+
+    // Valid hits at or above 8.0 pass when they match the best score.
+    assert!(passes_recall_threshold(8.0, 8.0));
+    assert!(passes_recall_threshold(8.44, 8.44));
+}
+
+#[test]
+fn test_passes_recall_threshold_relative_50_percent_cutoff() {
+    // Repro case: "frameworks for desktop" 24.7, 4.6, 4.4 -> only 24.7 should remain.
+    let best = 24.7;
+    assert!(
+        passes_recall_threshold(24.7, best),
+        "best hit must be retained"
+    );
+    assert!(
+        !passes_recall_threshold(4.6, best),
+        "4.6 is ~18.6% of best, far below 50%"
+    );
+    assert!(
+        !passes_recall_threshold(4.4, best),
+        "4.4 is ~17.8% of best, far below 50%"
+    );
+
+    // Score above MIN_ABSOLUTE_SCORE (8.0) but below 50% of best (12.35) must be discarded.
+    assert!(
+        !passes_recall_threshold(10.0, best),
+        "10.0 is >= 8.0 but < 12.35 (50% of 24.7), must be discarded"
+    );
+
+    // Score at or above 50% of best is retained.
+    assert!(
+        passes_recall_threshold(13.0, best),
+        "13.0 is >= 8.0 and >= 12.35 (50% of 24.7), must be retained"
+    );
+}
+
+#[test]
+fn test_priming_subject_to_same_threshold() {
+    // Primed neighbors with raw activation (e.g. 0.50) must not bypass the absolute minimum.
+    assert!(
+        !passes_recall_threshold(0.50, 24.7),
+        "primed neighbor with score 0.50 must be discarded by threshold"
+    );
+    assert!(
+        !passes_recall_threshold(0.50, 8.0),
+        "primed neighbor with score 0.50 is below MIN_ABSOLUTE_SCORE"
+    );
+}

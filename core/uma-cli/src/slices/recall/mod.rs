@@ -17,8 +17,10 @@ use clap::{Args, Subcommand};
 use std::str::FromStr as _;
 use uma_core::domain::FactType;
 use uma_core::fastbrain::{self, Judge};
-use uma_core::search::SearchMode;
+use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
+
+mod priming;
 
 #[derive(Args, Debug, Clone)]
 pub struct RecallArgs {
@@ -169,8 +171,44 @@ fn emit(verdict: &RecallVerdict, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// Recalls facts for the trigger: the prompt's meaningful tokens as a BM25
-/// keyword query, filtered to the judge's subtypes when it named any.
+/// Minimum absolute score for a fact or primed neighbor to be recalled.
+///
+/// Discards low-confidence hits (e.g. partial OR match noise with scores < 8.0,
+/// such as ~7.4 for unrelated multi-word queries) while preserving strong, high-signal
+/// matches (e.g. single-term exact matches at ~8.4+ and multi-term matches at ~17-25).
+pub const MIN_ABSOLUTE_SCORE: f64 = 8.0;
+
+/// Relative score threshold ratio compared to the best hit in the candidate pool.
+///
+/// Any hit with a score below ~50% of the top candidate's score is considered noise
+/// and discarded (e.g. for scores 24.7, 4.6, 4.4, only 24.7 is retained because
+/// 4.6 and 4.4 fall far below 50% of 24.7).
+pub const RELATIVE_SCORE_RATIO: f64 = 0.5;
+
+/// Evaluates whether a score passes the recall quality gate:
+/// 1. Must be strictly positive (> 0.0)
+/// 2. Must meet or exceed the absolute minimum threshold (`MIN_ABSOLUTE_SCORE`)
+/// 3. Must meet or exceed the relative score threshold (~50% of `best_score`)
+pub fn passes_recall_threshold(score: f64, best_score: f64) -> bool {
+    if score.is_nan() || score <= 0.0 {
+        return false;
+    }
+    if score < MIN_ABSOLUTE_SCORE {
+        return false;
+    }
+    if score < best_score * RELATIVE_SCORE_RATIO {
+        return false;
+    }
+    true
+}
+
+struct RawCandidate {
+    hit: SearchHit,
+    degraded_note: Option<String>,
+}
+
+/// Recalls facts for the trigger: collects candidates across all judge types
+/// simultaneously, ranks them globally by score, and applies quality thresholds.
 fn recall_facts(
     prompt: &str,
     fact_types: &[String],
@@ -183,20 +221,18 @@ fn recall_facts(
         .filter_map(|name| FactType::from_str(name).ok())
         .collect();
 
-    let mut facts = Vec::new();
-    let mut notes: Vec<String> = Vec::new();
     let filters: Vec<Option<FactType>> = if subtypes.is_empty() {
         vec![None]
     } else {
-        subtypes
-            .iter()
-            .map(|fact_type| Some(fact_type.clone()))
-            .collect()
+        subtypes.into_iter().map(Some).collect()
     };
+
+    let mut raw_candidates: Vec<RawCandidate> = Vec::new();
+    let candidate_limit = max.max(5);
+
+    // Collect candidates across all judge types simultaneously instead of filling
+    // slots type-by-type.
     for filter in filters {
-        if facts.len() >= max {
-            break;
-        }
         let outcome = Store::search_all(
             &query,
             None,
@@ -205,117 +241,70 @@ fn recall_facts(
             false,
             None,
             exclude,
-            max - facts.len(),
+            candidate_limit,
         )?;
-        // A relaxed (any-term) recall must be visible in the verdict, not
-        // silently presented as a precise match.
-        if let Some(note) = outcome.note() {
-            if !notes.contains(&note) {
-                notes.push(note);
+        let degraded_note = outcome.note();
+        for hit in outcome.hits {
+            if let Some(existing) = raw_candidates.iter_mut().find(|c| c.hit.id == hit.id) {
+                if hit.score > existing.hit.score {
+                    existing.hit = hit;
+                    existing.degraded_note = degraded_note.clone();
+                }
+            } else {
+                raw_candidates.push(RawCandidate {
+                    hit,
+                    degraded_note: degraded_note.clone(),
+                });
             }
         }
-        for hit in &outcome.hits {
+    }
+
+    // Sort all candidates across types globally by score descending.
+    raw_candidates.sort_by(|a, b| {
+        b.hit
+            .score
+            .partial_cmp(&a.hit.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let best_score = raw_candidates
+        .first()
+        .map(|c| c.hit.score)
+        .unwrap_or(0.0);
+
+    let mut facts = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
+
+    // Filter direct candidates by threshold: score > 0, >= MIN_ABSOLUTE_SCORE,
+    // and >= ~50% of the best score. Relaxed (OR) results are only inserted if
+    // they pass this threshold.
+    for candidate in raw_candidates {
+        if facts.len() >= max {
+            break;
+        }
+        if passes_recall_threshold(candidate.hit.score, best_score) {
+            if let Some(note) = candidate.degraded_note {
+                if !notes.contains(&note) {
+                    notes.push(note);
+                }
+            }
             facts.push(serde_json::json!({
-                "id": hit.id,
-                "title": hit.title,
-                "fact_type": hit.fact_type,
-                "scope": hit.scope,
-                "score": hit.score,
-                "snippet": hit.snippet,
-                "tags": hit.tags,
+                "id": candidate.hit.id,
+                "title": candidate.hit.title,
+                "fact_type": candidate.hit.fact_type,
+                "scope": candidate.hit.scope,
+                "score": candidate.hit.score,
+                "snippet": candidate.hit.snippet,
+                "tags": candidate.hit.tags,
             }));
         }
     }
 
-    // Priming (Proposal 05, Pillar II): neighbors of every hit arrive warm.
-    facts = prime_neighbors(facts, max, &mut notes, exclude);
+    // Priming (Proposal 05, Pillar II): neighbors of every hit arrive warm,
+    // subject to the exact same quality threshold.
+    facts = priming::prime_neighbors(facts, best_score, max, &mut notes, exclude);
     facts.truncate(max);
     Ok((facts, notes))
-}
-
-/// Spreads activation from the direct hits and appends the strongest
-/// pre-activated neighbors (tagged with "primed" provenance in the JSON).
-fn prime_neighbors(
-    mut facts: Vec<serde_json::Value>,
-    max: usize,
-    notes: &mut Vec<String>,
-    exclude: &[String],
-) -> Vec<serde_json::Value> {
-    if facts.is_empty() || facts.len() >= max {
-        return facts;
-    }
-
-    let hits: Vec<String> = facts
-        .iter()
-        .filter_map(|f| f.get("id").and_then(|v| v.as_str()).map(String::from))
-        .collect();
-
-    // Load the facts behind the hits so the graph can be built.
-    let mut hit_facts = Vec::new();
-    for id in &hits {
-        if let Ok(fact_id) = id.parse::<uma_core::domain::FactId>() {
-            if let Ok(fact) = uma_core::store::Store::find_by_id(&fact_id) {
-                hit_facts.push(fact);
-            }
-        }
-    }
-    if hit_facts.is_empty() {
-        return facts;
-    }
-
-    // The graph MUST span the whole memory, not just the hits: an edge that
-    // exists only between the hits is already known, so spreading from them
-    // could never surface a new neighbor — which is exactly why this step used
-    // to be a no-op. Load every known root's facts (cheap for a personal store).
-    let mut graph_facts: Vec<uma_core::domain::Fact> = Vec::new();
-    if let Ok(roots) = uma_core::store::Store::all_known_roots() {
-        for root in roots {
-            if let Ok(all) = uma_core::store::Store::new(root).list_all() {
-                graph_facts.extend(all);
-            }
-        }
-    }
-    for fact in &hit_facts {
-        if !graph_facts.iter().any(|f| f.id == fact.id) {
-            graph_facts.push(fact.clone());
-        }
-    }
-
-    let graph = uma_core::priming::AssociationGraph::build(&graph_facts);
-    let mut seen: Vec<String> = hits.clone();
-
-    for hit_id in &hits {
-        for activated in graph.spread(hit_id, 0.5, 1) {
-            if seen.contains(&activated.id) || activated.id == *hit_id {
-                continue;
-            }
-            if exclude.iter().any(|id| id == &activated.id) {
-                continue;
-            }
-            if facts.len() >= max {
-                break;
-            }
-            if let Ok(fact_id) = activated.id.parse::<uma_core::domain::FactId>() {
-                if let Ok(neighbor) = uma_core::store::Store::find_by_id(&fact_id) {
-                    seen.push(activated.id.clone());
-                    facts.push(serde_json::json!({
-                        "id": neighbor.id,
-                        "title": neighbor.title,
-                        "fact_type": neighbor.fact_type.to_string(),
-                        "scope": neighbor.scope.to_string(),
-                        "score": activated.activation,
-                        "snippet": format!("[primed {:.2}] {}", activated.activation, neighbor.body.lines().next().unwrap_or("")),
-                        "tags": neighbor.tags,
-                    }));
-                }
-            }
-        }
-    }
-
-    if facts.len() > hits.len() {
-        notes.push("primed neighbors included (spreading activation)".to_string());
-    }
-    facts
 }
 
 /// Builds the search query from the prompt: meaningful words only, capped, so
