@@ -7,6 +7,7 @@ use uma_core::store::Store;
 
 /// Spreads activation from the direct hits and appends the strongest
 /// pre-activated neighbors, subject to the same threshold as direct hits.
+#[allow(dead_code)]
 pub fn prime_neighbors(
     mut facts: Vec<serde_json::Value>,
     best_score: f64,
@@ -87,8 +88,9 @@ pub fn prime_neighbors(
             if let Ok(fact_id) = activated.id.parse::<FactId>() {
                 if let Ok(neighbor) = Store::find_by_id(&fact_id) {
                     seen.push(activated.id.clone());
-                    if let Some(existing) =
-                        primed_candidates.iter_mut().find(|(_, _, f)| f.id == neighbor.id)
+                    if let Some(existing) = primed_candidates
+                        .iter_mut()
+                        .find(|(_, _, f)| f.id == neighbor.id)
                     {
                         if neighbor_score > existing.0 {
                             existing.0 = neighbor_score;

@@ -131,3 +131,46 @@ test("tool_result ignores unrelated toolCallIds", async () => {
   const res = await handlers.tool_result(resultEvent, mockCtx);
   assert.equal(res, undefined);
 });
+
+test("ask mode suppresses dialog and routes warning via tool_result when no rule matches and pain < 50", async () => {
+  resetImmuneCache();
+  const handlers: Record<string, (event: any, ctx: any) => Promise<any>> = {};
+  const pi = {
+    on: (event: string, handler: any) => {
+      handlers[event] = handler;
+      return () => {};
+    },
+  } as unknown as ExtensionAPI;
+
+  registerImmuneInterceptor(pi, makeState("ask"));
+
+  let dialogShown = false;
+  const mockCtx = {
+    cwd: process.cwd(),
+    ui: {
+      select: async () => {
+        dialogShown = true;
+        return "Proceed";
+      },
+      notify: () => {},
+    },
+  } as unknown as ExtensionContext;
+
+  // A file write with harmless content that matches no rule.
+  // Note: if the real fetchPain returns low or medium pain without a rule,
+  // or if pain is 0-49, it should never trigger dialog.
+  const callEvent = {
+    type: "tool_call",
+    toolCallId: "call_harmless_pain_23",
+    toolName: "write",
+    input: {
+      path: "test/fixtures/harmless.txt",
+      content: "const a = 1; const b = 2;",
+    },
+  };
+
+  const callResult = await handlers.tool_call(callEvent, mockCtx);
+  // Allowed immediately without blocking or asking
+  assert.equal(callResult, undefined);
+  assert.equal(dialogShown, false, "dialog must not be shown when no rule matches and pain < 50");
+});

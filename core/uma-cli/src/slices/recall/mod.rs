@@ -39,8 +39,8 @@ pub struct CheckArgs {
     /// The prompt to check (joined if several arguments are given)
     pub prompt: Vec<String>,
 
-    /// Which judge to use: off (default) or jev
-    #[arg(long = "judge", default_value = "off", value_parser = ["off", "jev"])]
+    /// Which judge to use: off (default), jev, or always
+    #[arg(long = "judge", default_value = "off", value_parser = ["off", "jev", "always"])]
     pub judge: String,
 
     /// Maximum facts to recall
@@ -88,6 +88,28 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
         anyhow::bail!("Nothing to check: pass the prompt text");
     }
     let prompt = args.prompt.join(" ");
+
+    if args.judge == "always" {
+        // Forced search without type filters: deterministic baseline for evaluation
+        // and scenarios, separating retrieval errors from judge classification errors.
+        let (facts, search_notes) = recall_facts(&prompt, &[], args.max, &args.exclude)?;
+        let note = if search_notes.is_empty() {
+            None
+        } else {
+            Some(search_notes.join("; "))
+        };
+        return emit(
+            &RecallVerdict {
+                search: true,
+                judged_by: "always".to_string(),
+                fact_types: Vec::new(),
+                recalled: facts.len(),
+                facts,
+                note,
+            },
+            args.json,
+        );
+    }
 
     // judge_recall_need already degrades Jev to offline with a note when the
     // transport fails, so one call covers both transports and their failure.
@@ -297,9 +319,15 @@ fn recall_facts(
         }
     }
 
-    // Priming (Proposal 05, Pillar II): neighbors of every hit arrive warm,
-    // subject to the exact same quality threshold.
-    facts = priming::prime_neighbors(facts, best_score, max, &mut notes, exclude);
+    // Priming (Proposal 05, Pillar II): Spreading activation across association
+    // graphs produced spurious / irrelevant neighbors in practice (e.g. recall
+    // scenario benchmarks showed ~0 of 8 primed facts were relevant: queries about
+    // frameworks pulled "Project anchor: faktura-scanner", bin/uma.exe pulled
+    // LotusScript items).
+    // The priming implementation remains in `priming.rs` for future graph exploration,
+    // but is explicitly disabled in the recall check pipeline to eliminate noise.
+    let _ = (best_score, exclude);
+    // facts = priming::prime_neighbors(facts, best_score, max, &mut notes, exclude);
     facts.truncate(max);
     Ok((facts, notes))
 }

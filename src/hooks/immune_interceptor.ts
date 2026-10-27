@@ -173,13 +173,29 @@ export function registerImmuneInterceptor(pi: ExtensionAPI, state: ExtensionStat
           // carries the consent); the block REASON stays the English
           // original because the model reads it.
           if (action.message.length > 0) {
+            const matched = matchRule(rules, edit.added);
+            const hasRuleBreach = breaches.length > 0;
+            const hasRuleMatch = matched !== undefined;
+            const isHighPain = (pain?.score ?? 0) >= 50;
+
+            // In ask mode (and auto mode heuristic prompts):
+            // Dialog ONLY when the modification touches/violates a rule
+            // or pain >= 50; otherwise no dialog, warning only via tool_result.
+            if (!hasRuleBreach && !hasRuleMatch && !isHighPain) {
+              if (pendingWarnings.size > 50) {
+                const firstKey = pendingWarnings.keys().next().value;
+                if (firstKey) pendingWarnings.delete(firstKey);
+              }
+              pendingWarnings.set(event.toolCallId, action.message);
+              return undefined;
+            }
+
             const s = stringsFor(state.config.lang);
             const { text } = await translateOutputForDisplay(ctx, action.message, state.config.lang);
             // Second opinion (SPAI-047): when the heuristic matched a rule,
             // attach the classifier's verdict so the operator decides with
             // information, not on faith. Advisory only — a missing verdict
             // silently shows the dialog unchanged.
-            const matched = matchRule(rules, edit.added);
             const rec = matched
               ? await recommendForRule(ctx, matched, edit.added, state.config.lang)
               : undefined;
