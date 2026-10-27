@@ -137,8 +137,8 @@ class RecallGateEntryComponent {
     // Header: judge colored by provenance — jev is a live semantic call,
     // off is the local heuristic.
     const judgeBadge =
-      verdict.judged_by === "jev"
-        ? theme.fg("accent", theme.bold("jev"))
+      verdict.judged_by === "jev" || verdict.judged_by === "jev-relevance"
+        ? theme.fg("accent", theme.bold(verdict.judged_by))
         : theme.fg("dim", verdict.judged_by);
     const headerLabel = lang === "cs" ? "Soudce" : "Judge";
     lines.push(

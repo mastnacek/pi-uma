@@ -73,6 +73,8 @@ test("sanitizeConfig normalizes casing and rejects invalid enum values", () => {
   assert.equal(sanitized.fastbrainJudge, "jev");
   assert.equal(sanitized.lang, "cs");
 
+  assert.equal(sanitizeConfig({ fastbrainJudge: "JEV-RELEVANCE" }).fastbrainJudge, "jev-relevance");
+
   const invalid = sanitizeConfig({
     immuneMode: "invalid_mode",
     fastbrainJudge: "nonsense",

@@ -26,6 +26,9 @@ test("recall and judge complete with the current state marked", () => {
   const jev = getUmaCompletions("judge ", state({ fastbrainJudge: "jev" }));
   assert.ok(jev.find((i) => i.value === "judge jev")?.label.includes("✓"));
 
+  const jevRel = getUmaCompletions("judge ", state({ fastbrainJudge: "jev-relevance" }));
+  assert.ok(jevRel.find((i) => i.value === "judge jev-relevance")?.label.includes("✓"));
+
   const markers = getUmaCompletions("judge ", state({ fastbrainJudge: "off" }));
   assert.ok(markers.find((i) => i.value === "judge off")?.label.includes("✓"));
 });
@@ -83,6 +86,9 @@ test("recall on --global and settings parameters offer global persistence", () =
 
   const judgeJev = getUmaCompletions("judge jev", state({ fastbrainJudge: "off" }));
   assert.ok(judgeJev.some((o) => o.value === "judge jev --global"));
+
+  const judgeJevRel = getUmaCompletions("judge jev-relevance", state({ fastbrainJudge: "off" }));
+  assert.ok(judgeJevRel.some((o) => o.value === "judge jev-relevance --global"));
 
   const immuneAuto = getUmaCompletions("immune auto", state({ immuneMode: "warn" }));
   assert.ok(immuneAuto.some((o) => o.value === "immune auto --global"));

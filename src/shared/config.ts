@@ -73,7 +73,7 @@ export function sanitizeConfig(
   }
   if (isAllowed("fastbrainJudge") && typeof obj.fastbrainJudge === "string") {
     const judge = obj.fastbrainJudge.toLowerCase();
-    if (judge === "off" || judge === "jev") {
+    if (judge === "off" || judge === "jev" || judge === "jev-relevance") {
       clean.fastbrainJudge = judge as PluginConfig["fastbrainJudge"];
     }
   }

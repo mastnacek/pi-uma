@@ -37,11 +37,11 @@ pub struct CheckArgs {
     /// The prompt to check (joined if several arguments are given)
     pub prompt: Vec<String>,
 
-    /// Which judge to use: off (default), jev, or always
-    #[arg(long = "judge", default_value = "off", value_parser = ["off", "jev", "always"])]
+    /// Which judge to use: off (default), jev, always, or jev-relevance
+    #[arg(long = "judge", default_value = "off", value_parser = ["off", "jev", "always", "jev-relevance"])]
     pub judge: String,
 
-    /// Minimum probability threshold for memory recall trigger (default 0.5, env UMA_RECALL_MIN_PROB)
+    /// Minimum probability threshold for memory recall trigger (default 0.5, env UMA_RECALL_MIN_PROB / UMA_RELEVANCE_MIN_PROB)
     #[arg(long = "min-prob")]
     pub min_prob: Option<f64>,
 
@@ -76,14 +76,14 @@ fn judge_from_name(name: &str) -> Judge {
 
 /// Recall verdict: trigger plus the facts worth showing.
 #[derive(serde::Serialize)]
-struct RecallVerdict {
-    search: bool,
-    judged_by: String,
-    fact_types: Vec<String>,
-    probability: Vec<f64>,
-    recalled: usize,
-    facts: Vec<serde_json::Value>,
-    note: Option<String>,
+pub(crate) struct RecallVerdict {
+    pub(crate) search: bool,
+    pub(crate) judged_by: String,
+    pub(crate) fact_types: Vec<String>,
+    pub(crate) probability: Vec<f64>,
+    pub(crate) recalled: usize,
+    pub(crate) facts: Vec<serde_json::Value>,
+    pub(crate) note: Option<String>,
 }
 
 fn check_prompt(args: CheckArgs) -> Result<()> {
@@ -91,6 +91,10 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
         anyhow::bail!("Nothing to check: pass the prompt text");
     }
     let prompt = args.prompt.join(" ");
+
+    if args.judge == "jev-relevance" {
+        return relevance::check_prompt(args);
+    }
 
     if args.judge == "always" {
         // Forced search without type filters: deterministic baseline for evaluation
@@ -162,7 +166,7 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
     )
 }
 
-fn emit(verdict: &RecallVerdict, json: bool) -> Result<()> {
+pub(crate) fn emit(verdict: &RecallVerdict, json: bool) -> Result<()> {
     if json {
         println!("{}", serde_json::to_string_pretty(verdict)?);
         return Ok(());
@@ -185,12 +189,18 @@ fn emit(verdict: &RecallVerdict, json: bool) -> Result<()> {
             verdict.recalled
         );
         for (idx, fact) in verdict.facts.iter().enumerate() {
+            let rel_str = if let Some(p) = fact.get("relevance").and_then(|v| v.as_f64()) {
+                format!(" [p={:.2}]", p)
+            } else {
+                String::new()
+            };
             println!(
-                "{}. [{}] {} — {}",
+                "{}. [{}] {} — {}{}",
                 idx + 1,
                 fact["fact_type"].as_str().unwrap_or("?"),
                 fact["title"].as_str().unwrap_or("?"),
-                fact["id"].as_str().unwrap_or("?")
+                fact["id"].as_str().unwrap_or("?"),
+                rel_str
             );
         }
     }
@@ -237,14 +247,14 @@ pub fn passes_recall_threshold(score: f64, best_score: f64) -> bool {
     true
 }
 
-struct RawCandidate {
-    hit: SearchHit,
-    degraded_note: Option<String>,
+pub(crate) struct RawCandidate {
+    pub(crate) hit: SearchHit,
+    pub(crate) degraded_note: Option<String>,
 }
 
 /// Recalls facts for the trigger: collects candidates across all fact types,
 /// ranks them globally by score, and applies quality thresholds.
-fn recall_facts(
+pub(crate) fn recall_facts(
     prompt: &str,
     max: usize,
     exclude: &[String],
@@ -324,7 +334,7 @@ fn recall_facts(
 
 /// Builds the search query from the prompt: meaningful words only, capped, so
 /// BM25 keeps signal instead of matching everything vaguely.
-fn recall_query(prompt: &str) -> String {
+pub(crate) fn recall_query(prompt: &str) -> String {
     const NOISE: &[&str] = &[
         "the", "and", "for", "with", "that", "this", "please", "could", "would", "does", "jak",
         "pro", "nebo", "když", "aby", "tedy",
@@ -340,3 +350,5 @@ fn recall_query(prompt: &str) -> String {
 
 #[cfg(test)]
 mod tests;
+
+mod relevance;

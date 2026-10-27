@@ -144,6 +144,16 @@ export function getParameterCompletions(
         description: `${h.paramJudgeJev}${h.paramGlobalSuffix}`,
       },
       {
+        value: "judge jev-relevance",
+        label: currentJudge === "jev-relevance" ? "jev-relevance ✓" : "jev-relevance",
+        description: `${h.paramJudgeJevRelevance}${currentJudge === "jev-relevance" ? h.selectedMarker : ""}`,
+      },
+      {
+        value: "judge jev-relevance --global",
+        label: "jev-relevance --global",
+        description: `${h.paramJudgeJevRelevance}${h.paramGlobalSuffix}`,
+      },
+      {
         value: "judge off",
         label: currentJudge === "off" ? "off ✓" : "off",
         description: `${h.paramJudgeOff}${currentJudge === "off" ? h.selectedMarker : ""}`,

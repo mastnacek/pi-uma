@@ -25,6 +25,7 @@
 pub mod dream;
 pub mod jev;
 pub mod offline;
+pub mod relevance;
 pub mod route;
 pub(crate) mod transport;
 
@@ -123,12 +124,29 @@ pub fn judge_relationship(
 /// Resolves the minimum probability threshold for memory recall:
 /// explicit CLI flag > UMA_RECALL_MIN_PROB env var > default 0.5.
 pub fn resolve_min_prob(explicit: Option<f64>) -> f64 {
+    resolve_min_prob_from(explicit, std::env::var("UMA_RECALL_MIN_PROB").ok().as_deref())
+}
+
+/// Pure helper for resolving probability threshold with precedence.
+pub fn resolve_min_prob_from(explicit: Option<f64>, env_val: Option<&str>) -> f64 {
     explicit
-        .or_else(|| {
-            std::env::var("UMA_RECALL_MIN_PROB")
-                .ok()
-                .and_then(|v| v.parse::<f64>().ok())
-        })
+        .or_else(|| env_val.and_then(|v| v.parse::<f64>().ok()))
+        .unwrap_or(0.5)
+}
+
+/// Resolves the minimum probability threshold for Jev relevance recall:
+/// explicit CLI flag > UMA_RELEVANCE_MIN_PROB env var > default 0.5.
+pub fn resolve_relevance_min_prob(explicit: Option<f64>) -> f64 {
+    resolve_relevance_min_prob_from(
+        explicit,
+        std::env::var("UMA_RELEVANCE_MIN_PROB").ok().as_deref(),
+    )
+}
+
+/// Pure helper for resolving relevance probability threshold with precedence.
+pub fn resolve_relevance_min_prob_from(explicit: Option<f64>, env_val: Option<&str>) -> f64 {
+    explicit
+        .or_else(|| env_val.and_then(|v| v.parse::<f64>().ok()))
         .unwrap_or(0.5)
 }
 

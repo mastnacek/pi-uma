@@ -25,6 +25,7 @@ export interface RecallFact {
   fact_type: string;
   scope: ScopeWire;
   score: number;
+  relevance?: number;
   snippet: string;
   tags: string[];
 }

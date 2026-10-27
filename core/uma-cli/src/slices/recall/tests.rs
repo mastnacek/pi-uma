@@ -82,6 +82,38 @@ fn test_offline_verdict_is_deterministic() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_check_parses_judge_jev_relevance() -> Result<(), clap::Error> {
+    let args = parse(&[
+        "recall",
+        "check",
+        "how",
+        "--judge",
+        "jev-relevance",
+        "--min-prob",
+        "0.6",
+    ])?;
+    match args.command {
+        RecallCommand::Check(check) => {
+            assert_eq!(check.judge, "jev-relevance");
+            assert_eq!(check.min_prob, Some(0.6));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn test_resolve_relevance_min_prob_precedence() {
+    // Explicit takes precedence
+    assert_eq!(fastbrain::resolve_relevance_min_prob_from(Some(0.8), Some("0.65")), 0.8);
+
+    // Default when no env var or explicit
+    assert_eq!(fastbrain::resolve_relevance_min_prob_from(None, None), 0.5);
+
+    // Env var used when no explicit value
+    assert_eq!(fastbrain::resolve_relevance_min_prob_from(None, Some("0.65")), 0.65);
+}
+
+#[test]
 fn test_check_parses_min_prob() -> Result<(), clap::Error> {
     let args = parse(&[
         "recall",
@@ -104,22 +136,13 @@ fn test_check_parses_min_prob() -> Result<(), clap::Error> {
 #[test]
 fn test_resolve_min_prob_precedence() {
     // Explicit takes precedence
-    assert_eq!(fastbrain::resolve_min_prob(Some(0.8)), 0.8);
+    assert_eq!(fastbrain::resolve_min_prob_from(Some(0.8), Some("0.65")), 0.8);
 
     // Default when no env var or explicit
-    unsafe {
-        std::env::remove_var("UMA_RECALL_MIN_PROB");
-    }
-    assert_eq!(fastbrain::resolve_min_prob(None), 0.5);
+    assert_eq!(fastbrain::resolve_min_prob_from(None, None), 0.5);
 
     // Env var used when no explicit value
-    unsafe {
-        std::env::set_var("UMA_RECALL_MIN_PROB", "0.65");
-    }
-    assert_eq!(fastbrain::resolve_min_prob(None), 0.65);
-    unsafe {
-        std::env::remove_var("UMA_RECALL_MIN_PROB");
-    }
+    assert_eq!(fastbrain::resolve_min_prob_from(None, Some("0.65")), 0.65);
 }
 
 #[test]

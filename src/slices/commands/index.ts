@@ -148,7 +148,7 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
       } else if (subcommand === "judge") {
         const wantsGlobal = isGlobal || cleanParts.includes("--global");
         const target = cleanParts[1];
-        if (target === "jev" || target === "off") {
+        if (target === "jev" || target === "off" || target === "jev-relevance") {
           saveConfig({ fastbrainJudge: target }, wantsGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, fastbrainJudge: target };
           ctx.ui.notify(`${liveStrings.recallJudgeLabel}: ${target}`, "info");

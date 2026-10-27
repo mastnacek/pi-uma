@@ -63,8 +63,8 @@ export interface PluginConfig {
   recallGate: boolean;
   /** Immune interceptor mode: off | warn (default) | ask | auto | block. */
   immuneMode: "off" | "warn" | "ask" | "auto" | "block";
-  /** Recall judge transport: "off" (markers) or "jev" (Jev via OpenRouter). */
-  fastbrainJudge: "off" | "jev";
+  /** Recall judge transport: "off" (markers), "jev" (Jev via OpenRouter), or "jev-relevance" (candidate relevance via Jev Decisions). */
+  fastbrainJudge: "off" | "jev" | "jev-relevance";
   /** Live detector / HUD widget visible above the status line / editor. */
   hud: boolean;
   /** Humility gate: ask before mutating a flagged low-familiarity subsystem. */

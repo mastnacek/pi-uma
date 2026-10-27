@@ -36,6 +36,7 @@ export interface CommandHelpStrings {
   paramAppendOff: string;
   paramJudgeOff: string;
   paramJudgeJev: string;
+  paramJudgeJevRelevance: string;
   paramImmuneOff: string;
   paramImmuneWarn: string;
   paramImmuneAsk: string;
@@ -70,8 +71,15 @@ const csHelp: CommandHelpStrings = {
     `Fastbrain recallová brána (aktuálně: ${cur ? "zapnuto • automatické přitahování" : "vypnuto • explicitní"})`,
   cmdAppend: (cur) =>
     `Připojování pravidel do System Promptu (aktuálně: ${cur ? "zapnuto • pravidla v promptu" : "vypnuto"})`,
-  cmdJudge: (cur) =>
-    `Způsob hodnocení dotazu pro recall (aktuálně: ${cur === "jev" ? "sémantický Jev" : "lokální offline markery"})`,
+  cmdJudge: (cur) => {
+    let desc = "lokální offline markery";
+    if (cur === "jev-relevance") {
+      desc = "sémantická relevance kandidátů Jev";
+    } else if (cur === "jev") {
+      desc = "sémantický Jev";
+    }
+    return `Způsob hodnocení dotazu pro recall (aktuálně: ${desc})`;
+  },
   cmdImmune: (cur) =>
     `Kognitivní imunitní interceptor (aktuálně: režim ${cur})`,
   cmdHud: (cur) =>
@@ -93,6 +101,7 @@ const csHelp: CommandHelpStrings = {
   paramAppendOff: "Pravidla se do promptu modelu automaticky nevkládají (výchozí stav, šetří kontext)",
   paramJudgeOff: "Bleskové lokální vyhodnocení klíčových slov (0 ms, zdarma, offline)",
   paramJudgeJev: "Sémantické vyhodnocení dotazu přes model TypeSafe Jev na OpenRouteru",
+  paramJudgeJevRelevance: "Sémantické vyhodnocení relevance nalezených kandidátů přes Jev Decisions API",
   paramImmuneOff: "Imunitní interceptor vypnut, žádné kontroly editací kódu",
   paramImmuneWarn: "Při dotyku pravidla zobrazí varování v TUI, ale kód nikdy nezablokuje",
   paramImmuneAsk: "Při dotyku pravidla či kontraktu vyvolá potvrzovací dialog pro operátora",
@@ -125,8 +134,15 @@ const enHelp: CommandHelpStrings = {
     `Fastbrain recall gate (current: ${cur ? "on • automatic recall" : "off • explicit only"})`,
   cmdAppend: (cur) =>
     `System prompt rules append (current: ${cur ? "on • rules in prompt" : "off"})`,
-  cmdJudge: (cur) =>
-    `Recall judge transport (current: ${cur === "jev" ? "semantic Jev" : "local offline heuristics"})`,
+  cmdJudge: (cur) => {
+    let desc = "local offline heuristics";
+    if (cur === "jev-relevance") {
+      desc = "semantic candidate relevance via Jev";
+    } else if (cur === "jev") {
+      desc = "semantic Jev";
+    }
+    return `Recall judge transport (current: ${desc})`;
+  },
   cmdImmune: (cur) =>
     `Cognitive immune interceptor (current: mode ${cur})`,
   cmdHud: (cur) =>
@@ -148,6 +164,7 @@ const enHelp: CommandHelpStrings = {
   paramAppendOff: "Do not inject rules into system prompt automatically (default, saves tokens)",
   paramJudgeOff: "Instant offline keyword heuristics (0 ms, 0 cost, runs offline)",
   paramJudgeJev: "Semantic prompt triage via TypeSafe Jev model on OpenRouter",
+  paramJudgeJevRelevance: "Semantic candidate relevance evaluation via Jev Decisions API",
   paramImmuneOff: "Immune interceptor disabled, no edit inspection",
   paramImmuneWarn: "Display warnings in TUI on rule matches, never block",
   paramImmuneAsk: "Show interactive confirmation dialog on rule breaches (default safe mode)",
