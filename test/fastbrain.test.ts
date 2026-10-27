@@ -12,7 +12,12 @@ test("every configured judge reaches the engine explicitly", () => {
 
 test("recall args carry anti-echo exclusions before the prompt", () => {
   const args = buildRecallArgs("jev-relevance", "prompt", ["01A", "01B"]);
-  assert.deepEqual(args.slice(-5), ["--exclude", "01A", "--exclude", "01B", "prompt"]);
+  assert.deepEqual(args.slice(-6), ["--exclude", "01A", "--exclude", "01B", "--", "prompt"]);
+});
+
+test("a prompt starting with a dash stays a positional argument", () => {
+  const args = buildRecallArgs("jev", "- fix the list", []);
+  assert.deepEqual(args.slice(-2), ["--", "- fix the list"]);
 });
 
 const verdict = (facts: RecallVerdict["facts"]): RecallVerdict => ({

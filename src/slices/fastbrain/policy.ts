@@ -41,9 +41,11 @@ export function buildRecallArgs(
   prompt: string,
   excludeIds: readonly string[],
 ): string[] {
+  // `--` ends option parsing: a prompt such as "- fix the list" would
+  // otherwise be rejected by the engine as an unknown flag.
   return ["recall", "check", "--judge", judge, "--json", "--max", "3"]
     .concat(excludeIds.flatMap((id) => ["--exclude", id]))
-    .concat([prompt]);
+    .concat(["--", prompt]);
 }
 
 /** The injected message's shape (BeforeAgentStartEventResult["message"]). */
