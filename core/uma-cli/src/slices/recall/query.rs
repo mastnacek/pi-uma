@@ -3,26 +3,32 @@
 pub(crate) fn recall_query(prompt: &str) -> String {
     const NOISE: &[&str] = &[
         // English functional / grammatical / pronouns
-        "the", "and", "for", "with", "that", "this", "these", "those", "please", "could", "would",
-        "should", "does", "did", "have", "has", "had", "can", "will", "are", "were", "been",
-        "being", "what", "which", "where", "when", "why", "who", "whom", "how", "from", "into",
-        "onto", "over", "under", "about", "above", "after", "before", "than", "then", "just",
-        "very", "also", "more", "most", "some", "any", "each", "all", "both", "only", "other",
-        "such", "you", "your", "yours", "they", "them", "their", "theirs", "him", "his", "her",
-        "hers", "its", "our", "ours", // English conversational fillers
-        "want", "like", "need", "know", "think", "tell", "show", "help", "give", "make", "take",
-        "using", "used", "work", "working", "look", "looking", "much", "many", "here", "there",
+        "the", "and", "for", "with", "that", "this", "these", "those", "please",
+        "could", "would", "should", "does", "did", "have", "has", "had", "can",
+        "will", "are", "were", "been", "being", "what", "which", "where", "when",
+        "why", "who", "whom", "how", "from", "into", "onto", "over", "under",
+        "about", "above", "after", "before", "than", "then", "just", "very",
+        "also", "more", "most", "some", "any", "each", "all", "both", "only",
+        "other", "such", "you", "your", "yours", "they", "them", "their",
+        "theirs", "him", "his", "her", "hers", "its", "our", "ours",
+        // English conversational fillers
+        "want", "like", "need", "know", "think", "tell", "show", "help", "give",
+        "make", "take", "using", "used", "work", "working", "look", "looking",
+        "much", "many", "here", "there",
         // Czech functional / grammatical
-        "jak", "pro", "nebo", "když", "aby", "tedy", "tak", "jako", "jsou", "bude", "byl", "byla",
-        "bylo", "byli", "tento", "tato", "toto", "tyto", "který", "která", "které", "kterou",
-        "kterým", "kteří", "jeho", "její", "jejich", "jsem", "jsme", "jste", "chci", "může",
-        "můžeš", "musí", "máme", "mají", "proto", "také", "jen", "jenom", "vše", "všechny", "více",
-        "ještě", "před", "přes", "mezi", "podle",
+        "jak", "pro", "nebo", "když", "aby", "tedy", "tak", "jako", "jsou", "bude",
+        "byl", "byla", "bylo", "byli", "tento", "tato", "toto", "tyto", "který",
+        "která", "které", "kterou", "kterým", "kteří", "jeho", "její", "jejich",
+        "jsem", "jsme", "jste", "chci", "může", "můžeš", "musí", "máme", "mají",
+        "proto", "také", "jen", "jenom", "vše", "všechny", "více", "ještě",
+        "před", "přes", "mezi", "podle",
     ];
 
     let words: Vec<&str> = prompt
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|word| word.chars().count() > 2 && !NOISE.contains(&word.to_lowercase().as_str()))
+        .filter(|word| {
+            word.chars().count() > 2 && !NOISE.contains(&word.to_lowercase().as_str())
+        })
         .collect();
 
     let mode = std::env::var("UMA_RECALL_QUERY").unwrap_or_else(|_| "salient".to_string());

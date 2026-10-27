@@ -3,7 +3,9 @@ use uma_core::fastbrain;
 use uma_core::search::{SearchHit, SearchMode};
 use uma_core::store::Store;
 
-use super::{emit, recall_facts, recall_query, CheckArgs, RawCandidate, RecallVerdict};
+use super::{
+    emit, recall_facts, recall_query, CheckArgs, RawCandidate, RecallVerdict,
+};
 
 /// Reads a preview of the fact (title + description if any + body preview ~400 characters)
 /// for relevance evaluation.
