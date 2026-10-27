@@ -1,5 +1,6 @@
 //! Search entry point and index-cache maintenance.
 
+
 use crate::domain::{FactType, Scope};
 use crate::embeddings::EmbeddingClient;
 use crate::search::{
@@ -104,6 +105,39 @@ impl Store {
                 search_hybrid_resilient(indexer.connection(), &opts)
             }
         }
+    }
+
+    /// Fast semantic search for the recall candidate pool: bounded timeout, 0 retries,
+    /// respects project domains and exclusions, silently empty if no embeddings exist.
+    pub fn search_semantic_pool(
+        query: &str,
+        exclude_ids: &[String],
+        limit: usize,
+        timeout: std::time::Duration,
+    ) -> Result<Vec<crate::search::SearchHit>> {
+        let indexer = Self::central_indexer()?;
+        let conn = indexer.connection();
+        if crate::vector_store::count_embeddings(conn).unwrap_or(0) == 0 {
+            return Ok(Vec::new());
+        }
+
+        let client = EmbeddingClient::new_with_timeout_and_retries(None, timeout, 0)?;
+        let current_project = Self::current_project_name();
+        let project_domains = Self::current_project_domains();
+
+        let opts = SearchOptions {
+            query,
+            scope: None,
+            current_project: current_project.as_deref(),
+            project_domains,
+            fact_type: None,
+            include_deprecated: false,
+            as_of: None,
+            exclude_ids: exclude_ids.to_vec(),
+            limit,
+        };
+
+        search_semantic(conn, &opts, &client)
     }
 
     /// Rebuilds the centralized SQLite index by scanning global and project stores.

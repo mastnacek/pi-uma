@@ -92,6 +92,9 @@ pub fn search_semantic(
 
     while let Some(row) = rows.next()? {
         let id_str: String = row.get(0)?;
+        if opts.exclude_ids.contains(&id_str) {
+            continue;
+        }
         let scope_str: String = row.get(1)?;
         let project_name: String = row.get(2)?;
         let type_str: String = row.get(3)?;

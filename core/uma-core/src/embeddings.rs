@@ -36,11 +36,26 @@ pub struct EmbeddingClient {
     client: Client,
     api_key: String,
     pub model: String,
+    max_retries: usize,
 }
 
 impl EmbeddingClient {
     /// Creates a new embedding client by resolving the OpenRouter API key automatically.
     pub fn new(model_override: Option<&str>) -> Result<Self> {
+        Self::new_with_timeout_and_retries(model_override, Duration::from_secs(30), 3)
+    }
+
+    /// Creates a new embedding client with a custom request timeout and default 3 retries.
+    pub fn new_with_timeout(model_override: Option<&str>, timeout: Duration) -> Result<Self> {
+        Self::new_with_timeout_and_retries(model_override, timeout, 3)
+    }
+
+    /// Creates a new embedding client with a custom timeout and retry count.
+    pub fn new_with_timeout_and_retries(
+        model_override: Option<&str>,
+        timeout: Duration,
+        max_retries: usize,
+    ) -> Result<Self> {
         let api_key = resolve_api_key().context(
             "OpenRouter API key not found in OPENROUTER_API_KEY or ~/.pi/agent/auth.json",
         )?;
@@ -49,7 +64,7 @@ impl EmbeddingClient {
             .to_string();
 
         let client = Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(timeout)
             .pool_max_idle_per_host(5)
             .build()
             .context("Failed to initialize HTTP client")?;
@@ -58,6 +73,7 @@ impl EmbeddingClient {
             client,
             api_key,
             model,
+            max_retries,
         })
     }
 
@@ -73,7 +89,7 @@ impl EmbeddingClient {
         };
 
         let mut retries = 0;
-        let max_retries = 3;
+        let max_retries = self.max_retries;
 
         loop {
             let response = self
