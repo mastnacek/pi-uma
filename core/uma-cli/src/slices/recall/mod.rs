@@ -105,12 +105,8 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
     if args.judge == "always" {
         // Forced search without type filters: deterministic baseline for evaluation
         // and scenarios, separating retrieval errors from judge classification errors.
-        let (facts, search_notes) = recall_facts_with_alt(
-            &prompt,
-            args.alt_prompt.as_deref(),
-            args.max,
-            &args.exclude,
-        )?;
+        let (facts, search_notes) =
+            recall_facts_with_alt(&prompt, args.alt_prompt.as_deref(), args.max, &args.exclude)?;
         let note = if search_notes.is_empty() {
             None
         } else {
@@ -153,12 +149,8 @@ fn check_prompt(args: CheckArgs) -> Result<()> {
         );
     }
 
-    let (facts, search_notes) = recall_facts_with_alt(
-        &prompt,
-        args.alt_prompt.as_deref(),
-        args.max,
-        &args.exclude,
-    )?;
+    let (facts, search_notes) =
+        recall_facts_with_alt(&prompt, args.alt_prompt.as_deref(), args.max, &args.exclude)?;
     // Merge provenance (judge note) with the search's degradation notes so a
     // relaxed recall is visible in the verdict, not silently presented as a
     // precise match.
@@ -278,22 +270,21 @@ pub(crate) fn recall_facts_with_alt(
     exclude: &[String],
 ) -> Result<(Vec<serde_json::Value>, Vec<String>)> {
     let (cands_primary, note_primary) = retrieve_candidate_pool(prompt, exclude, max)?;
-    let (candidate_pool, note) = if is_bilingual_enabled()
-        && alt_prompt.map(|s| !s.trim().is_empty()).unwrap_or(false)
-    {
-        let alt_text = alt_prompt.unwrap().trim();
-        let (cands_alt, note_alt) = retrieve_candidate_pool(alt_text, exclude, max)?;
-        let merged = merge_candidate_pools(cands_primary, cands_alt, max);
-        let combined_note = match (note_primary, note_alt) {
-            (Some(n1), Some(n2)) if n1 == n2 => Some(n1),
-            (Some(n1), Some(n2)) => Some(format!("{n1}; {n2}")),
-            (Some(n), None) | (None, Some(n)) => Some(n),
-            (None, None) => None,
+    let (candidate_pool, note) =
+        if is_bilingual_enabled() && alt_prompt.map(|s| !s.trim().is_empty()).unwrap_or(false) {
+            let alt_text = alt_prompt.unwrap().trim();
+            let (cands_alt, note_alt) = retrieve_candidate_pool(alt_text, exclude, max)?;
+            let merged = merge_candidate_pools(cands_primary, cands_alt, max);
+            let combined_note = match (note_primary, note_alt) {
+                (Some(n1), Some(n2)) if n1 == n2 => Some(n1),
+                (Some(n1), Some(n2)) => Some(format!("{n1}; {n2}")),
+                (Some(n), None) | (None, Some(n)) => Some(n),
+                (None, None) => None,
+            };
+            (merged, combined_note)
+        } else {
+            (cands_primary, note_primary)
         };
-        (merged, combined_note)
-    } else {
-        (cands_primary, note_primary)
-    };
 
     let mut facts = Vec::new();
     let mut notes = Vec::new();
@@ -315,7 +306,6 @@ pub(crate) fn recall_facts_with_alt(
 
     Ok((facts, notes))
 }
-
 
 /// Builds the search query from the prompt: meaningful words only, capped, so
 /// BM25 keeps signal instead of matching everything vaguely.

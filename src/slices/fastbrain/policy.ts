@@ -46,7 +46,8 @@ export function buildRecallArgs(
   // otherwise be rejected by the engine as an unknown flag.
   const args = ["recall", "check", "--judge", judge, "--json", "--max", "3"];
   if (altPrompt && altPrompt.trim().length > 0) {
-    args.push("--alt-prompt", altPrompt.trim());
+    // `=` binds the value: a separate "- oprav seznam" would be rejected as a flag.
+    args.push(`--alt-prompt=${altPrompt.trim()}`);
   }
   return args
     .concat(excludeIds.flatMap((id) => ["--exclude", id]))
