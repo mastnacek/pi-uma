@@ -108,22 +108,60 @@ fn check_familiarity(args: CheckArgs) -> Result<()> {
     Ok(())
 }
 
-/// Counts memory facts (any type, both scopes) mentioning any target file path or stem.
-fn fact_coverage(files: &[String]) -> Result<usize> {
-    let tokens: Vec<String> = files
+/// Shortest file stem that may count as a mention on its own. A one- or
+/// two-letter stem (`b.js`, `qq.js`) matched as a raw substring hit almost
+/// every fact: `vendor/rr/b.js` reported 71 covering facts in a project with
+/// none, so the humility gate never asked (live finding 2026-10-28).
+const MIN_STEM_LEN: usize = 3;
+
+/// Search tokens for the target files: the full normalized path, plus the
+/// file stem when it is long enough to be meaningful.
+fn coverage_tokens(files: &[String]) -> Vec<String> {
+    files
         .iter()
         .flat_map(|f| {
-            let p = std::path::Path::new(f);
-            let stem = p
+            let path = f.replace('\\', "/").to_lowercase();
+            let stem = std::path::Path::new(&path)
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or_default()
                 .to_string();
-            [f.replace('\\', "/"), stem]
+            let mut out = vec![path];
+            if stem.chars().count() >= MIN_STEM_LEN {
+                out.push(stem);
+            }
+            out
         })
         .filter(|t| !t.is_empty())
-        .collect();
+        .collect()
+}
 
+/// True when `token` occurs in `haystack` as a whole word: the characters
+/// around the match are not alphanumeric or `_`, so `util` matches
+/// "src/util.js" and "util functions" but not "utility".
+fn mentions(haystack: &str, token: &str) -> bool {
+    let is_word = |c: char| c.is_alphanumeric() || c == '_';
+    let mut from = 0;
+    while let Some(pos) = haystack[from..].find(token) {
+        let start = from + pos;
+        let end = start + token.len();
+        let before_ok = haystack[..start].chars().next_back().map_or(true, |c| !is_word(c));
+        let after_ok = haystack[end..].chars().next().map_or(true, |c| !is_word(c));
+        if before_ok && after_ok {
+            return true;
+        }
+        from = start + token.len().max(1);
+        if from >= haystack.len() {
+            break;
+        }
+    }
+    false
+}
+
+/// Counts memory facts (any type, current project + global) that mention a
+/// target file by its full path or by a meaningful stem, as a whole word.
+fn fact_coverage(files: &[String]) -> Result<usize> {
+    let tokens = coverage_tokens(files);
     if tokens.is_empty() {
         return Ok(0);
     }
@@ -131,13 +169,43 @@ fn fact_coverage(files: &[String]) -> Result<usize> {
     let mut count = 0usize;
     for facts in all_facts()? {
         for fact in facts {
-            let haystack = format!("{} {}", fact.title, fact.body).replace('\\', "/");
-            if tokens.iter().any(|token| haystack.contains(token.as_str())) {
+            let haystack = format!("{} {}", fact.title, fact.body)
+                .replace('\\', "/")
+                .to_lowercase();
+            if tokens.iter().any(|token| mentions(&haystack, token)) {
                 count += 1;
             }
         }
     }
     Ok(count)
+}
+
+#[cfg(test)]
+mod coverage_tests {
+    use super::{coverage_tokens, mentions};
+
+    #[test]
+    fn short_stems_are_not_search_tokens() {
+        let tokens = coverage_tokens(&["vendor/rr/b.js".to_string()]);
+        assert_eq!(tokens, vec!["vendor/rr/b.js".to_string()]);
+    }
+
+    #[test]
+    fn stems_and_paths_match_as_whole_words_only() {
+        assert!(mentions("never import from src/util.js here", "util"));
+        assert!(mentions("util functions validate inputs", "util"));
+        assert!(!mentions("a utility belt", "util"));
+        assert!(!mentions("bubble tea", "b"));
+        assert!(mentions("see src/app.js.", "src/app.js"));
+        assert!(!mentions("see src/app.json", "src/app.js"));
+    }
+
+    #[test]
+    fn windows_paths_and_case_are_normalized() {
+        let tokens = coverage_tokens(&["Src\\Util.JS".to_string()]);
+        assert!(tokens.contains(&"src/util.js".to_string()));
+        assert!(tokens.contains(&"util".to_string()));
+    }
 }
 
 fn all_facts() -> Result<Vec<Vec<uma_core::domain::Fact>>> {

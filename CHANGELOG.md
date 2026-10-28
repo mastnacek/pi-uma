@@ -2,6 +2,12 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.3] - 2026-10-28
+
+### Fixed
+- Humility familiarity: fact coverage counted a file stem as a raw substring of every fact in both scopes, so a short stem (`b` of `vendor/rr/b.js`) matched almost every fact. A file with no memory at all reported 71 covering facts and "high" familiarity, and the humility gate never asked (live finding). Stems shorter than 3 characters are no longer search tokens, paths and stems match only as whole words, and matching is case-insensitive.
+- Engine and plugin versions are aligned again (the engine reported 0.17.0 while the plugin shipped 0.17.2).
+
 ## [0.17.2] - 2026-10-28
 
 ### Fixed
