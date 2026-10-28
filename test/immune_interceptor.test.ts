@@ -174,3 +174,8 @@ test("ask mode suppresses dialog and routes warning via tool_result when no rule
   assert.equal(callResult, undefined);
   assert.equal(dialogShown, false, "dialog must not be shown when no rule matches and pain < 50");
 });
+
+test("preference and correction facts are interceptor rules too (live finding 2026-10-28)", async () => {
+  const { RULE_FACT_TYPES } = await import("../src/hooks/immune_interceptor.ts");
+  assert.deepEqual([...RULE_FACT_TYPES].sort(), ["correction", "decision", "pattern", "preference"]);
+});

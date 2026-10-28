@@ -174,6 +174,12 @@ export class DisplayTranslation {
   private readonly ctx: ExtensionContext;
   private readonly onChange: () => void;
   private text?: string;
+  /** The original the cached translation was made from: a translation of an
+   *  older body must never be shown for an edited one (live finding
+   *  2026-10-28 — the operator approved a stale translated body). */
+  private source?: string;
+  /** Bumped by invalidate(): a late result of a superseded request is dropped. */
+  private generation = 0;
   private state: "idle" | "pending" | "done" | "failed" = "idle";
   private lastError?: string;
 
@@ -189,7 +195,10 @@ export class DisplayTranslation {
   start(body: string): void {
     if (this.state !== "idle") return;
     this.state = "pending";
+    this.source = body;
+    const generation = this.generation;
     void translateForDisplay(this.ctx, body).then((result) => {
+      if (generation !== this.generation) return; // superseded by an edit
       if (result.text) {
         this.text = result.text;
         this.state = "done";
@@ -213,9 +222,22 @@ export class DisplayTranslation {
     return this.lastError;
   }
 
-  /** The body to display: the cache when shown and ready, else the original. */
+  /** Drops the cached translation (the body was edited); start() may run again. */
+  invalidate(): void {
+    this.generation++;
+    this.text = undefined;
+    this.source = undefined;
+    this.lastError = undefined;
+    this.state = "idle";
+  }
+
+  /** The body to display: the cache when shown, ready AND made from this very
+   *  original — otherwise the original itself, never a stale translation. */
   bodyFor(original: string, showTranslation: boolean): string {
-    return showTranslation && this.state === "done" && this.text !== undefined
+    return showTranslation &&
+      this.state === "done" &&
+      this.text !== undefined &&
+      this.source === original
       ? this.text
       : original;
   }

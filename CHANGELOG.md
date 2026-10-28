@@ -2,6 +2,14 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.2] - 2026-10-28
+
+### Fixed
+- Approval gate: `uma domains set`, `uma migrate` (without `--dry-run`), `uma sync push|pull`, `uma staging discard` and `uma muscle run --confirm` are now blocked when run through bash. Each ran unblocked in the live test: they rewrite or publish memory, destroy unreviewed drafts, or execute a routine without the consent dialog.
+- Immune interceptor: preference and correction facts are now rules alongside decisions and patterns. Violating edits against a promoted correction or an operator preference passed without a dialog before.
+- Immune interceptor: the rules cache is keyed by cwd, so another project's rules no longer apply for up to 10 minutes after a project switch.
+- Proposal modal: the translated body view is tied to the body it was made from. After editing the body the stale translation is dropped and the edited body is translated again; the operator previously approved a body whose translated view still showed the old text. Toggling the translation on with `c` now starts it when it never ran.
+
 ## [0.17.1] - 2026-10-27
 
 ### Fixed

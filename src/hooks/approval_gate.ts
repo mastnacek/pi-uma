@@ -29,6 +29,17 @@ function subcommandMutatesMemory(tokens: string[]): boolean {
   // The plugin's own triggers go through runUma directly, not the bash tool.
   if (sub === "plasticity" && (second === "reinforce" || second === "frustrate")) return true;
   if (sub === "mcp" && second === "serve" && tokens.some((t) => t === "--allow-writes")) return true;
+  // Live findings 2026-10-28: each of these ran through bash unblocked.
+  // `domains set` rewrites fact frontmatter; `migrate` rewrites every fact
+  // file (and stamps provenance); `sync push|pull` commits, publishes or
+  // merges the whole global store; `staging discard` destroys drafts the
+  // operator has not reviewed; `muscle run --confirm` executes a routine
+  // without the consent dialog the uma_muscle tool shows.
+  if (sub === "domains" && second === "set") return true;
+  if (sub === "migrate" && !tokens.some((t) => t.toLowerCase() === "--dry-run")) return true;
+  if (sub === "sync" && (second === "push" || second === "pull")) return true;
+  if (sub === "staging" && second === "discard") return true;
+  if (sub === "muscle" && second === "run" && tokens.some((t) => t.toLowerCase() === "--confirm")) return true;
   return false;
 }
 

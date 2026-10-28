@@ -246,3 +246,21 @@ test("shell wrappers cannot hide a memory write (live bypass 2026-10-27)", () =>
   assert.equal(isBypassingBashCommand("bash -c 'npm test'"), false);
   assert.equal(isBypassingBashCommand("Set-Content src/app.js 'x'"), false);
 });
+
+test("store-mutating CLI commands are gated (live bypasses 2026-10-28)", () => {
+  // Each of these ran through bash unblocked in the live test.
+  assert.equal(isBypassingBashCommand("uma domains set --domain gatetest 01M60MRAHCE754NDY032ZTV2WA"), true);
+  assert.equal(isBypassingBashCommand("D:/x/bin/uma.exe migrate"), true);
+  assert.equal(isBypassingBashCommand("uma migrate --reindex"), true);
+  assert.equal(isBypassingBashCommand("uma sync push --message x"), true);
+  assert.equal(isBypassingBashCommand("uma sync pull"), true);
+  assert.equal(isBypassingBashCommand("uma staging discard 01M60N92B1MDJ7YXMF79FQWCZ7"), true);
+  assert.equal(isBypassingBashCommand("uma muscle run git-status-log --confirm"), true);
+  assert.equal(isBypassingBashCommand("bash -c 'uma sync push'"), true);
+  // Read-only and dry-run spellings stay allowed.
+  assert.equal(isBypassingBashCommand("uma migrate --dry-run"), false);
+  assert.equal(isBypassingBashCommand("uma sync status"), false);
+  assert.equal(isBypassingBashCommand("uma staging list"), false);
+  assert.equal(isBypassingBashCommand("uma muscle run git-status-log"), false);
+  assert.equal(isBypassingBashCommand("uma domains --help"), false);
+});

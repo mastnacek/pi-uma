@@ -118,6 +118,11 @@ export async function showProposalModal(
         proposal.title = trimmed;
       } else if (editField === "body" && trimmed) {
         proposal.body = trimmed;
+        // The cached translation belongs to the old body: drop it and
+        // translate the edited one, so the operator never approves a body
+        // whose translated view still shows the previous text.
+        displayTranslation.invalidate();
+        if (showTranslation) displayTranslation.start(proposal.body);
       } else if (editField === "tags") {
         proposal.tags = trimmed
           .split(",")
@@ -173,6 +178,7 @@ export async function showProposalModal(
         }
         if (data === "c" || data === "C") {
           showTranslation = !showTranslation;
+          if (showTranslation) displayTranslation.start(proposal.body);
           clampScroll();
           refresh();
           return;
@@ -222,6 +228,7 @@ export async function showProposalModal(
       }
       if (data === "c" || data === "C") {
         showTranslation = !showTranslation;
+        if (showTranslation) displayTranslation.start(proposal.body);
         refresh();
         return;
       }

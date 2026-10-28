@@ -43,10 +43,15 @@ const CHECK_TIMEOUT_MS = 5_000;
  * but a recommendation that arrives after 8s is worse than none at all. */
 const RECOMMENDATION_TIMEOUT_MS = 8_000;
 
-/** The L1 rules cache: decisions and patterns only, refreshed at most every 10 minutes. */
+/** Fact types that act as rules for the interceptor. Exported for the test. */
+export const RULE_FACT_TYPES = ["decision", "pattern", "preference", "correction"] as const;
+
+/** The L1 rules cache: every rule type above, refreshed at most every 10
+ *  minutes and keyed by cwd — another project's rules never apply here. */
 const RULES_CACHE_TTL_MS = 10 * 60 * 1_000;
 
 interface CachedRules {
+  cwd: string;
   rules: RuleL1[];
   fetchedAt: number;
 }
@@ -81,17 +86,21 @@ async function fetchPain(cwd: string, path: string): Promise<PainVerdict | undef
 
 async function fetchRules(cwd: string): Promise<RuleL1[]> {
   const now = Date.now();
-  if (rulesCache && now - rulesCache.fetchedAt < RULES_CACHE_TTL_MS) {
+  if (rulesCache && rulesCache.cwd === cwd && now - rulesCache.fetchedAt < RULES_CACHE_TTL_MS) {
     return rulesCache.rules;
   }
   const binPath = findUmaBinary(cwd);
-  // Two separate calls: clap rejects a repeated --type flag, and a single
+  // One call per type: clap rejects a repeated --type flag, and a single
   // call with both types silently reduced the cache to patterns only — the
   // decision rules (the VSA isolation rule among them) were missing.
-  const outputs = await Promise.all([
-    runUma(binPath, ["list", "--json", "--type", "decision"], cwd, CHECK_TIMEOUT_MS),
-    runUma(binPath, ["list", "--json", "--type", "pattern"], cwd, CHECK_TIMEOUT_MS),
-  ]);
+  // Preferences and corrections are rules too: a promoted correction and an
+  // operator preference were never checked before (live finding 2026-10-28,
+  // violating edits passed without a dialog).
+  const outputs = await Promise.all(
+    RULE_FACT_TYPES.map((type) =>
+      runUma(binPath, ["list", "--json", "--type", type], cwd, CHECK_TIMEOUT_MS),
+    ),
+  );
   const rules: RuleL1[] = [];
   for (const output of outputs) {
     if (output.code !== 0) continue;
@@ -102,7 +111,7 @@ async function fetchRules(cwd: string): Promise<RuleL1[]> {
       // skip an unparsable response; the cache stays smaller, not wrong
     }
   }
-  rulesCache = { rules, fetchedAt: now };
+  rulesCache = { cwd, rules, fetchedAt: now };
   return rules;
 }
 
