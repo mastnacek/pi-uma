@@ -283,6 +283,31 @@ draft count, and blocking debt count are live.
 
 ---
 
+## Recall Language (prompts in Czech or other languages)
+
+Recall candidates come from keyword (BM25) search over the facts, which are
+written in English. A prompt in another language therefore matches only when
+an English version of it exists:
+
+- **With the translate plugin** (`pi-prompt-translate-czk`): the gate searches
+  the English translation and the original together (`UMA_RECALL_BILINGUAL`,
+  default on). Czech prompts recall normally.
+- **Without it**: a Czech prompt finds no keyword candidate and nothing is
+  recalled. Enable the opt-in semantic fallback for this case:
+
+  ```sh
+  UMA_RECALL_SEMANTIC_FALLBACK=1   # default 0 (off)
+  ```
+
+  It runs only when the keyword pool is empty, passes only standout semantic
+  candidates (cosine ≥ 0.5 and ≥ 80 % of the best) to the relevance judge, and
+  leaves every other case unchanged. Czech-prompt benchmark (73 cases): off
+  44 % hits / 100 % negatives empty; on 92 % / 94 %; 0 leaks either way. It
+  stays off by default because the always-on hybrid pool was reverted after
+  the v0.14 benchmark.
+
+---
+
 ## Display Translation (Czech/English)
 
 - **Scope:** Only the proposal modal body, `/uma read`, `/uma search`, and
