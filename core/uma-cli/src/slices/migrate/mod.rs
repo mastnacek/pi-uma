@@ -69,19 +69,7 @@ pub fn run(args: MigrateArgs) -> Result<()> {
             // Migration: reattach to the canonical store root (it no longer
             // nests a project directory) and backfill OKF v0.2 provenance keys.
             fact.scope = scope.clone();
-
-            if fact.generated.is_none() {
-                fact.generated = Some(ActorEvent {
-                    by: "pi-agent/1.1".to_string(),
-                    at: fact.validity.since,
-                });
-            }
-            if fact.verified.is_empty() {
-                fact.verified = vec![ActorEvent {
-                    by: "human:operator".to_string(),
-                    at: fact.validity.since,
-                }];
-            }
+            backfill_provenance(&mut fact);
 
             let rendered = match fact_to_markdown(&fact) {
                 Ok(r) => r,
@@ -158,5 +146,48 @@ mod tests {
         assert!(!cli2.args.dry_run);
         assert!(!cli2.args.reindex);
         Ok(())
+    }
+}
+
+/// Provenance recorded for a legacy fact whose author is unknown.
+const LEGACY_GENERATOR: &str = "legacy:unknown";
+
+/// Backfills OKF v0.2 provenance keys honestly.
+///
+/// `generated` gets an explicit "unknown author" marker instead of claiming a
+/// specific agent. `verified` is NEVER backfilled: verification is a human
+/// act, and stamping `human:operator` on a fact nobody reviewed falsified its
+/// provenance (live finding 2026-10-28).
+fn backfill_provenance(fact: &mut uma_core::domain::Fact) {
+    if fact.generated.is_none() {
+        fact.generated = Some(ActorEvent {
+            by: LEGACY_GENERATOR.to_string(),
+            at: fact.validity.since,
+        });
+    }
+}
+
+#[cfg(test)]
+mod provenance_tests {
+    use super::{backfill_provenance, LEGACY_GENERATOR};
+    use uma_core::serialization::markdown_to_fact;
+
+    const LEGACY: &str = "---\nid: 01M4N20M6X3P8H9KZ01V5E729Y\nscope: global\ntype: decision\ntitle: Legacy fact\nstatus: stable\nsince: \"2026-10-11T10:45:00+00:00\"\n---\nBody.\n";
+
+    #[test]
+    fn migration_never_invents_a_human_verification() {
+        let mut fact = markdown_to_fact(LEGACY).expect("legacy fact parses");
+        assert!(fact.verified.is_empty(), "setup: no verification");
+        backfill_provenance(&mut fact);
+        assert!(fact.verified.is_empty(), "verified must stay empty: {:?}", fact.verified);
+        assert_eq!(fact.generated.as_ref().map(|g| g.by.as_str()), Some(LEGACY_GENERATOR));
+    }
+
+    #[test]
+    fn existing_provenance_is_kept() {
+        let mut fact = markdown_to_fact(LEGACY).expect("legacy fact parses");
+        fact.generated = Some(uma_core::domain::ActorEvent { by: "pi-agent/1.1".into(), at: fact.validity.since });
+        backfill_provenance(&mut fact);
+        assert_eq!(fact.generated.as_ref().unwrap().by, "pi-agent/1.1");
     }
 }

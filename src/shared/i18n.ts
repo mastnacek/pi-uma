@@ -46,6 +46,8 @@ export interface Strings {
   detailedHelp: string;
   compHelp: string;
   immuneModeEnabled: string;
+  /** Appended when an operator-only key was saved globally instead of per project. */
+  savedGloballyNote: string;
   immuneModeCurrent: string;
   immuneModeLabel: string;
   hudEnabled: string;
@@ -189,6 +191,7 @@ const STRINGS: Record<Locale, Strings> = {
 
 Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across all sessions.`,
     immuneModeEnabled: "Immune interceptor mode updated: ",
+    savedGloballyNote: " (saved globally: a project config may not set this)",
     immuneModeCurrent: "Immune interceptor mode: ",
     immuneModeLabel: "Immune",
     hudEnabled: "UMA Detector HUD enabled",
@@ -316,6 +319,7 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
 
 Tip: Přidejte přepínač --global pro trvalé uložení do ~/.pi/agent/uma.json (platí pro všechny projekty).`,
     immuneModeEnabled: "Režim imunitního interceptoru nastaven: ",
+    savedGloballyNote: " (uloženo globálně: projektový config toto nastavit nesmí)",
     immuneModeCurrent: "Režim imunitního interceptoru: ",
     immuneModeLabel: "Imunita",
     hudEnabled: "Detektor UMA HUD zapnut",

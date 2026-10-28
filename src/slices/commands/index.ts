@@ -131,9 +131,9 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         const wantsGlobal = isGlobal || cleanParts.includes("--global");
         const target = cleanParts[1]?.toLowerCase();
         if (target === "on" || target === "true") {
-          saveConfig({ appendPrompt: true }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          const promoted = saveConfig({ appendPrompt: true }, wantsGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, appendPrompt: true };
-          ctx.ui.notify(liveStrings.appendEnabled, "info");
+          ctx.ui.notify(liveStrings.appendEnabled + (promoted.length > 0 ? liveStrings.savedGloballyNote : ""), "info");
         } else if (target === "off" || target === "false") {
           saveConfig({ appendPrompt: false }, wantsGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, appendPrompt: false };
@@ -179,9 +179,12 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         const valid = ["off", "warn", "ask", "auto", "block"];
         if (target && valid.includes(target)) {
           const mode = target as "off" | "warn" | "ask" | "auto" | "block";
-          saveConfig({ immuneMode: mode }, wantsGlobal, ctx.cwd, state.globalConfigFile);
+          const promoted = saveConfig({ immuneMode: mode }, wantsGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, immuneMode: mode };
-          ctx.ui.notify(`${liveStrings.immuneModeEnabled}${mode}`, "info");
+          ctx.ui.notify(
+            `${liveStrings.immuneModeEnabled}${mode}${promoted.length > 0 ? liveStrings.savedGloballyNote : ""}`,
+            "info",
+          );
         } else {
           ctx.ui.notify(
             `${liveStrings.immuneModeCurrent}${state.config.immuneMode} (off | warn | ask | auto | block [--global])`,
@@ -210,9 +213,9 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
       } else if (subcommand === "auto-approve") {
         const target = cleanParts[1];
         if (target === "on" || target === "true") {
-          saveConfig({ autoApprove: true }, isGlobal, ctx.cwd, state.globalConfigFile);
+          const promoted = saveConfig({ autoApprove: true }, isGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, autoApprove: true };
-          ctx.ui.notify(liveStrings.autoApproveEnabled, "info");
+          ctx.ui.notify(liveStrings.autoApproveEnabled + (promoted.length > 0 ? liveStrings.savedGloballyNote : ""), "info");
         } else if (target === "off" || target === "false") {
           saveConfig({ autoApprove: false }, isGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, autoApprove: false };

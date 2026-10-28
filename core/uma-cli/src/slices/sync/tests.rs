@@ -253,3 +253,36 @@ fn test_push_refuses_to_publish_a_credential() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn test_push_never_publishes_staging_drafts() -> Result<()> {
+    // Live finding 2026-10-28: a store whose .gitignore predated the staging
+    // entry published 49 unreviewed drafts. An existing ignore file must be
+    // extended, and drafts committed by an older build must be untracked.
+    let dir = tempdir()?;
+    let root = memory_root(dir.path(), "global");
+    std::fs::write(root.join(".gitignore"), "index.db\n")?;
+    let draft = root.join(".staging").join("01draft.json");
+    std::fs::create_dir_all(draft.parent().unwrap())?;
+    std::fs::write(&draft, "{\"status\":\"draft\"}")?;
+    // An older build already committed the draft.
+    git::ensure_repo(&root)?;
+    git::run(&root, &["add", "-A", "."])?;
+    git::commit(&root, "old build committed a draft")?;
+    assert!(git::is_tracked(&root, ".staging/01draft.json"), "setup: draft tracked");
+
+    let report = push_at(&root, None)?;
+
+    let ignore = std::fs::read_to_string(root.join(".gitignore"))?;
+    assert!(ignore.lines().any(|l| l.trim() == ".staging/"), "{ignore}");
+    assert!(ignore.lines().any(|l| l.trim() == "index.db"), "{ignore}");
+    assert!(!git::is_tracked(&root, ".staging/01draft.json"));
+    assert!(draft.exists(), "the draft itself stays on disk");
+    assert!(report.changed_paths.iter().all(|p| !p.starts_with(".staging/")));
+    let tracked = git::run(&root, &["ls-files"])?;
+    assert!(tracked.lines().all(|p| p.ends_with(".md") || p == ".gitignore"), "{tracked}");
+
+    // A second push changes nothing about the ignore file.
+    assert!(!git::write_ignore(&root)?);
+    Ok(())
+}

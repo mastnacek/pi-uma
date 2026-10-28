@@ -118,19 +118,12 @@ export function loadConfig(cwd: string): { config: PluginConfig; globalFile: str
   return { config: merged, globalFile };
 }
 
-export function saveConfig(
-  patch: Partial<PluginConfig>,
-  isGlobal: boolean,
-  cwd: string,
-  globalFile: string
-): void {
-  const targetFile = isGlobal ? globalFile : path.join(cwd, ".pi", "uma.json");
+/** Merges a sanitized patch into one JSON config file (created if missing). */
+function mergeIntoFile(targetFile: string, sanitizedPatch: Partial<PluginConfig>): void {
   const targetDir = path.dirname(targetFile);
-
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
-
   let existing: Record<string, unknown> = {};
   if (fs.existsSync(targetFile)) {
     try {
@@ -139,11 +132,43 @@ export function saveConfig(
       existing = {};
     }
   }
-
-  const sanitizedPatch = isGlobal
-    ? sanitizeConfig(patch)
-    : sanitizeConfig(patch, PROJECT_ALLOWED_KEYS);
-
   const updated = { ...existing, ...sanitizedPatch };
   fs.writeFileSync(targetFile, JSON.stringify(updated, null, 2), "utf-8");
+}
+
+/**
+ * Persists a config patch. A project-scoped save writes the keys a project
+ * may set to `<cwd>/.pi/uma.json`; operator-only keys (immuneMode,
+ * appendPrompt, autoApprove) can never live in a project file, so they go to
+ * the global file instead of being silently dropped — `/uma immune ask`
+ * without `--global` used to write `{}` and revert on the next reload (live
+ * finding 2026-10-28). Returns the keys that were written globally although
+ * a project save was requested, so the caller can tell the operator.
+ */
+export function saveConfig(
+  patch: Partial<PluginConfig>,
+  isGlobal: boolean,
+  cwd: string,
+  globalFile: string
+): Array<keyof PluginConfig> {
+  if (isGlobal) {
+    mergeIntoFile(globalFile, sanitizeConfig(patch));
+    return [];
+  }
+  const projectPart = sanitizeConfig(patch, PROJECT_ALLOWED_KEYS);
+  const all = sanitizeConfig(patch);
+  const operatorOnly: Partial<PluginConfig> = {};
+  for (const key of Object.keys(all) as Array<keyof PluginConfig>) {
+    if (!PROJECT_ALLOWED_KEYS.has(key)) {
+      (operatorOnly as Record<string, unknown>)[key] = all[key];
+    }
+  }
+  if (Object.keys(projectPart).length > 0) {
+    mergeIntoFile(path.join(cwd, ".pi", "uma.json"), projectPart);
+  }
+  const promoted = Object.keys(operatorOnly) as Array<keyof PluginConfig>;
+  if (promoted.length > 0) {
+    mergeIntoFile(globalFile, operatorOnly);
+  }
+  return promoted;
 }

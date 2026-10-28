@@ -75,18 +75,55 @@ pub fn ensure_repo(dir: &Path) -> Result<RepoInit> {
     })
 }
 
-/// Writes the `.gitignore` that keeps `index.db` out of the repository.
+/// Entries every memory repository must ignore.
 ///
-/// The index is a rebuildable, machine-specific binary cache that changes on
-/// every search; if it were ever committed, every future push would carry it.
-/// Returns true when the file was written.
+/// `index.db` is a rebuildable, machine-specific binary cache that changes on
+/// every search. `.staging/` holds shadow-worker drafts the operator has not
+/// reviewed: they are proposals, not memory, and a live push published 49 of
+/// them before this entry existed (finding 2026-10-28).
+pub const REQUIRED_IGNORES: [&str; 2] = ["index.db", ".staging/"];
+
+/// Ensures `.gitignore` carries every [`REQUIRED_IGNORES`] entry, creating the
+/// file or appending the missing lines. Returns true when the file changed.
 pub fn write_ignore(dir: &Path) -> Result<bool> {
     let ignore = dir.join(".gitignore");
-    if ignore.exists() {
+    let existing = if ignore.exists() {
+        std::fs::read_to_string(&ignore).with_context(|| format!("failed to read {:?}", ignore))?
+    } else {
+        String::new()
+    };
+    let present: Vec<&str> = existing.lines().map(str::trim).collect();
+    let missing: Vec<&str> = REQUIRED_IGNORES
+        .iter()
+        .copied()
+        .filter(|entry| {
+            let bare = entry.trim_end_matches('/');
+            !present.iter().any(|p| p.trim_end_matches('/') == bare)
+        })
+        .collect();
+    if missing.is_empty() {
         return Ok(false);
     }
-    std::fs::write(&ignore, "index.db\n")
-        .with_context(|| format!("failed to write {:?}", ignore))?;
+    let mut content = existing;
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
+    for entry in missing {
+        content.push_str(entry);
+        content.push('\n');
+    }
+    std::fs::write(&ignore, content).with_context(|| format!("failed to write {:?}", ignore))?;
+    Ok(true)
+}
+
+/// Stops tracking every file under `dir_path` while leaving them on disk.
+/// Returns true when something was untracked.
+pub fn untrack_dir(dir: &Path, dir_path: &str) -> Result<bool> {
+    let tracked = run(dir, &["ls-files", "--", dir_path]).unwrap_or_default();
+    if tracked.trim().is_empty() {
+        return Ok(false);
+    }
+    run(dir, &["rm", "-r", "--cached", "--quiet", "--", dir_path])?;
     Ok(true)
 }
 

@@ -123,3 +123,26 @@ test("loadConfig ignores sensitive gates from project .pi/uma.json", () => {
     fs.rmSync(tmpProjectDir, { recursive: true, force: true });
   }
 });
+
+test("operator-only keys saved without --global go to the global file (live finding 2026-10-28)", async () => {
+  const { saveConfig } = await import("../src/shared/config.ts");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "uma-save-"));
+  try {
+    const globalFile = path.join(dir, "global", "uma.json");
+    const project = path.join(dir, "proj");
+    fs.mkdirSync(project, { recursive: true });
+
+    const promoted = saveConfig({ immuneMode: "warn", recallGate: true }, false, project, globalFile);
+
+    assert.deepEqual(promoted, ["immuneMode"]);
+    const projectCfg = JSON.parse(fs.readFileSync(path.join(project, ".pi", "uma.json"), "utf-8"));
+    assert.deepEqual(projectCfg, { recallGate: true }, "project file never carries an operator-only key");
+    const globalCfg = JSON.parse(fs.readFileSync(globalFile, "utf-8"));
+    assert.equal(globalCfg.immuneMode, "warn");
+
+    // A global save promotes nothing.
+    assert.deepEqual(saveConfig({ appendPrompt: true }, true, project, globalFile), []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

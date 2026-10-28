@@ -56,6 +56,8 @@ pub const SECRET_PATTERNS: &[Pattern] = &[
         r"\bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b"
     ),
     pattern!("Google OAuth secret", r"\bGOCSPX-[A-Za-z0-9_-]{20,}\b"),
+    // Before the generic sk- shape so an OpenRouter key is labelled as one.
+    pattern!("OpenRouter API key", r"\bsk-or-v1-[A-Za-z0-9]{32,}\b"),
     pattern!("OpenAI API key", r"\bsk-[A-Za-z0-9_-]{20,}\b"),
     pattern!("Anthropic API key", r"\bsk-ant-[A-Za-z0-9_-]{20,}\b"),
     pattern!("Google API key", r"\bAIza[0-9A-Za-z_-]{35}\b"),
@@ -109,9 +111,16 @@ pub const SECRET_PATTERNS: &[Pattern] = &[
 /// fire on legitimate notes *about* injection, and the operator modal is the
 /// last line of defense — the scanner's job is to make the hazard visible.
 pub const THREAT_PATTERNS: &[Pattern] = &[
+    // One to four modifier words: the classic "ignore all previous
+    // instructions" has two and slipped past the single-word form (live
+    // finding 2026-10-28).
     pattern!(
         "prompt injection",
-        r"(?i)ignore\s+(previous|all|above|prior)\s+instructions"
+        r"(?i)ignore\s+(?:(?:all|any|the|your|previous|prior|above|earlier|preceding)\s+){1,4}(?:instructions|rules|directions|prompts?)"
+    ),
+    pattern!(
+        "system prompt exfiltration",
+        r"(?i)(?:reveal|print|show|repeat|output|leak|dump)\s+(?:\w+\s+){0,3}system\s+prompt"
     ),
     pattern!("role hijack", r"(?i)you\s+are\s+now\s+"),
     pattern!("deception", r"(?i)do\s+not\s+tell\s+the\s+user"),

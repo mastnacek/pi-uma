@@ -80,8 +80,12 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       state.injectedFactIds = rebuilt;
     }),
   );
+  // Reset only after a compaction actually happened: session_before_compact
+  // also fires for attempts another extension cancels (billion-context-pi
+  // cancels every one), and clearing there re-injected facts the context
+  // still held (live finding 2026-10-28).
   unsubscribers.push(
-    pi.on("session_before_compact", () => {
+    pi.on("session_compact", () => {
       state.injectedFactIds = new Set<string>();
     }),
   );

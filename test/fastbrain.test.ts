@@ -287,3 +287,12 @@ test("anti-echo backfill: the budget fills with the next-best new facts in rank 
   assert.ok(content.includes("Fact c") && content.includes("Fact e"));
   assert.ok(!content.includes("Fact a") && !content.includes("Fact b") && !content.includes("Fact f"));
 });
+
+test("anti-echo resets on a completed compaction only, not on an attempt", async () => {
+  // The slice imports ".js" specifiers the plain node test runner cannot
+  // resolve, so the subscription is checked at the source level.
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/slices/fastbrain/index.ts", import.meta.url), "utf-8");
+  assert.match(src, /pi\.on\("session_compact"/);
+  assert.doesNotMatch(src, /pi\.on\("session_before_compact"/, "a cancelled attempt must not clear the set");
+});

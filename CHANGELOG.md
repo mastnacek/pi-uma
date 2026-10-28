@@ -2,6 +2,15 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.4] - 2026-10-28
+
+### Fixed
+- `uma sync push`: unreviewed staging drafts are never published. An existing `.gitignore` is extended with `.staging/` (it was only written when missing, so older stores lacked the entry and a live push published 49 drafts), and drafts committed by an older build are untracked while staying on disk.
+- `uma migrate`: provenance is backfilled honestly. `verified` is never invented (it used to stamp `human:operator` on facts nobody reviewed) and an unknown author is recorded as `legacy:unknown` instead of `pi-agent/1.1`.
+- `uma secrets scan`: injection signatures now catch "ignore all previous instructions" (one to four modifier words) and system-prompt exfiltration requests; both warn without blocking. OpenRouter keys are labelled "OpenRouter API key".
+- Recall anti-echo: the injected-facts set is cleared on `session_compact` (a completed compaction) instead of `session_before_compact`, so a compaction another extension cancels no longer re-injects facts the context still holds.
+- `/uma immune`, `/uma append`, `/uma auto-approve` without `--global`: operator-only keys are saved to the global config (a project config may not carry them) and the confirmation says so; before, the project save wrote `{}` and the mode reverted on the next reload.
+
 ## [0.17.3] - 2026-10-28
 
 ### Fixed

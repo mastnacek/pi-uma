@@ -33,9 +33,10 @@ pub fn push_at(root: &Path, message: Option<String>) -> Result<PushReport> {
     // Defence in depth for the rebuildable cache: ignore it, and untrack it if
     // an older version of this slice ever committed it.
     if git::write_ignore(root)? {
-        report
-            .housekeeping
-            .push("wrote .gitignore (index.db is a rebuildable cache)".to_string());
+        report.housekeeping.push(
+            "wrote .gitignore (index.db is a rebuildable cache, .staging/ holds unreviewed drafts)"
+                .to_string(),
+        );
     }
     if git::is_tracked(root, "index.db") {
         git::untrack(root, "index.db")?;
@@ -43,13 +44,20 @@ pub fn push_at(root: &Path, message: Option<String>) -> Result<PushReport> {
             .housekeeping
             .push("untracked index.db - the search cache must not be published".to_string());
     }
+    if git::untrack_dir(root, ".staging")? {
+        report.housekeeping.push(
+            "untracked .staging/ - unreviewed drafts must not be published".to_string(),
+        );
+    }
 
     git::run(root, &["add", "-A", "."])?;
     for change in git::changes(root) {
         // Housekeeping is maintenance, not memory: the .gitignore written
-        // below, and an index.db being untracked, would otherwise make
-        // "N fact(s) changed" a lie.
-        if matches!(change.path.as_str(), ".gitignore" | "index.db") {
+        // below, and an index.db or .staging/ being untracked, would
+        // otherwise make "N fact(s) changed" a lie.
+        if matches!(change.path.as_str(), ".gitignore" | "index.db")
+            || change.path.starts_with(".staging/")
+        {
             continue;
         }
         match change.index {
