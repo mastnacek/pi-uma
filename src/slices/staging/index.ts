@@ -5,6 +5,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { findUmaBinary, runUma } from "../../shared/client.js";
 import type { ExtensionState } from "../../shared/types.js";
+import { stringsFor } from "../../shared/i18n.js";
 import { showStagingReviewModal, type StagedDraftRecord } from "./modal.js";
 
 export async function fetchStagedDrafts(cwd: string): Promise<StagedDraftRecord[]> {
@@ -43,7 +44,9 @@ export async function startStagingReview(
 
   if (result.approved > 0 || result.discarded > 0) {
     ctx.ui.notify(
-      `Staging review complete: ${result.approved} approved & promoted, ${result.discarded} discarded.`,
+      stringsFor(state.config.lang)
+        .stagingReviewSummary.replace("{a}", String(result.approved))
+        .replace("{d}", String(result.discarded)),
       "info",
     );
   }

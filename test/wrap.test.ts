@@ -32,3 +32,15 @@ test("wrapText: splits unbroken long words exceeding maxWidth", () => {
   assert.equal(wrapped[1], "A".repeat(30));
   assert.equal(wrapped[2], "A".repeat(20));
 });
+
+test("proposal modal: editor rows fit the edit box exactly (invisible-text fix)", async () => {
+  const { editorContentWidth } = await import("../src/shared/modal_renderer.ts");
+  for (const width of [40, 70, 120, 160]) {
+    const inner = Math.max(30, width) - 2;
+    const boxInner = Math.max(10, inner - 6);
+    const top = 4 + boxInner + 3; // "│  ╭" + dashes + "╮ │"
+    const row = 5 + editorContentWidth(width) + 4; // "│  │ " + content + " │ │"
+    assert.equal(row, top, `width ${width}`);
+    assert.ok(row <= width, `row fits the modal at width ${width}`);
+  }
+});

@@ -59,3 +59,14 @@ test("muscle: proposal carries a valid JSON step template and muscle: title", ()
 test("muscle: routineName dedupes words", () => {
   assert.equal(routineName(["npm test", "npm run", "npm test"]), "npm-test-run");
 });
+
+test("muscle: compound command lines are never routine steps (live finding)", () => {
+  assert.equal(normalizeCommand('cd "core" && cargo test'), undefined);
+  assert.equal(normalizeCommand("npm test; npm run build"), undefined);
+  assert.equal(normalizeCommand("git log | head"), undefined);
+});
+
+test("muscle: routine names are clean slugs", () => {
+  assert.equal(routineName(["node --version", "npm --version", "git --version"]), "node-version-npm");
+  assert.equal(routineName(['cd "core"', "cp a"]), "cd-core-cp");
+});

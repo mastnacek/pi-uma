@@ -9,7 +9,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ExtensionState } from "../../shared/types.js";
 import { findUmaBinary, runUma } from "../../shared/client.js";
-import { isCommandFailure } from "./policy.ts";
+import { isCommandFailure, isUserCorrection } from "./policy.ts";
 import { buildStagingCreateArgs, type StagedDraftRequest } from "./staging_args.ts";
 import {
   buildPromotionDraft,
@@ -64,26 +64,6 @@ function extractCommandOutput(result: unknown): string {
   return "";
 }
 
-function detectUserCorrection(text: string): boolean {
-  const lower = text.toLowerCase();
-  const markers = [
-    "takhle ne",
-    "nepouzivej",
-    "nepoužívej",
-    "spatne",
-    "špatně",
-    "chyba",
-    "tam ne",
-    "don't use",
-    "do not use",
-    "never use",
-    "instead of",
-    "that's wrong",
-    "thats wrong",
-    "you should not",
-  ];
-  return markers.some((m) => lower.includes(m));
-}
 
 export async function createStagedDraft(
   cwd: string,
@@ -228,9 +208,23 @@ export function registerShadowWorker(pi: ExtensionAPI, state: ExtensionState): (
           : "";
 
     const trimmed = userText.trim();
+    // The operator's original text: the translate plugin records it beside
+    // the English the agent saw, so Czech markers are not lost in translation.
+    let source: string | undefined;
+    for (const entry of [...ctx.sessionManager.getEntries()].reverse()) {
+      const e = entry as { customType?: string; data?: { english?: string; source?: string } };
+      if (e.customType === "pi-prompt-translate-state" && e.data?.english?.trim() === trimmed) {
+        source = e.data.source;
+        break;
+      }
+    }
+    const userIdx = messages.lastIndexOf(lastUserTurn);
+    const hasPriorAssistant = messages
+      .slice(0, userIdx)
+      .some((m) => m.type === "message" && "role" in m.message && m.message.role === "assistant");
     if (
       trimmed &&
-      detectUserCorrection(trimmed) &&
+      isUserCorrection(trimmed, source, hasPriorAssistant) &&
       trimmed.length < 300 &&
       trimmed !== lastCorrectionText
     ) {

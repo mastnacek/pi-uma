@@ -91,6 +91,9 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         const subAction = cleanParts[1]?.toLowerCase();
         if (subAction === "review" || !subAction) {
           await startStagingReview(ctx, state);
+        } else if (!["list", "show", "approve", "discard"].includes(subAction)) {
+          // Unknown action: show the usage instead of the raw clap error.
+          ctx.ui.notify(liveStrings.stagingUsage, "info");
         } else {
           const res = await runUma(binPath, ["staging", ...cleanParts.slice(1)], ctx.cwd);
           ctx.ui.notify(res.stdout || res.stderr, "info");
@@ -102,7 +105,8 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           const loc = normalizeLocale(target);
           saveConfig({ lang: loc }, isGlobal, ctx.cwd, state.globalConfigFile);
           state.config = { ...state.config, lang: loc };
-          ctx.ui.notify(`${liveStrings.langUpdated}${loc}`, "info");
+          // Confirm in the NEW language: the operator just chose it.
+          ctx.ui.notify(`${stringsFor(loc).langUpdated}${loc}`, "info");
           void state.refreshDetector?.(ctx, true);
         } else {
           ctx.ui.notify(`${liveStrings.langCurrent}${state.config.lang}`, "info");
@@ -246,24 +250,25 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         const action = cleanParts[1]?.toLowerCase();
         if (action === "list") {
           const res = await runUma(binPath, ["muscle", "list"], ctx.cwd);
-          ctx.ui.notify(res.stdout || res.stderr, "info");
+          await showOutput(res.stdout || res.stderr);
         } else if (action === "run" && cleanParts[2]) {
           const wantsConfirm = cleanParts.includes("--confirm");
           if (wantsConfirm) {
             const steps = await fetchMuscleSteps(binPath, ctx.cwd, cleanParts[2]);
             const proceed = await confirmMuscleExecution(ctx, state, cleanParts[2], steps);
             if (!proceed) {
-              ctx.ui.notify(`Execution of '${cleanParts[2]}' declined; dry-run only.`, "warning");
+              ctx.ui.notify(liveStrings.muscleDeclined.replace("{name}", cleanParts[2]), "warning");
               return;
             }
             const res = await runUma(binPath, ["muscle", "run", cleanParts[2], "--confirm"], ctx.cwd);
-            ctx.ui.notify(res.stdout || res.stderr, res.code === 0 ? "info" : "error");
+            if (res.code === 0) await showOutput(res.stdout || res.stderr);
+            else ctx.ui.notify(res.stdout || res.stderr, "error");
           } else {
             const res = await runUma(binPath, ["muscle", "run", cleanParts[2]], ctx.cwd);
-            ctx.ui.notify(res.stdout || res.stderr, "info");
+            await showOutput(res.stdout || res.stderr);
           }
         } else {
-          ctx.ui.notify("Usage: /uma muscle [list | run <name> [--confirm]]", "info");
+          ctx.ui.notify(liveStrings.muscleUsage, "info");
         }
       } else if (subcommand === "skeptic") {
         const intentParts = cleanParts.slice(1);
@@ -272,7 +277,7 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           .filter((p) => p !== "--off")
           .join(" ");
         if (!intentText) {
-          ctx.ui.notify("Usage: /uma skeptic <intent> [--files a.rs,b.rs] [--off]", "info");
+          ctx.ui.notify(liveStrings.skepticUsage, "info");
           return;
         }
         const args = ["skeptic", "check", intentText];
@@ -281,7 +286,7 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
         }
         if (intentParts.includes("--off")) args.push("--judge", "off");
         const res = await runUma(binPath, args, ctx.cwd);
-        ctx.ui.notify(res.stdout || res.stderr, "info");
+        await showOutput(res.stdout || res.stderr);
       } else if (subcommand === "debt") {
         const action = cleanParts[1]?.toLowerCase();
         const ledger = (state.debts = state.debts ?? []);
@@ -289,23 +294,25 @@ export function registerCommands(pi: ExtensionAPI, state: ExtensionState): void 
           const idx = ledger.findIndex((d) => d.id === cleanParts[2]);
           if (idx >= 0) {
             ledger.splice(idx, 1);
-            ctx.ui.notify(`Debt ${cleanParts[2]} settled.`, "info");
+            ctx.ui.notify(liveStrings.debtSettledMsg.replace("{id}", cleanParts[2]), "info");
           } else {
-            ctx.ui.notify(`No open debt ${cleanParts[2]}.`, "warning");
+            ctx.ui.notify(liveStrings.debtNotFoundMsg.replace("{id}", cleanParts[2]), "warning");
           }
         } else if (action === "clear") {
           const n = ledger.length;
           ledger.length = 0;
-          ctx.ui.notify(`Cleared ${n} debt(s).`, "info");
+          ctx.ui.notify(liveStrings.debtClearedMsg.replace("{n}", String(n)), "info");
         } else {
           if (ledger.length === 0) {
-            ctx.ui.notify("Prospective Debt Ledger is empty — no open debts.", "info");
+            ctx.ui.notify(liveStrings.debtEmptyMsg, "info");
           } else {
             const lines = ledger.map(
               (d) => `${d.id}${d.blocking ? " [BLOCKING]" : ""}: ${d.sourceAction} → ${d.requiredAction}`,
             );
-            ctx.ui.notify(`Open debts (${ledger.length}):
-${lines.join("\n")}`, "info");
+            ctx.ui.notify(
+              `${liveStrings.debtOpenHeader.replace("{n}", String(ledger.length))}\n${lines.join("\n")}`,
+              "info",
+            );
           }
         }
         void state.refreshDetector?.(ctx, true);

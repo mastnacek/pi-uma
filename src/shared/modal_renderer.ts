@@ -198,8 +198,14 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
     lines.push(row(`  ${theme.fg("warning", theme.bold("✎ " + promptLabel))} ${theme.fg("dim", s.editInstruction)}`));
     const boxInner = Math.max(10, inner - 6);
     lines.push(theme.fg("border", "│  ╭" + "─".repeat(boxInner) + "╮ │"));
-    for (const el of editorLines) {
-      const padded = el + " ".repeat(Math.max(0, boxInner - visibleWidth(el)));
+    // Content width must match the box: "│  │ " (5) + content + " │ │" (4)
+    // equals the top border "│  ╭" + boxInner + "╮ │" only when the content
+    // is boxInner - 2 wide. The editor rendered 2 columns wider, so the final
+    // truncation cut every editor line and the typed text was never visible.
+    const contentWidth = editorContentWidth(width);
+    for (const raw of editorLines) {
+      const el = truncateToWidth(raw, contentWidth);
+      const padded = el + " ".repeat(Math.max(0, contentWidth - visibleWidth(el)));
       lines.push(theme.fg("border", "│  │ ") + padded + theme.fg("border", " │ │"));
     }
     lines.push(theme.fg("border", "│  ╰" + "─".repeat(boxInner) + "╯ │"));
@@ -252,4 +258,11 @@ export function renderProposalView(opts: ModalRenderOptions): string[] {
 
   // Width safety: every line passes through truncateToWidth.
   return lines.map((line) => truncateToWidth(line, renderWidth));
+}
+
+/** Width the inline editor must render at so its lines fit the edit box. */
+export function editorContentWidth(width: number): number {
+  const inner = Math.max(30, width) - 2;
+  const boxInner = Math.max(10, inner - 6);
+  return Math.max(8, boxInner - 2);
 }

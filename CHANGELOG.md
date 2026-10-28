@@ -2,6 +2,17 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.5] - 2026-10-28
+
+### Fixed
+- Shadow worker: a task directive is never a correction. A message that names a tool or asks for an operation ("use the edit tool…", "call uma_write…", "zavolej…") no longer stages a correction draft, whatever words it contains (a test directive with "never use" had staged a rule reversing the real one). A correction must follow an assistant reply, and markers are also matched against the operator's original text the translate plugin records, so Czech corrections ("špatně", "chyba") work with translation on. Translated openers ("Incorrect:", "Wrong:") count as corrections.
+- Proposal modal: the inline editor renders at the edit box's content width; its rows were two columns too wide and the final truncation hid the typed text.
+- HUD: active AST contracts are counted from the facts (the exported rule files live under `rules/`, so the HUD always showed 0), and deprecated revisions no longer count as facts.
+- `/uma lang`: the confirmation is in the newly chosen language.
+- Czech UI: debt ledger messages, muscle consent buttons (select instead of the hardcoded Yes/No confirm), the declined-run warning, usage lines, the staging review summary and editor hint are localized; `/uma muscle list|run` and `/uma skeptic` output goes through the display translation.
+- `/uma staging <unknown>` shows the usage instead of a raw CLI error; `/uma` usage lists every subcommand.
+- Muscle synthesis: compound command lines (`a && b`, `a; b`, `a | b`) are not routine steps, and routine names are clean slugs (`node-version-npm`, not `node---version-npm`).
+
 ## [0.17.4] - 2026-10-28
 
 ### Fixed

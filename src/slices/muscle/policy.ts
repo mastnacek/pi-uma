@@ -29,6 +29,10 @@ const EXCLUDED = new Set([
 
 /** Normalizes a raw command line to its repeatable shape. */
 export function normalizeCommand(raw: string): string | undefined {
+  // A routine step is ONE command with arguments. A compound line
+  // (`cd "core" && cargo test`, `a; b`, `a | b`) cannot be one: it became a
+  // step running `cd` with `&&` among its arguments (live finding).
+  if (/&&|\|\||[;|]/.test(raw)) return undefined;
   const tokens = raw.trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return undefined;
   const shape = tokens.slice(0, 2).join(" ").toLowerCase();
@@ -36,12 +40,15 @@ export function normalizeCommand(raw: string): string | undefined {
   return shape;
 }
 
-/** Routine-name slug from a sequence: kebab-case of the distinct words. */
+/** Routine-name slug from a sequence: kebab-case of the distinct words,
+ *  letters and digits only (`node --version` → `node-version`, never
+ *  `node---version` or a quoted `"core"`). */
 export function routineName(sequence: NormalizedCommand[]): string {
   const words: string[] = [];
   for (const cmd of sequence) {
-    for (const word of cmd.split(/\s+/)) {
-      if (!words.includes(word)) words.push(word);
+    for (const raw of cmd.split(/\s+/)) {
+      const word = raw.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      if (word && !words.includes(word)) words.push(word);
     }
   }
   return words.slice(0, 3).join("-");

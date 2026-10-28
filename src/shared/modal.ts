@@ -3,7 +3,7 @@ import { Editor, type EditorTheme, Key, matchesKey } from "@earendil-works/pi-tu
 import * as path from "node:path";
 import type { MemoryProposal, ProposalResult } from "./types.js";
 import { stringsFor } from "./i18n.js";
-import { renderProposalView } from "./modal_renderer.js";
+import { editorContentWidth, renderProposalView } from "./modal_renderer.js";
 import { DisplayTranslation } from "../slices/translate/index.js";
 
 type EditField = "title" | "body" | "tags" | null;
@@ -271,7 +271,7 @@ export async function showProposalModal(
 
     function render(width: number): string[] {
       if (cachedLines) return cachedLines;
-      const editorLines = editField !== null ? editor.render(Math.max(20, width - 8)) : [];
+      const editorLines = editField !== null ? editor.render(editorContentWidth(width)) : [];
       // The note explains what the reviewer is looking at: pending / shown /
       // failed translation — never silently swap the language.
       const bodyNote =

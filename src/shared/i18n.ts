@@ -48,6 +48,26 @@ export interface Strings {
   immuneModeEnabled: string;
   /** Appended when an operator-only key was saved globally instead of per project. */
   savedGloballyNote: string;
+  /** Muscle consent buttons (pi's confirm() hardcodes Yes/No). */
+  muscleRunYes: string;
+  muscleRunNo: string;
+  /** {name} = routine name. */
+  muscleDeclined: string;
+  muscleUsage: string;
+  skepticUsage: string;
+  /** {id} = debt id. */
+  debtSettledMsg: string;
+  debtNotFoundMsg: string;
+  /** {n} = count. */
+  debtClearedMsg: string;
+  debtEmptyMsg: string;
+  /** {n} = count; followed by one line per debt. */
+  debtOpenHeader: string;
+  /** {a} approved, {d} discarded. */
+  stagingReviewSummary: string;
+  /** {field} = title | body. */
+  stagingEditingHint: string;
+  stagingUsage: string;
   immuneModeCurrent: string;
   immuneModeLabel: string;
   hudEnabled: string;
@@ -126,7 +146,7 @@ const STRINGS: Record<Locale, Strings> = {
     rejectedNotification: "Memory proposal rejected",
     noFactsFound: "No facts found.",
     langUpdated: "Language updated to: ",
-    cmdUsage: "Usage: /uma [search <query> | list [global] | read <id> | timeline [--id <ULID>] [--all] | export --out <dir> | doctor | lang [cs|en] | auto-approve [on|off] | recall [on|off] | judge [jev|off] — toggles accept --global]",
+    cmdUsage: "Usage: /uma [help | search <query> | list [global] | read <id> | timeline [--id <ULID>] [--all] | export --out <dir> | doctor | reindex | review | staging … | debt … | muscle … | skeptic <intent> | humility on|off | immune off|warn|ask|auto|block | judge off|jev|jev-relevance | recall on|off | append on|off | hud on|off | auto-approve on|off | lang cs|en | dash [stop]] — toggles accept --global",
     dashOpened: "🖥️ UMA dashboard opened: ",
     dashStopped: "🖥️ UMA dashboard stopped.",
     dashNotRunning: "🖥️ UMA dashboard is not running.",
@@ -192,6 +212,19 @@ const STRINGS: Record<Locale, Strings> = {
 Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across all sessions.`,
     immuneModeEnabled: "Immune interceptor mode updated: ",
     savedGloballyNote: " (saved globally: a project config may not set this)",
+    muscleRunYes: "Yes, run it",
+    muscleRunNo: "No, do not run",
+    muscleDeclined: "Execution of '{name}' declined; dry-run only.",
+    muscleUsage: "Usage: /uma muscle [list | run <name> [--confirm]]",
+    skepticUsage: "Usage: /uma skeptic <intent> [--files a.rs,b.rs] [--off]",
+    debtSettledMsg: "Debt {id} settled.",
+    debtNotFoundMsg: "No open debt {id}.",
+    debtClearedMsg: "Cleared {n} debt(s).",
+    debtEmptyMsg: "Prospective Debt Ledger is empty — no open debts.",
+    debtOpenHeader: "Open debts ({n}):",
+    stagingReviewSummary: "Staging review complete: {a} approved & promoted, {d} discarded.",
+    stagingEditingHint: "Editing {field}: [Enter to save, Esc to cancel]",
+    stagingUsage: "Usage: /uma staging [review | list | show <id> | approve <id> | discard <id>]",
     immuneModeCurrent: "Immune interceptor mode: ",
     immuneModeLabel: "Immune",
     hudEnabled: "UMA Detector HUD enabled",
@@ -254,7 +287,7 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
     rejectedNotification: "Návrh paměti byl zamítnut",
     noFactsFound: "Nebyly nalezeny žádné záznamy.",
     langUpdated: "Jazyk rozhraní nastaven na: ",
-    cmdUsage: "Použití: /uma [search <dotaz> | list [global] | read <id> | timeline [--id <ULID>] [--all] | export --out <složka> | doctor | lang [cs|en] | auto-approve [on|off] | recall [on|off] | judge [jev|off] — přepínače akceptují --global]",
+    cmdUsage: "Použití: /uma [help | search <dotaz> | list [global] | read <id> | timeline [--id <ULID>] [--all] | export --out <složka> | doctor | reindex | review | staging … | debt … | muscle … | skeptic <záměr> | humility on|off | immune off|warn|ask|auto|block | judge off|jev|jev-relevance | recall on|off | append on|off | hud on|off | auto-approve on|off | lang cs|en | dash [stop]] — přepínače akceptují --global",
     dashOpened: "🖥️ UMA dashboard otevřen: ",
     dashStopped: "🖥️ UMA dashboard zastaven.",
     dashNotRunning: "🖥️ UMA dashboard neběží.",
@@ -320,6 +353,19 @@ Tip: Add --global to persist settings globally to ~/.pi/agent/uma.json across al
 Tip: Přidejte přepínač --global pro trvalé uložení do ~/.pi/agent/uma.json (platí pro všechny projekty).`,
     immuneModeEnabled: "Režim imunitního interceptoru nastaven: ",
     savedGloballyNote: " (uloženo globálně: projektový config toto nastavit nesmí)",
+    muscleRunYes: "Ano, spustit",
+    muscleRunNo: "Ne, nespouštět",
+    muscleDeclined: "Spuštění rutiny '{name}' odmítnuto; proběhl jen dry-run.",
+    muscleUsage: "Použití: /uma muscle [list | run <název> [--confirm]]",
+    skepticUsage: "Použití: /uma skeptic <záměr> [--files a.rs,b.rs] [--off]",
+    debtSettledMsg: "Dluh {id} vyrovnán.",
+    debtNotFoundMsg: "Žádný otevřený dluh {id}.",
+    debtClearedMsg: "Smazáno dluhů: {n}.",
+    debtEmptyMsg: "Kniha kognitivních dluhů je prázdná — žádné otevřené dluhy.",
+    debtOpenHeader: "Otevřené dluhy ({n}):",
+    stagingReviewSummary: "Kontrola stagingu dokončena: {a} schváleno a povýšeno, {d} zahozeno.",
+    stagingEditingHint: "Úprava pole {field}: [Enter uložit, Esc zrušit]",
+    stagingUsage: "Použití: /uma staging [review | list | show <id> | approve <id> | discard <id>]",
     immuneModeCurrent: "Režim imunitního interceptoru: ",
     immuneModeLabel: "Imunita",
     hudEnabled: "Detektor UMA HUD zapnut",

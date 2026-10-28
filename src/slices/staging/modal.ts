@@ -10,6 +10,7 @@ import { Editor, type EditorTheme, matchesKey, truncateToWidth, visibleWidth } f
 import { runUma, findUmaBinary } from "../../shared/client.js";
 import { DisplayTranslation } from "../../shared/translate_client.js";
 import { wrapText } from "../../shared/wrap.ts";
+import { stringsFor } from "../../shared/i18n.js";
 
 export interface StagedDraftRecord {
   id: string;
@@ -164,7 +165,9 @@ export async function showStagingReviewModal(
 
         // Body
         if (editingField) {
-          lines.push(row(`  ${theme.fg("accent", `Editing ${editingField}: [Enter to Save, Esc to Cancel]`)}`));
+          const fieldLabel = lang === "cs" ? (editingField === "title" ? "název" : "obsah") : editingField;
+          const hint = stringsFor(lang).stagingEditingHint.replace("{field}", fieldLabel);
+          lines.push(row(`  ${theme.fg("accent", hint)}`));
           for (const el of editor.render(inner - 4)) {
             lines.push(row(`    ${el}`));
           }

@@ -27,8 +27,11 @@ export async function confirmMuscleExecution(
     steps && steps.length > 0
       ? `${s.muscleStepsLabel}\n${steps.map((st) => `  $ ${st.command} ${st.args.join(" ")}`).join("\n")}\n\n`
       : "";
-  return ctx.ui.confirm(
-    s.muscleDialogTitle,
-    `${commandLines}${s.muscleRunConfirm}"${name}"?`,
+  // select, not confirm: pi's confirm() hardcodes "Yes"/"No", so the buttons
+  // could never follow the UI language. Esc (undefined) declines.
+  const choice = await ctx.ui.select(
+    `${s.muscleDialogTitle}\n${commandLines}${s.muscleRunConfirm}"${name}"?`,
+    [s.muscleRunYes, s.muscleRunNo],
   );
+  return choice === s.muscleRunYes;
 }

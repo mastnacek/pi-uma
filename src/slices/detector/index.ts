@@ -56,16 +56,17 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
     }
   }
 
+  // Active AST contracts are counted from the facts themselves (a `contract:`
+  // block on a non-deprecated fact). The exported .uma/contracts/rules/*.yml
+  // only exist after `uma contracts export` — counting the top-level contracts
+  // dir showed "0c" while a deny contract was enforcing (live finding).
   let contractsCount = 0;
-  const contractsDir = path.join(cwd, ".uma", "contracts");
-  if (fs.existsSync(contractsDir)) {
-    try {
-      const files = fs.readdirSync(contractsDir);
-      contractsCount = files.filter((f) => f.endsWith(".yml") && f !== "sgconfig.yml").length;
-    } catch {
-      // ignore
-    }
-  }
+
+  /** The YAML frontmatter block of a fact file ("" when there is none). */
+  const frontmatterOf = (text: string): string => {
+    const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+    return m ? m[1] : "";
+  };
 
   let factsCount = 0;
   const muscleRoutines: string[] = [];
@@ -77,9 +78,14 @@ export async function probeUma(cwd: string, force = false): Promise<UmaProbeStat
           if (entry.isDirectory() && entry.name !== "contracts" && entry.name !== ".staging") {
             walk(path.join(dir, entry.name));
           } else if (entry.isFile() && entry.name.endsWith(".md")) {
-            factsCount++;
             try {
-              const head = fs.readFileSync(path.join(dir, entry.name), "utf8").slice(0, 400);
+              const text = fs.readFileSync(path.join(dir, entry.name), "utf8");
+              const front = frontmatterOf(text);
+              // Superseded revisions are history, not active memory.
+              if (/^status:\s*"?deprecated"?\s*$/m.test(front)) continue;
+              factsCount++;
+              if (/^contract:\s*$/m.test(front)) contractsCount++;
+              const head = front;
               const titleMatch = head.match(/^title:\s*"?muscle:([a-z0-9-]+)"?/m);
               if (titleMatch && !muscleRoutines.includes(titleMatch[1])) {
                 muscleRoutines.push(titleMatch[1]);
