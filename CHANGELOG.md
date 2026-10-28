@@ -2,6 +2,13 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.6] - 2026-10-28
+
+### Added
+- Opt-in semantic recall fallback: `UMA_RECALL_SEMANTIC_FALLBACK=1` (default OFF). In `jev-relevance` mode, when the keyword pool finds NO candidate (a prompt in another language than the facts, e.g. Czech without the translate plugin), the engine takes candidates from semantic search instead. Only candidates that clearly stand out reach the judge (cosine ≥ 0.5 and ≥ 80 % of the best). Default behaviour is unchanged: the always-on hybrid pool was reverted after the v0.14 benchmark, so this stays the operator's switch.
+  - Live check (fallback ON, Czech prompts, no translate plugin): 4 of 4 prompts recalled the matching fact; greeting and weather prompts recalled nothing.
+  - Recall benchmark, Czech prompts (`run.mjs --judge jev-relevance --lang cs`, 73 cases): fallback OFF 44 % hits / 100 % negatives empty / 0 leaks; fallback ON 92 % hits / 94 % negatives empty / 0 leaks.
+
 ## [0.17.5] - 2026-10-28
 
 ### Fixed

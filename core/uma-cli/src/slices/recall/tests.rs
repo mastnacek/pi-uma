@@ -301,3 +301,24 @@ fn test_priming_subject_to_same_threshold() {
         "raw unscaled activation 0.5 is below MIN_ABSOLUTE_SCORE"
     );
 }
+
+#[test]
+fn semantic_fallback_is_opt_in() {
+    use super::is_semantic_fallback_enabled_from;
+    assert!(!is_semantic_fallback_enabled_from(None), "default OFF: the v0.14 hybrid pool was reverted");
+    assert!(!is_semantic_fallback_enabled_from(Some("0")));
+    assert!(!is_semantic_fallback_enabled_from(Some("true")));
+    assert!(is_semantic_fallback_enabled_from(Some("1")));
+    assert!(is_semantic_fallback_enabled_from(Some(" 1 ")));
+}
+
+#[test]
+fn semantic_fallback_keeps_only_standout_candidates() {
+    use super::passes_semantic_threshold;
+    // Live case: the money fact at 0.637, unrelated anchors at 0.463/0.456.
+    assert!(passes_semantic_threshold(0.637, 0.637));
+    assert!(!passes_semantic_threshold(0.463, 0.637));
+    // Nothing clears the absolute floor for an off-topic prompt.
+    assert!(!passes_semantic_threshold(0.42, 0.42));
+    assert!(!passes_semantic_threshold(f64::NAN, 0.7));
+}

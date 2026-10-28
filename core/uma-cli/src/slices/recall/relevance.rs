@@ -2,8 +2,9 @@ use anyhow::Result;
 use uma_core::fastbrain;
 
 use super::{
-    emit, get_fact_body_preview, is_bilingual_enabled, merge_candidate_pools,
-    retrieve_candidate_pool, CheckArgs, RecallVerdict,
+    emit, get_fact_body_preview, is_bilingual_enabled, is_semantic_fallback_enabled,
+    merge_candidate_pools, retrieve_candidate_pool, retrieve_semantic_pool, CheckArgs,
+    RecallVerdict,
 };
 
 /// Executes recall check in `jev-relevance` mode:
@@ -37,6 +38,18 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
         (merged, note)
     } else {
         (cands_primary, note_primary)
+    };
+
+    // Opt-in semantic fallback: only when the keyword pool found nothing.
+    let (candidate_pool, degraded_note) = if candidate_pool.is_empty() && is_semantic_fallback_enabled() {
+        let (sem, sem_note) = retrieve_semantic_pool(&prompt, &args.exclude, 8)?;
+        let note = match (degraded_note, sem_note) {
+            (Some(a), Some(b)) => Some(format!("{a}; semantic fallback: {b}")),
+            (a, b) => a.or(b.map(|b| format!("semantic fallback: {b}"))),
+        };
+        (sem, note)
+    } else {
+        (candidate_pool, degraded_note)
     };
 
     if candidate_pool.is_empty() {

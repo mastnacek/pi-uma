@@ -17,6 +17,66 @@ pub fn is_bilingual_enabled_from(val: Option<&str>) -> bool {
     val.map(|v| v.trim() != "0").unwrap_or(true)
 }
 
+/// Opt-in semantic fallback (env `UMA_RECALL_SEMANTIC_FALLBACK=1`, default OFF).
+///
+/// The keyword pool cannot match a prompt written in another language than the
+/// facts (a Czech prompt without the translate plugin retrieved nothing in 4 of
+/// 4 live runs). The always-on hybrid pool was reverted after the v0.14
+/// benchmark, so this is deliberately narrower: it only runs when the keyword
+/// pool is EMPTY, and the relevance judge still decides every candidate.
+pub fn is_semantic_fallback_enabled() -> bool {
+    is_semantic_fallback_enabled_from(std::env::var("UMA_RECALL_SEMANTIC_FALLBACK").ok().as_deref())
+}
+
+pub fn is_semantic_fallback_enabled_from(val: Option<&str>) -> bool {
+    val.map(|v| v.trim() == "1").unwrap_or(false)
+}
+
+/// Semantic candidate pool for the fallback: the top `max_candidates` facts
+/// by embedding similarity to the raw prompt (multilingual embeddings bridge
+/// the language gap). No keyword thresholds apply; the judge filters.
+pub(crate) fn retrieve_semantic_pool(
+    prompt: &str,
+    exclude: &[String],
+    max_candidates: usize,
+) -> Result<(Vec<RawCandidate>, Option<String>)> {
+    let outcome = Store::search_all(
+        prompt,
+        None,
+        None,
+        SearchMode::Semantic,
+        false,
+        None,
+        exclude,
+        max_candidates,
+    )?;
+    let note = outcome.note();
+    let mut hits = outcome.hits;
+    hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    let best = hits.first().map(|h| h.score).unwrap_or(0.0);
+    // Only candidates that clearly stand out reach the judge: in the live
+    // test the judge rated every semantic neighbour ~0.9 and picked unrelated
+    // project anchors over the one fact that matched (0.64 vs 0.46).
+    let pool = hits
+        .into_iter()
+        .filter(|h| passes_semantic_threshold(h.score, best))
+        .take(max_candidates)
+        .map(|hit| RawCandidate { hit })
+        .collect();
+    Ok((pool, note))
+}
+
+/// Minimum cosine similarity for a semantic fallback candidate.
+pub const MIN_SEMANTIC_SCORE: f64 = 0.5;
+/// A semantic candidate must reach this share of the best similarity.
+pub const SEMANTIC_RELATIVE_RATIO: f64 = 0.8;
+
+/// True when a semantic similarity is high enough on its own and close
+/// enough to the best one to count as a fallback candidate.
+pub fn passes_semantic_threshold(score: f64, best: f64) -> bool {
+    !score.is_nan() && score >= MIN_SEMANTIC_SCORE && score >= best * SEMANTIC_RELATIVE_RATIO
+}
+
 /// Evaluates whether a score passes the recall quality gate:
 /// 1. Must be strictly positive (> 0.0)
 /// 2. Must meet or exceed the absolute minimum threshold (`MIN_ABSOLUTE_SCORE`)
