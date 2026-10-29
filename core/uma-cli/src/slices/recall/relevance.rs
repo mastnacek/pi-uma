@@ -42,7 +42,8 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
 
     // Opt-in semantic fallback: only when the keyword pool found nothing.
     let fallback = args.semantic_fallback || is_semantic_fallback_enabled();
-    let (candidate_pool, degraded_note) = if candidate_pool.is_empty() && fallback {
+    let used_semantic = candidate_pool.is_empty() && fallback;
+    let (candidate_pool, degraded_note) = if used_semantic {
         let (sem, sem_note) = retrieve_semantic_pool(&prompt, &args.exclude, 8)?;
         let note = match (degraded_note, sem_note) {
             (Some(a), Some(b)) => Some(format!("{a}; semantic fallback: {b}")),
@@ -137,6 +138,48 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
                             "relevance": p,
                         }),
                     ));
+                }
+            }
+
+            // Second chance: the judge rejected every keyword candidate (a
+            // synonym miss — "monetary amounts" vs a fact about "money"). With
+            // the fallback allowed, judge the standout semantic neighbours
+            // that were not already judged.
+            if retained.is_empty() && fallback && !used_semantic {
+                let mut judged: Vec<String> = args.exclude.clone();
+                judged.extend(candidate_pool.iter().map(|c| c.hit.id.to_string()));
+                let (sem, _sem_note) = retrieve_semantic_pool(&prompt, &judged, 8)?;
+                if !sem.is_empty() {
+                    let sem_cands: Vec<fastbrain::relevance::CandidateForRelevance> = sem
+                        .iter()
+                        .map(|c| fastbrain::relevance::CandidateForRelevance {
+                            id: c.hit.id.to_string(),
+                            title: c.hit.title.clone(),
+                            body_preview: get_fact_body_preview(&c.hit),
+                        })
+                        .collect();
+                    if let Ok(sem_probs) = fastbrain::relevance::judge_relevance(&prompt, &sem_cands) {
+                        for (cand, &p) in sem.iter().zip(sem_probs.iter()) {
+                            if p >= threshold {
+                                retained.push((
+                                    p,
+                                    serde_json::json!({
+                                        "id": cand.hit.id,
+                                        "title": cand.hit.title,
+                                        "fact_type": cand.hit.fact_type,
+                                        "scope": cand.hit.scope,
+                                        "score": cand.hit.score,
+                                        "snippet": cand.hit.snippet,
+                                        "tags": cand.hit.tags,
+                                        "relevance": p,
+                                    }),
+                                ));
+                            }
+                        }
+                        if !retained.is_empty() {
+                            search_notes.push("semantic fallback after keyword candidates were rejected".to_string());
+                        }
+                    }
                 }
             }
 

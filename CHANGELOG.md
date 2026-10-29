@@ -2,6 +2,12 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.8] - 2026-10-29
+
+### Changed
+- Semantic fallback gets a second chance: when it is enabled for a call and the relevance judge rejects every keyword candidate (a synonym miss such as "monetary amounts" vs a fact about "money"), the standout semantic neighbours that were not already judged are judged too.
+- Benchmark (`run.mjs --judge jev-relevance`, 73 cases): Czech prompts with the fallback 94 % hits / 94 % negatives empty / 0 leaks (was 92 % / 94 %). English prompts, which stand for the translated path: fallback OFF 92 % / 100 % / precision 53 %, fallback ON 94 % / 94 % / 47 %. The translated path therefore stays without the fallback: the plugin requests it only for untranslated prompts.
+
 ## [0.17.7] - 2026-10-29
 
 ### Changed
