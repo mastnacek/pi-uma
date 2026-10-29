@@ -23,6 +23,9 @@ fn two_machines(dir: &Path) -> Result<(PathBuf, PathBuf, PathBuf)> {
     let machine_b = dir.join("machine-b");
 
     git::run(&machine_a, &["init", "-b", "main"])?;
+    // A CI runner has no global git identity: every test repo sets its own,
+    // otherwise `git commit` fails with "Author identity unknown".
+    set_test_identity(&machine_a)?;
     git::run(&machine_a, &["add", "-A", "."])?;
     git::commit(&machine_a, "seed")?;
     // -b main matters: a bare repo's HEAD would otherwise point at git's
@@ -38,7 +41,15 @@ fn two_machines(dir: &Path) -> Result<(PathBuf, PathBuf, PathBuf)> {
     )?;
     push_at(&machine_a, None)?;
     git::clone(&origin, &machine_b)?;
+    set_test_identity(&machine_b)?;
     Ok((origin, machine_a, machine_b))
+}
+
+/// Repository-local identity for test commits (no global config needed).
+fn set_test_identity(repo: &Path) -> Result<()> {
+    git::run(repo, &["config", "user.name", "uma-test"])?;
+    git::run(repo, &["config", "user.email", "uma-test@localhost"])?;
+    Ok(())
 }
 
 fn rewrite(path: &Path, body: &str) -> Result<()> {
