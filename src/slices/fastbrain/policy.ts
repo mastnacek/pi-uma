@@ -41,6 +41,7 @@ export function buildRecallArgs(
   prompt: string,
   excludeIds: readonly string[],
   altPrompt?: string,
+  semanticFallback = false,
 ): string[] {
   // `--` ends option parsing: a prompt such as "- fix the list" would
   // otherwise be rejected by the engine as an unknown flag.
@@ -48,6 +49,11 @@ export function buildRecallArgs(
   if (altPrompt && altPrompt.trim().length > 0) {
     // `=` binds the value: a separate "- oprav seznam" would be rejected as a flag.
     args.push(`--alt-prompt=${altPrompt.trim()}`);
+  }
+  // Only the relevance judge uses the fallback; it is requested when the
+  // prompt was not translated (translate plugin off).
+  if (semanticFallback && judge === "jev-relevance") {
+    args.push("--semantic-fallback");
   }
   return args
     .concat(excludeIds.flatMap((id) => ["--exclude", id]))

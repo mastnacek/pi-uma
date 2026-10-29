@@ -322,3 +322,16 @@ fn semantic_fallback_keeps_only_standout_candidates() {
     assert!(!passes_semantic_threshold(0.42, 0.42));
     assert!(!passes_semantic_threshold(f64::NAN, 0.7));
 }
+
+#[test]
+fn test_check_parses_semantic_fallback_flag() -> Result<(), clap::Error> {
+    let on = parse(&["recall", "check", "--judge", "jev-relevance", "--semantic-fallback", "--", "jak formátovat ceny"])?;
+    let off = parse(&["recall", "check", "--judge", "jev-relevance", "--", "how to format prices"])?;
+    match (on.command, off.command) {
+        (RecallCommand::Check(a), RecallCommand::Check(b)) => {
+            assert!(a.semantic_fallback, "flag sets the per-call fallback");
+            assert!(!b.semantic_fallback, "absent flag keeps the default (off)");
+        }
+    }
+    Ok(())
+}

@@ -41,7 +41,8 @@ pub(crate) fn check_prompt(args: CheckArgs) -> Result<()> {
     };
 
     // Opt-in semantic fallback: only when the keyword pool found nothing.
-    let (candidate_pool, degraded_note) = if candidate_pool.is_empty() && is_semantic_fallback_enabled() {
+    let fallback = args.semantic_fallback || is_semantic_fallback_enabled();
+    let (candidate_pool, degraded_note) = if candidate_pool.is_empty() && fallback {
         let (sem, sem_note) = retrieve_semantic_pool(&prompt, &args.exclude, 8)?;
         let note = match (degraded_note, sem_note) {
             (Some(a), Some(b)) => Some(format!("{a}; semantic fallback: {b}")),

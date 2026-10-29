@@ -127,28 +127,33 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
       // custom entry with customType "pi-prompt-translate-state" whose
       // data.english == event.prompt, and send its data.source as --alt-prompt.
       let altPrompt: string | undefined;
-      if (process.env.UMA_RECALL_BILINGUAL !== "0") {
-        try {
-          const entries = ctx.sessionManager.getEntries();
-          for (let i = entries.length - 1; i >= 0; i--) {
-            const entry = entries[i] as {
-              type?: string;
-              customType?: string;
-              data?: { english?: string; source?: string };
-            };
+      // True when the translate plugin produced the prompt the agent sees.
+      // Without it (plugin off), a prompt in another language than the
+      // English facts matches no keyword, so the call asks the engine for
+      // its semantic fallback; with it, the call is exactly as before.
+      let translated = false;
+      try {
+        const entries = ctx.sessionManager.getEntries();
+        for (let i = entries.length - 1; i >= 0; i--) {
+          const entry = entries[i] as {
+            type?: string;
+            customType?: string;
+            data?: { english?: string; source?: string };
+          };
+          if (entry.customType === "pi-prompt-translate-state" && entry.data?.english === event.prompt) {
+            translated = true;
             if (
-              entry.customType === "pi-prompt-translate-state" &&
-              entry.data?.english === event.prompt &&
+              process.env.UMA_RECALL_BILINGUAL !== "0" &&
               typeof entry.data?.source === "string" &&
               entry.data.source.trim().length > 0
             ) {
               altPrompt = entry.data.source.trim();
-              break;
             }
+            break;
           }
-        } catch {
-          // fail quiet
         }
+      } catch {
+        // fail quiet
       }
 
       const judgeArgs = buildRecallArgs(
@@ -156,6 +161,7 @@ export function registerFastbrainHook(pi: ExtensionAPI, state: ExtensionState): 
         event.prompt,
         Array.from(injected).slice(-MAX_EXCLUDE_IDS),
         altPrompt,
+        !translated,
       );
 
       // Session cwd, not the process start dir: the engine scopes recall

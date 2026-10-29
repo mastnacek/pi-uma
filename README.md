@@ -292,19 +292,17 @@ an English version of it exists:
 - **With the translate plugin** (`pi-prompt-translate-czk`): the gate searches
   the English translation and the original together (`UMA_RECALL_BILINGUAL`,
   default on). Czech prompts recall normally.
-- **Without it**: a Czech prompt finds no keyword candidate and nothing is
-  recalled. Enable the opt-in semantic fallback for this case:
+- **Without it**: no English version exists, so the plugin asks the engine
+  for its semantic fallback on that turn (automatic since 0.17.7, no setting).
+  The fallback runs only when the keyword pool is empty, passes only standout
+  semantic candidates (cosine ≥ 0.5 and ≥ 80 % of the best) to the relevance
+  judge, and the judge still decides. Czech-prompt benchmark (73 cases): plain
+  keyword recall 44 % hits / 100 % negatives empty; with the fallback 92 % /
+  94 %; 0 leaks either way.
 
-  ```sh
-  UMA_RECALL_SEMANTIC_FALLBACK=1   # default 0 (off)
-  ```
-
-  It runs only when the keyword pool is empty, passes only standout semantic
-  candidates (cosine ≥ 0.5 and ≥ 80 % of the best) to the relevance judge, and
-  leaves every other case unchanged. Czech-prompt benchmark (73 cases): off
-  44 % hits / 100 % negatives empty; on 92 % / 94 %; 0 leaks either way. It
-  stays off by default because the always-on hybrid pool was reverted after
-  the v0.14 benchmark.
+`UMA_RECALL_SEMANTIC_FALLBACK=1` enables the fallback for every call, including
+translated ones (default off: the always-on hybrid pool was reverted after the
+v0.14 benchmark).
 
 ---
 

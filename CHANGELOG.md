@@ -2,6 +2,11 @@
 
 All notable changes to Universal Memory Architecture (UMA) are documented in this file.
 
+## [0.17.7] - 2026-10-29
+
+### Changed
+- Recall works with the translate plugin switched off, with no setting. The pi plugin requests the semantic fallback (`recall check --semantic-fallback`, new per-call flag) only when the prompt has no English translation, i.e. the translate plugin did not run. With the translate plugin on, the engine call is exactly as before (English prompt plus `--alt-prompt`, no fallback). `UMA_RECALL_SEMANTIC_FALLBACK=1` still enables the fallback for every call.
+
 ## [0.17.6] - 2026-10-28
 
 ### Added

@@ -296,3 +296,15 @@ test("anti-echo resets on a completed compaction only, not on an attempt", async
   assert.match(src, /pi\.on\("session_compact"/);
   assert.doesNotMatch(src, /pi\.on\("session_before_compact"/, "a cancelled attempt must not clear the set");
 });
+
+test("semantic fallback is requested only for an untranslated prompt", () => {
+  // Translate plugin on: an alt-prompt exists, the call is unchanged.
+  const translated = buildRecallArgs("jev-relevance", "how to format prices", [], "jak formátovat ceny", false);
+  assert.equal(translated.includes("--semantic-fallback"), false);
+  // Translate plugin off: the call asks for the fallback.
+  const raw = buildRecallArgs("jev-relevance", "jak formátovat ceny", ["01A"], undefined, true);
+  assert.equal(raw.includes("--semantic-fallback"), true);
+  assert.deepEqual(raw.slice(-2), ["--", "jak formátovat ceny"], "prompt stays the last positional");
+  // Other judges never get the flag.
+  assert.equal(buildRecallArgs("jev", "x", [], undefined, true).includes("--semantic-fallback"), false);
+});

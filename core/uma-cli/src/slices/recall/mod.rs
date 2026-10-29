@@ -63,6 +63,14 @@ pub struct CheckArgs {
     #[arg(long = "alt-prompt")]
     pub alt_prompt: Option<String>,
 
+    /// Semantic fallback for this call (jev-relevance): when the keyword pool
+    /// is empty, take standout candidates from semantic search. The pi plugin
+    /// sets it when no English translation of the prompt exists (translate
+    /// plugin off), so a prompt in another language than the facts still
+    /// recalls. Env `UMA_RECALL_SEMANTIC_FALLBACK=1` enables it for every call.
+    #[arg(long = "semantic-fallback")]
+    pub semantic_fallback: bool,
+
     /// Emit the verdict and recalled facts as JSON
     #[arg(long = "json")]
     pub json: bool,
