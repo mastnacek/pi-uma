@@ -145,8 +145,8 @@ fn mentions(haystack: &str, token: &str) -> bool {
     while let Some(pos) = haystack[from..].find(token) {
         let start = from + pos;
         let end = start + token.len();
-        let before_ok = haystack[..start].chars().next_back().map_or(true, |c| !is_word(c));
-        let after_ok = haystack[end..].chars().next().map_or(true, |c| !is_word(c));
+        let before_ok = haystack[..start].chars().next_back().is_none_or(|c| !is_word(c));
+        let after_ok = haystack[end..].chars().next().is_none_or(|c| !is_word(c));
         if before_ok && after_ok {
             return true;
         }

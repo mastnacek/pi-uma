@@ -97,7 +97,7 @@ pub fn scan_at(root: &Path, source: SessionSource) -> Result<Vec<SessionRecord>>
             }
         }
     }
-    records.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    records.sort_by_key(|r| std::cmp::Reverse(r.started_at));
     Ok(records)
 }
 

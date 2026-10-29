@@ -57,7 +57,7 @@ pub fn write_harness(
         let safe_comment: String = sanitize_comment(title);
         code.push_str(&format!(
             "#[test]\nfn invariant_{}_{}() {{\n",
-            &id[..8].to_lowercase(),
+            id[..8].to_lowercase(),
             safe_title
         ));
         code.push_str(&format!("    // Memory Decision: {}\n", safe_comment));
@@ -90,7 +90,7 @@ pub fn write_harness(
         let safe_comment: String = sanitize_comment(title);
         code.push_str(&format!(
             "#[test]\nfn invariant_{}_{}() {{\n",
-            &id[..8].to_lowercase(),
+            id[..8].to_lowercase(),
             safe_title
         ));
         code.push_str(&format!("    // Memory Decision: {}\n", safe_comment));

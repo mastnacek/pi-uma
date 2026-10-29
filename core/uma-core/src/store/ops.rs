@@ -223,7 +223,7 @@ impl Store {
             }
         }
 
-        facts.sort_by(|a, b| b.validity.since.cmp(&a.validity.since));
+        facts.sort_by_key(|f| std::cmp::Reverse(f.validity.since));
         Ok(facts)
     }
 
@@ -241,7 +241,7 @@ impl Store {
                 }
             }
         }
-        facts.sort_by(|a, b| b.validity.since.cmp(&a.validity.since));
+        facts.sort_by_key(|f| std::cmp::Reverse(f.validity.since));
         Ok(facts)
     }
 

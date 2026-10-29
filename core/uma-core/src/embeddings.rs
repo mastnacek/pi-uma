@@ -126,7 +126,7 @@ impl EmbeddingClient {
                         anyhow::bail!("OpenRouter API error (HTTP {}): {}", status.as_u16(), body);
                     }
                 }
-                Err(e) if retries < max_retries => {
+                Err(_) if retries < max_retries => {
                     retries += 1;
                     let sleep_ms = 500 * (1 << retries);
                     std::thread::sleep(Duration::from_millis(sleep_ms));

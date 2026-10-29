@@ -241,8 +241,8 @@ mod tests {
             },
         };
 
-        let primary = vec![make_cand(id1.clone(), 15.0), make_cand(id2.clone(), 10.0)];
-        let alt = vec![make_cand(id2.clone(), 18.0), make_cand(id3.clone(), 14.0)];
+        let primary = vec![make_cand(id1, 15.0), make_cand(id2, 10.0)];
+        let alt = vec![make_cand(id2, 18.0), make_cand(id3, 14.0)];
 
         let merged = merge_candidate_pools(primary, alt, 8);
         assert_eq!(merged.len(), 3);

@@ -17,7 +17,7 @@ jobs:
       run:
         working-directory: core
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -40,13 +40,26 @@ jobs:
     name: TypeScript (typecheck, test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
+      # The interceptor and contract tests are integration tests: they run the
+      # real engine against the committed .uma/ store and real ast-grep. The
+      # committed bin/uma.exe is Windows-only, so build the Linux engine here
+      # (findUmaBinary prefers core/target/release/uma).
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Build engine
+        run: cargo build --release
+        working-directory: core
+      - name: Install ast-grep
+        run: npm install -g @ast-grep/cli
       - run: npm ci
       - name: Typecheck
         run: npm run typecheck

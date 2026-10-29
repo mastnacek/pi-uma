@@ -138,7 +138,7 @@ pub fn list_drafts(store: &Store) -> Result<DraftListing> {
 
     listing
         .drafts
-        .sort_by(|a, b| b.fact.validity.since.cmp(&a.fact.validity.since));
+        .sort_by_key(|d| std::cmp::Reverse(d.fact.validity.since));
     Ok(listing)
 }
 
